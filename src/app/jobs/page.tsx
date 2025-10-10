@@ -7,31 +7,51 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import ProtectedRoute from '@/components/ProtectedRoute'
 import { 
+  Briefcase, 
   Plus, 
   Search, 
-  Building2, 
-  MapPin, 
-  Users,
-  Eye,
   Edit,
-  Trash2
+  Trash2,
+  Eye,
+  RefreshCw,
+  Building2,
+  Store
 } from 'lucide-react'
+import { Job, jobStatusLabels, employmentTypeLabels } from '@/types/job'
 import { getJobs, deleteJob } from '@/lib/firestore/jobs'
 import { getCompanies } from '@/lib/firestore/companies'
 import { getStores } from '@/lib/firestore/stores'
-import { Job, jobStatusLabels, employmentTypeLabels } from '@/types/job'
 import { Company } from '@/types/company'
-import { Store } from '@/types/store'
+import { Store as StoreType } from '@/types/store'
+
+const statusColors = {
+  draft: 'bg-gray-100 text-gray-800',
+  active: 'bg-green-100 text-green-800',
+  paused: 'bg-yellow-100 text-yellow-800',
+  closed: 'bg-red-100 text-red-800',
+}
 
 export default function JobsPage() {
+  return (
+    <ProtectedRoute>
+      <JobsPageContent />
+    </ProtectedRoute>
+  )
+}
+
+function JobsPageContent() {
   const [jobs, setJobs] = useState<Job[]>([])
   const [companies, setCompanies] = useState<Company[]>([])
-  const [stores, setStores] = useState<Store[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const [stores, setStores] = useState<StoreType[]>([])
+  const [loading, setLoading] = useState(true)
+  
+  // フィルター・検索状態
   const [searchTerm, setSearchTerm] = useState('')
-  const [statusFilter, setStatusFilter] = useState<string>('all')
-  const [companyFilter, setCompanyFilter] = useState<string>('all')
+  const [statusFilter, setStatusFilter] = useState<Job['status'] | 'all'>('all')
+  const [employmentTypeFilter, setEmploymentTypeFilter] = useState<Job['employmentType'] | 'all'>('all')
 
   useEffect(() => {
     loadData()
@@ -39,7 +59,7 @@ export default function JobsPage() {
 
   const loadData = async () => {
     try {
-      setIsLoading(true)
+      setLoading(true)
       const [jobsData, companiesData, storesData] = await Promise.all([
         getJobs(),
         getCompanies(),
@@ -51,15 +71,15 @@ export default function JobsPage() {
     } catch (error) {
       console.error('Error loading data:', error)
     } finally {
-      setIsLoading(false)
+      setLoading(false)
     }
   }
 
-  const handleDeleteJob = async (id: string) => {
-    if (confirm('この求人を削除しますか？')) {
+  const handleDeleteJob = async (job: Job) => {
+    if (confirm(`${job.title}を削除しますか？この操作は取り消せません。`)) {
       try {
-        await deleteJob(id)
-        setJobs(jobs.filter(job => job.id !== id))
+        await deleteJob(job.id)
+        await loadData()
       } catch (error) {
         console.error('Error deleting job:', error)
         alert('求人の削除に失敗しました')
@@ -72,180 +92,279 @@ export default function JobsPage() {
     return company?.name || '不明な企業'
   }
 
-  const getStoreName = (storeId: string) => {
+  const getStoreName = (storeId?: string) => {
+    if (!storeId) return '-'
     const store = stores.find(s => s.id === storeId)
     return store?.name || '不明な店舗'
   }
 
   const filteredJobs = jobs.filter(job => {
     const matchesSearch = job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         job.jobDescription?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (job.jobDescription && job.jobDescription.toLowerCase().includes(searchTerm.toLowerCase())) ||
                          getCompanyName(job.companyId).toLowerCase().includes(searchTerm.toLowerCase())
     
     const matchesStatus = statusFilter === 'all' || job.status === statusFilter
-    const matchesCompany = companyFilter === 'all' || job.companyId === companyFilter
+    const matchesEmploymentType = employmentTypeFilter === 'all' || job.employmentType === employmentTypeFilter
 
-    return matchesSearch && matchesStatus && matchesCompany
+    return matchesSearch && matchesStatus && matchesEmploymentType
   })
 
-  const getStatusBadgeVariant = (status: Job['status']) => {
-    switch (status) {
-      case 'active': return 'default'
-      case 'draft': return 'secondary'
-      case 'paused': return 'outline'
-      case 'closed': return 'destructive'
-      default: return 'secondary'
-    }
+  const stats = {
+    total: jobs.length,
+    active: jobs.filter(j => j.status === 'active').length,
+    draft: jobs.filter(j => j.status === 'draft').length,
+    paused: jobs.filter(j => j.status === 'paused').length,
+    closed: jobs.filter(j => j.status === 'closed').length,
   }
 
-  if (isLoading) {
+  const getStatusBadge = (status: Job['status']) => {
+    const color = statusColors[status] || 'bg-gray-100 text-gray-800'
     return (
-      <div className="container mx-auto py-8 px-4">
-        <div className="text-center">読み込み中...</div>
+      <Badge className={color}>
+        {jobStatusLabels[status]}
+      </Badge>
+    )
+  }
+
+  const formatSalary = (salary: Job['salary']) => {
+    if (!salary.baseSalary) return '-'
+    return `${salary.baseSalary.toLocaleString()}円`
+  }
+
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex items-center justify-center h-64">
+          <RefreshCw className="h-8 w-8 animate-spin" />
+          <span className="ml-2">求人データを読み込み中...</span>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="container mx-auto py-8 px-4">
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">求人管理</h1>
-          <p className="text-gray-600 mt-2">求人情報の管理・編集ができます</p>
+    <div className="container mx-auto px-4 py-8">
+      {/* ページヘッダー - 紫系テーマ */}
+      <div className="mb-8 p-6 bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg text-white">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-white/20 rounded-full">
+              <Briefcase className="h-8 w-8" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold">求人管理</h1>
+              <p className="text-purple-100 mt-1">
+                求人情報の管理・検索・マッチング
+              </p>
+            </div>
+          </div>
+          
+          {/* ヘッダーアクション */}
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Link href="/companies">
+              <Button 
+                variant="outline"
+                className="bg-white text-purple-600 hover:bg-purple-50 border-white flex items-center gap-2"
+              >
+                <Building2 className="h-4 w-4" />
+                企業管理
+              </Button>
+            </Link>
+            <Link href="/stores">
+              <Button 
+                variant="outline"
+                className="bg-white text-purple-600 hover:bg-purple-50 border-white flex items-center gap-2"
+              >
+                <Store className="h-4 w-4" />
+                店舗管理
+              </Button>
+            </Link>
+            <Link href="/jobs/new">
+              <Button variant="outline" className="bg-white text-purple-600 hover:bg-purple-50 border-white">
+                <Plus className="h-4 w-4 mr-2" />
+                新規求人追加
+              </Button>
+            </Link>
+          </div>
         </div>
-        <Link href="/jobs/new">
-          <Button>
-            <Plus className="h-4 w-4 mr-2" />
-            新規求人作成
-          </Button>
-        </Link>
+      </div>
+
+      {/* 統計カード */}
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">総求人数</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-600">{stats.total}</div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">公開中</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">{stats.active}</div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">下書き</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-gray-600">{stats.draft}</div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">一時停止</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-yellow-600">{stats.paused}</div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">終了</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-600">{stats.closed}</div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* 検索・フィルター */}
       <Card className="mb-6">
-        <CardContent className="pt-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Search className="h-5 w-5" />
+            検索・フィルター
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* 検索 */}
+            <div>
               <Input
                 placeholder="求人名・企業名で検索..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                className="w-full"
               />
             </div>
             
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="ステータス" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">すべてのステータス</SelectItem>
-                <SelectItem value="active">募集中</SelectItem>
-                <SelectItem value="draft">下書き</SelectItem>
-                <SelectItem value="paused">一時停止</SelectItem>
-                <SelectItem value="closed">募集終了</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select value={companyFilter} onValueChange={setCompanyFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="企業" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">すべての企業</SelectItem>
-                {companies.map(company => (
-                  <SelectItem key={company.id} value={company.id}>
-                    {company.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <div className="text-sm text-gray-500 flex items-center">
-              {filteredJobs.length} 件の求人
+            {/* ステータスフィルター */}
+            <div>
+              <Select value={statusFilter} onValueChange={(value: Job['status'] | 'all') => setStatusFilter(value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="ステータス" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">すべてのステータス</SelectItem>
+                  {Object.entries(jobStatusLabels).map(([key, label]) => (
+                    <SelectItem key={key} value={key}>{label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {/* 雇用形態フィルター */}
+            <div>
+              <Select value={employmentTypeFilter} onValueChange={(value: Job['employmentType'] | 'all') => setEmploymentTypeFilter(value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="雇用形態" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">すべての雇用形態</SelectItem>
+                  {Object.entries(employmentTypeLabels).map(([key, label]) => (
+                    <SelectItem key={key} value={key}>{label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* 求人一覧 */}
-      <div className="grid gap-6">
-        {filteredJobs.length === 0 ? (
-          <Card>
-            <CardContent className="pt-6 text-center">
-              <p className="text-gray-500">求人が見つかりませんでした</p>
-            </CardContent>
-          </Card>
-        ) : (
-          filteredJobs.map(job => (
-            <Card key={job.id} className="hover:shadow-md transition-shadow">
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <CardTitle className="text-xl">{job.title}</CardTitle>
-                      <Badge variant={getStatusBadgeVariant(job.status)}>
-                        {jobStatusLabels[job.status]}
-                      </Badge>
+      {/* 求人リスト */}
+      <Card>
+        <CardHeader>
+          <CardTitle>求人リスト ({filteredJobs.length}件)</CardTitle>
+          <CardDescription>
+            登録求人の一覧と管理
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {filteredJobs.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              {jobs.length === 0 ? '求人が登録されていません' : '検索条件に一致する求人がありません'}
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>求人名</TableHead>
+                  <TableHead>企業名</TableHead>
+                  <TableHead>店舗名</TableHead>
+                  <TableHead>雇用形態</TableHead>
+                  <TableHead>給与</TableHead>
+                  <TableHead>ステータス</TableHead>
+                  <TableHead className="text-right">アクション</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredJobs.map((job) => (
+                  <TableRow key={job.id}>
+                    <TableCell className="font-medium">
+                      <div className="font-semibold">{job.title}</div>
+                      <div className="text-sm text-gray-500 truncate max-w-xs">
+                        {job.jobDescription || '詳細未入力'}
+                      </div>
+                    </TableCell>
+                    <TableCell>{getCompanyName(job.companyId)}</TableCell>
+                    <TableCell>{getStoreName(job.storeId)}</TableCell>
+                    <TableCell>
                       <Badge variant="outline">
                         {employmentTypeLabels[job.employmentType]}
                       </Badge>
-                    </div>
-                    
-                    <div className="flex items-center gap-4 text-sm text-gray-600">
-                      <div className="flex items-center gap-1">
-                        <Building2 className="h-4 w-4" />
-                        {getCompanyName(job.companyId)}
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {formatSalary(job.salary)}
+                    </TableCell>
+                    <TableCell>{getStatusBadge(job.status)}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Link href={`/jobs/${job.id}`}>
+                          <Button variant="outline" size="sm">
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </Link>
+                        <Link href={`/jobs/${job.id}/edit`}>
+                          <Button variant="outline" size="sm">
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        </Link>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDeleteJob(job)}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <MapPin className="h-4 w-4" />
-                        {getStoreName(job.storeId)}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <Link href={`/jobs/${job.id}`}>
-                      <Button variant="outline" size="sm">
-                        <Eye className="h-4 w-4 mr-1" />
-                        詳細
-                      </Button>
-                    </Link>
-                    <Link href={`/jobs/${job.id}/edit`}>
-                      <Button variant="outline" size="sm">
-                        <Edit className="h-4 w-4 mr-1" />
-                        編集
-                      </Button>
-                    </Link>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => handleDeleteJob(job.id)}
-                    >
-                      <Trash2 className="h-4 w-4 mr-1" />
-                      削除
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              
-              {job.jobDescription && (
-                <CardContent>
-                  <CardDescription className="line-clamp-2">
-                    {job.jobDescription}
-                  </CardDescription>
-                  
-                  <div className="mt-4 flex items-center gap-4 text-sm text-gray-500">
-                    <span>基本給: {job.salary.baseSalary ? `${job.salary.baseSalary.toLocaleString()}円` : '要相談'}</span>
-                    <span>作成日: {new Date(job.createdAt).toLocaleDateString()}</span>
-                  </div>
-                </CardContent>
-              )}
-            </Card>
-          ))
-        )}
-      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
 }

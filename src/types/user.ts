@@ -3,8 +3,13 @@ export interface User {
   id: string
   email: string
   displayName: string
-  role: 'admin' | 'recruiter' | 'manager'
-  status: 'active' | 'inactive'
+  photoURL?: string
+  role: 'pending' | 'user' | 'admin' | 'rejected'
+  status: 'active' | 'inactive' | 'suspended'
+  approvedBy?: string
+  approvedAt?: string
+  createdAt: string
+  updatedAt: string
   
   // プロフィール情報
   firstName?: string
@@ -20,8 +25,6 @@ export interface User {
   assignedCompanies?: string[] // company IDs
   
   // メタデータ
-  createdAt: string | Date
-  updatedAt: string | Date
   lastLoginAt?: string | Date
 }
 

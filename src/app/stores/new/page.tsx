@@ -1,296 +1,257 @@
 "use client"
 
-import { useState, useEffect, Suspense } from 'react'
+import Link from 'next/link'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { 
-  Store as StoreIcon,
-  ArrowLeft,
-  Save
-} from 'lucide-react'
-import { Store, businessTypeLabels, statusLabels } from '@/types/store'
-import { Company } from '@/types/company'
+import { ArrowLeft, Store, Save, Loader2 } from 'lucide-react'
 import { createStore } from '@/lib/firestore/stores'
 import { getCompanies } from '@/lib/firestore/companies'
-import { toast } from 'sonner'
+import { Store as StoreType } from '@/types/store'
+import { Company } from '@/types/company'
 
-function NewStoreForm() {
+export default function NewStorePage() {
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const preselectedCompanyId = searchParams?.get('companyId')
-  
-  const [companies, setCompanies] = useState<Company[]>([])
   const [loading, setLoading] = useState(false)
-  const [saving, setSaving] = useState(false)
-  
+  const [companies, setCompanies] = useState<Company[]>([])
   const [formData, setFormData] = useState({
-    companyId: preselectedCompanyId || '',
+    companyId: '',
     name: '',
     address: '',
-    businessType: 'kaiten' as Store['businessType'],
+    businessType: '' as const,
     website: '',
     tabelogUrl: '',
     instagramUrl: '',
-    status: 'open' as Store['status']
+    status: 'open' as const
   })
 
   useEffect(() => {
-    loadCompanies()
+    const fetchCompanies = async () => {
+      try {
+        const companiesData = await getCompanies()
+        setCompanies(companiesData)
+      } catch (error) {
+        console.error('企業データの取得に失敗しました:', error)
+      }
+    }
+
+    fetchCompanies()
   }, [])
 
-  const loadCompanies = async () => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!formData.companyId || !formData.name || !formData.address || !formData.businessType) {
+      alert('必須項目を入力してください')
+      return
+    }
+
+    setLoading(true)
+
     try {
-      setLoading(true)
-      const companiesData = await getCompanies()
-      setCompanies(companiesData)
+      const newStore: Omit<StoreType, 'id'> = {
+        companyId: formData.companyId,
+        name: formData.name,
+        address: formData.address,
+        businessType: formData.businessType as 'kaiten' | 'counter_alacarte' | 'counter_omakase' | 'other',
+        website: formData.website || undefined,
+        tabelogUrl: formData.tabelogUrl || undefined,
+        instagramUrl: formData.instagramUrl || undefined,
+        status: formData.status,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+
+      await createStore(newStore)
+      alert('店舗が正常に追加されました')
+      router.push('/stores')
     } catch (error) {
-      console.error('Error loading companies:', error)
-      toast.error('企業データの読み込みに失敗しました')
+      console.error('店舗の追加に失敗しました:', error)
+      alert('店舗の追加に失敗しました。もう一度お試しください。')
     } finally {
       setLoading(false)
     }
   }
 
-  const handleInputChange = (field: string, value: string) => {
+  const handleChange = (field: string, value: string) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
     }))
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    if (!formData.companyId) {
-      toast.error('企業を選択してください')
-      return
-    }
-    
-    if (!formData.name.trim()) {
-      toast.error('店舗名は必須です')
-      return
-    }
-
-    if (!formData.address.trim()) {
-      toast.error('所在地は必須です')
-      return
-    }
-
-    try {
-      setSaving(true)
-      const newStoreId = await createStore(formData)
-      toast.success('店舗を作成しました')
-      router.push(`/stores/${newStoreId}`)
-    } catch (error) {
-      console.error('Error creating store:', error)
-      toast.error('店舗の作成に失敗しました')
-    } finally {
-      setSaving(false)
-    }
-  }
-
   return (
     <div className="container mx-auto px-4 py-8">
-      {/* ページヘッダー */}
       <div className="flex items-center gap-4 mb-8">
-        <Button
-          variant="outline"
-          onClick={() => router.back()}
-          className="flex items-center gap-2"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          戻る
-        </Button>
+        <Link href="/stores">
+          <Button variant="outline" size="sm">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            戻る
+          </Button>
+        </Link>
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">
-            <StoreIcon className="h-8 w-8" />
+            <Store className="h-8 w-8" />
             新規店舗追加
           </h1>
           <p className="text-gray-600 mt-2">
-            新しい店舗の情報を入力してください
+            新しい店舗の情報を入力
           </p>
         </div>
       </div>
+      
+      <form onSubmit={handleSubmit}>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* 基本情報 */}
+          <Card>
+            <CardHeader>
+              <CardTitle>基本情報</CardTitle>
+              <CardDescription>
+                店舗の基本的な情報を入力してください
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="companyId">所属企業 *</Label>
+                <Select value={formData.companyId} onValueChange={(value) => handleChange('companyId', value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="企業を選択してください" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {companies.map((company) => (
+                      <SelectItem key={company.id} value={company.id}>
+                        {company.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-      {/* フォーム */}
-      <form onSubmit={handleSubmit} className="max-w-2xl">
-        <Card>
-          <CardHeader>
-            <CardTitle>基本情報</CardTitle>
-            <CardDescription>
-              店舗の基本情報を入力してください
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* 企業選択 */}
-            <div className="space-y-2">
-              <Label htmlFor="companyId">所属企業 *</Label>
-              <Select 
-                value={formData.companyId} 
-                onValueChange={(value) => handleInputChange('companyId', value)}
-                disabled={loading}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="企業を選択してください" />
-                </SelectTrigger>
-                <SelectContent>
-                  {companies.map(company => (
-                    <SelectItem key={company.id} value={company.id}>
-                      {company.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+              <div>
+                <Label htmlFor="name">店舗名 *</Label>
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) => handleChange('name', e.target.value)}
+                  placeholder="例: 寿司松 本店"
+                  required
+                />
+              </div>
 
-            {/* 店舗名 */}
-            <div className="space-y-2">
-              <Label htmlFor="name">店舗名 *</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => handleInputChange('name', e.target.value)}
-                placeholder="寿司職人の店 魚心"
-                required
-              />
-            </div>
+              <div>
+                <Label htmlFor="address">所在地 *</Label>
+                <Textarea
+                  id="address"
+                  value={formData.address}
+                  onChange={(e) => handleChange('address', e.target.value)}
+                  placeholder="〒000-0000 東京都..."
+                  rows={3}
+                  required
+                />
+              </div>
 
-            {/* 所在地 */}
-            <div className="space-y-2">
-              <Label htmlFor="address">所在地 *</Label>
-              <Input
-                id="address"
-                value={formData.address}
-                onChange={(e) => handleInputChange('address', e.target.value)}
-                placeholder="東京都中央区銀座1-1-1"
-                required
-              />
-            </div>
+              <div>
+                <Label htmlFor="businessType">業態 *</Label>
+                <Select value={formData.businessType} onValueChange={(value) => handleChange('businessType', value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="業態を選択してください" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="kaiten">回転寿司</SelectItem>
+                    <SelectItem value="counter_alacarte">カウンター寿司（アラカルト）</SelectItem>
+                    <SelectItem value="counter_omakase">カウンター寿司（おまかせ）</SelectItem>
+                    <SelectItem value="other">その他</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-            {/* 業態 */}
-            <div className="space-y-2">
-              <Label htmlFor="businessType">業態 *</Label>
-              <Select 
-                value={formData.businessType} 
-                onValueChange={(value) => handleInputChange('businessType', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(businessTypeLabels).map(([key, label]) => (
-                    <SelectItem key={key} value={key}>
-                      {label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+              <div>
+                <Label htmlFor="status">営業状況</Label>
+                <Select value={formData.status} onValueChange={(value) => handleChange('status', value as 'open' | 'closed')}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="open">営業中</SelectItem>
+                    <SelectItem value="closed">閉店</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
 
-            {/* 取引状況 */}
-            <div className="space-y-2">
-              <Label htmlFor="status">取引状況 *</Label>
-              <Select 
-                value={formData.status} 
-                onValueChange={(value) => handleInputChange('status', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(statusLabels).map(([key, label]) => (
-                    <SelectItem key={key} value={key}>
-                      {label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-        </Card>
+          {/* オンライン情報 */}
+          <Card>
+            <CardHeader>
+              <CardTitle>オンライン情報</CardTitle>
+              <CardDescription>
+                店舗のウェブサイトやSNS情報を入力してください
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="website">公式ウェブサイト</Label>
+                <Input
+                  id="website"
+                  type="url"
+                  value={formData.website}
+                  onChange={(e) => handleChange('website', e.target.value)}
+                  placeholder="https://example.com"
+                />
+              </div>
 
-        <Card className="mt-6">
-          <CardHeader>
-            <CardTitle>外部リンク</CardTitle>
-            <CardDescription>
-              店舗の外部リンク情報を入力してください（任意）
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* 公式ウェブサイト */}
-            <div className="space-y-2">
-              <Label htmlFor="website">公式ウェブサイト</Label>
-              <Input
-                id="website"
-                type="url"
-                value={formData.website}
-                onChange={(e) => handleInputChange('website', e.target.value)}
-                placeholder="https://example.com"
-              />
-            </div>
+              <div>
+                <Label htmlFor="tabelogUrl">食べログURL</Label>
+                <Input
+                  id="tabelogUrl"
+                  type="url"
+                  value={formData.tabelogUrl}
+                  onChange={(e) => handleChange('tabelogUrl', e.target.value)}
+                  placeholder="https://tabelog.com/..."
+                />
+              </div>
 
-            {/* 食べログURL */}
-            <div className="space-y-2">
-              <Label htmlFor="tabelogUrl">食べログURL</Label>
-              <Input
-                id="tabelogUrl"
-                type="url"
-                value={formData.tabelogUrl}
-                onChange={(e) => handleInputChange('tabelogUrl', e.target.value)}
-                placeholder="https://tabelog.com/..."
-              />
-            </div>
-
-            {/* Instagram URL */}
-            <div className="space-y-2">
-              <Label htmlFor="instagramUrl">Instagram URL</Label>
-              <Input
-                id="instagramUrl"
-                type="url"
-                value={formData.instagramUrl}
-                onChange={(e) => handleInputChange('instagramUrl', e.target.value)}
-                placeholder="https://instagram.com/..."
-              />
-            </div>
-          </CardContent>
-        </Card>
+              <div>
+                <Label htmlFor="instagramUrl">Instagram URL</Label>
+                <Input
+                  id="instagramUrl"
+                  type="url"
+                  value={formData.instagramUrl}
+                  onChange={(e) => handleChange('instagramUrl', e.target.value)}
+                  placeholder="https://instagram.com/..."
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
         {/* 保存ボタン */}
-        <div className="flex gap-4 mt-8">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => router.back()}
-          >
-            キャンセル
-          </Button>
-          <Button
-            type="submit"
-            disabled={saving}
-            className="flex items-center gap-2"
-          >
-            {saving ? (
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+        <div className="flex justify-end gap-4 mt-8">
+          <Link href="/stores">
+            <Button variant="outline" type="button">
+              キャンセル
+            </Button>
+          </Link>
+          <Button type="submit" disabled={loading}>
+            {loading ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                保存中...
+              </>
             ) : (
-              <Save className="h-4 w-4" />
+              <>
+                <Save className="h-4 w-4 mr-2" />
+                店舗を追加
+              </>
             )}
-            作成
           </Button>
         </div>
       </form>
     </div>
-  )
-}
-
-export default function NewStorePage() {
-  return (
-    <Suspense fallback={<div>Loading...</div>}>
-      <NewStoreForm />
-    </Suspense>
   )
 }

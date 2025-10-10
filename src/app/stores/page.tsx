@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import ProtectedRoute from '@/components/ProtectedRoute'
 import { 
   Store as StoreIcon, 
   Plus, 
@@ -20,10 +21,9 @@ import {
   Building2
 } from 'lucide-react'
 import { Store, businessTypeLabels, statusLabels } from '@/types/store'
-import { getStores, deleteStore, getStoresByBusinessType } from '@/lib/firestore/stores'
+import { getStores, deleteStore } from '@/lib/firestore/stores'
 import { getCompanies } from '@/lib/firestore/companies'
 import { Company } from '@/types/company'
-import { toast } from 'sonner'
 
 const statusColors = {
   open: 'bg-green-100 text-green-800',
@@ -31,6 +31,14 @@ const statusColors = {
 }
 
 export default function StoresPage() {
+  return (
+    <ProtectedRoute>
+      <StoresPageContent />
+    </ProtectedRoute>
+  )
+}
+
+function StoresPageContent() {
   const [stores, setStores] = useState<Store[]>([])
   const [companies, setCompanies] = useState<Company[]>([])
   const [loading, setLoading] = useState(true)
@@ -55,7 +63,6 @@ export default function StoresPage() {
       setCompanies(companiesData)
     } catch (error) {
       console.error('Error loading data:', error)
-      toast.error('データの読み込みに失敗しました')
     } finally {
       setLoading(false)
     }
@@ -72,38 +79,36 @@ export default function StoresPage() {
       }
     }
   }
-  }
-
-  const getStatusBadge = (status: Store['status']) => {
-    return (
-      <Badge className={statusColors[status]}>
-        {statusLabels[status]}
-      </Badge>
-    )
-  }
 
   const getCompanyName = (companyId: string) => {
     const company = companies.find(c => c.id === companyId)
-    return company?.name || '不明'
+    return company?.name || '不明な企業'
   }
 
-  // フィルタリング済み店舗リスト
   const filteredStores = stores.filter(store => {
     const matchesSearch = store.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          getCompanyName(store.companyId).toLowerCase().includes(searchTerm.toLowerCase())
     
     const matchesBusinessType = businessTypeFilter === 'all' || store.businessType === businessTypeFilter
     const matchesStatus = statusFilter === 'all' || store.status === statusFilter
-    
+
     return matchesSearch && matchesBusinessType && matchesStatus
   })
 
-  // 統計データ
   const stats = {
     total: stores.length,
     open: stores.filter(s => s.status === 'open').length,
     closed: stores.filter(s => s.status === 'closed').length,
     kaiten: stores.filter(s => s.businessType === 'kaiten').length,
+  }
+
+  const getStatusBadge = (status: Store['status']) => {
+    const color = statusColors[status] || 'bg-gray-100 text-gray-800'
+    return (
+      <Badge className={color}>
+        {statusLabels[status]}
+      </Badge>
+    )
   }
 
   if (loading) {
@@ -119,35 +124,39 @@ export default function StoresPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      {/* ページヘッダー */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <StoreIcon className="h-8 w-8" />
-            店舗管理
-          </h1>
-          <p className="text-gray-600 mt-2">
-            登録店舗の管理・検索・業態別分析
-          </p>
-        </div>
-        
-        {/* ヘッダーアクション */}
-        <div className="flex flex-col sm:flex-row gap-4">
-          <Link href="/companies">
-            <Button 
-              variant="outline"
-              className="flex items-center gap-2"
-            >
-              <Building2 className="h-4 w-4" />
-              企業管理に戻る
-            </Button>
-          </Link>
-          <Link href="/stores/new">
-            <Button className="flex items-center gap-2">
-              <Plus className="h-4 w-4" />
-              新規店舗追加
-            </Button>
-          </Link>
+      {/* ページヘッダー - オレンジ系テーマ */}
+      <div className="mb-8 p-6 bg-gradient-to-r from-orange-500 to-orange-600 rounded-lg text-white">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-white/20 rounded-full">
+              <StoreIcon className="h-8 w-8" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold">店舗管理</h1>
+              <p className="text-orange-100 mt-1">
+                登録店舗の管理・検索・業態別分析
+              </p>
+            </div>
+          </div>
+          
+          {/* ヘッダーアクション */}
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Link href="/companies">
+              <Button 
+                variant="outline"
+                className="bg-white text-orange-600 hover:bg-orange-50 border-white flex items-center gap-2"
+              >
+                <Building2 className="h-4 w-4" />
+                企業管理へ
+              </Button>
+            </Link>
+            <Link href="/stores/new">
+              <Button variant="outline" className="bg-white text-orange-600 hover:bg-orange-50 border-white">
+                <Plus className="h-4 w-4 mr-2" />
+                新規店舗追加
+              </Button>
+            </Link>
+          </div>
         </div>
       </div>
 
@@ -338,7 +347,5 @@ export default function StoresPage() {
         </CardContent>
       </Card>
     </div>
-  )
-}
   )
 }

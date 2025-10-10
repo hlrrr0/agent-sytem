@@ -153,48 +153,52 @@ export default function CompaniesPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      {/* ページヘッダー */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Building2 className="h-8 w-8" />
-            企業管理
-          </h1>
-          <p className="text-gray-600 mt-2">
-            登録企業の管理・検索・Dominoシステムとの連携
-          </p>
-        </div>
-        
-        {/* ヘッダーアクション */}
-        <div className="flex flex-col sm:flex-row gap-4">
-          <Button
-            onClick={handleImportFromDomino}
-            disabled={isImporting}
-            variant="outline"
-            className="flex items-center gap-2"
-          >
-            {isImporting ? (
-              <RefreshCw className="h-4 w-4 animate-spin" />
-            ) : (
-              <Download className="h-4 w-4" />
-            )}
-            Dominoから取得
-          </Button>
-          <Link href="/domino/import">
-            <Button 
+      {/* ページヘッダー - 緑系テーマ */}
+      <div className="mb-8 p-6 bg-gradient-to-r from-green-500 to-green-600 rounded-lg text-white">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-white/20 rounded-full">
+              <Building2 className="h-8 w-8" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold">企業管理</h1>
+              <p className="text-green-100 mt-1">
+                登録企業の管理・検索・Dominoシステムとの連携
+              </p>
+            </div>
+          </div>
+          
+          {/* ヘッダーアクション */}
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Button
+              onClick={handleImportFromDomino}
+              disabled={isImporting}
               variant="outline"
-              className="flex items-center gap-2"
+              className="bg-white text-green-600 hover:bg-green-50 border-white flex items-center gap-2"
             >
-              <Download className="h-4 w-4" />
-              詳細インポート
+              {isImporting ? (
+                <RefreshCw className="h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4" />
+              )}
+              Dominoから取得
             </Button>
-          </Link>
-          <Link href="/companies/new">
-            <Button className="flex items-center gap-2">
-              <Plus className="h-4 w-4" />
-              新規企業追加
-            </Button>
-          </Link>
+            <Link href="/domino/import">
+              <Button 
+                variant="outline"
+                className="bg-white text-green-600 hover:bg-green-50 border-white flex items-center gap-2"
+              >
+                <Download className="h-4 w-4" />
+                詳細インポート
+              </Button>
+            </Link>
+            <Link href="/companies/new">
+              <Button variant="outline" className="bg-white text-green-600 hover:bg-green-50 border-white">
+                <Plus className="h-4 w-4 mr-2" />
+                新規企業追加
+              </Button>
+            </Link>
+          </div>
         </div>
       </div>
 

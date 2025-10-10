@@ -1,83 +1,175 @@
 "use client"
 
-import { useState, useEffect } from 'react'
-import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
+import ProtectedRoute from '@/components/ProtectedRoute'
 import { 
-  Building2, 
+  ArrowLeft, 
+  Briefcase, 
+  Edit, 
   MapPin, 
   Clock, 
-  DollarSign, 
-  Users, 
+  DollarSign,
+  Users,
   Calendar,
-  Edit,
-  ArrowLeft
+  Building2,
+  Store,
+  Eye,
+  EyeOff,
+  Star,
+  TrendingUp,
+  User
 } from 'lucide-react'
-import { getJobById } from '@/lib/firestore/jobs'
-import { getCompanyById } from '@/lib/firestore/companies'
-import { getStoreById } from '@/lib/firestore/stores'
-import { Job, jobStatusLabels, employmentTypeLabels, visibilityLabels } from '@/types/job'
+import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore'
+import { db } from '@/lib/firebase'
+import { Job } from '@/types/job'
 import { Company } from '@/types/company'
-import { Store } from '@/types/store'
 
-export default function JobDetailPage() {
-  const params = useParams()
+interface JobDetailPageProps {
+  params: Promise<{
+    id: string
+  }>
+}
+
+export default function JobDetailPage({ params }: JobDetailPageProps) {
+  return (
+    <ProtectedRoute>
+      <JobDetailContent params={params} />
+    </ProtectedRoute>
+  )
+}
+
+function JobDetailContent({ params }: JobDetailPageProps) {
   const router = useRouter()
+  const [loading, setLoading] = useState(true)
+  const [jobId, setJobId] = useState<string>('')
   const [job, setJob] = useState<Job | null>(null)
   const [company, setCompany] = useState<Company | null>(null)
-  const [store, setStore] = useState<Store | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [store, setStore] = useState<any | null>(null)
+  const [applications, setApplications] = useState<any[]>([])
 
   useEffect(() => {
-    if (params.id) {
-      loadJobData(params.id as string)
-    }
-  }, [params.id])
-
-  const loadJobData = async (jobId: string) => {
-    try {
-      setIsLoading(true)
-      const jobData = await getJobById(jobId)
+    const initializeComponent = async () => {
+      const resolvedParams = await params
+      setJobId(resolvedParams.id)
       
-      if (jobData) {
-        setJob(jobData)
-        
-        // 企業と店舗の詳細情報を取得
-        const [companyData, storeData] = await Promise.all([
-          getCompanyById(jobData.companyId),
-          getStoreById(jobData.storeId)
-        ])
-        
-        setCompany(companyData)
-        setStore(storeData)
-      } else {
-        router.push('/jobs')
+      const fetchJobData = async () => {
+        try {
+          const jobDoc = await getDoc(doc(db, 'jobs', resolvedParams.id))
+          if (jobDoc.exists()) {
+            const jobData = jobDoc.data() as Job
+            setJob({ ...jobData, id: resolvedParams.id })
+            
+            // 関連企業の取得
+            if (jobData.companyId) {
+              const companyDoc = await getDoc(doc(db, 'companies', jobData.companyId))
+              if (companyDoc.exists()) {
+                setCompany({ ...companyDoc.data() as Company, id: jobData.companyId })
+              }
+            }
+            
+            // 関連店舗の取得
+            if (jobData.storeId) {
+              const storeDoc = await getDoc(doc(db, 'stores', jobData.storeId))
+              if (storeDoc.exists()) {
+                setStore({ ...storeDoc.data(), id: jobData.storeId })
+              }
+            }
+            
+            // 応募者の取得
+            const applicationsQuery = query(
+              collection(db, 'applications'),
+              where('jobId', '==', resolvedParams.id)
+            )
+            const applicationsSnapshot = await getDocs(applicationsQuery)
+            const applicationsData = applicationsSnapshot.docs.map(doc => ({
+              id: doc.id,
+              ...doc.data()
+            }))
+            setApplications(applicationsData)
+          } else {
+            alert('求人が見つかりません')
+            router.push('/jobs')
+          }
+        } catch (error) {
+          console.error('求人データの取得に失敗しました:', error)
+          alert('求人データの取得に失敗しました')
+        } finally {
+          setLoading(false)
+        }
       }
-    } catch (error) {
-      console.error('Error loading job data:', error)
-      router.push('/jobs')
-    } finally {
-      setIsLoading(false)
-    }
-  }
 
-  const getStatusBadgeVariant = (status: Job['status']) => {
-    switch (status) {
-      case 'active': return 'default'
-      case 'draft': return 'secondary'
-      case 'paused': return 'outline'
-      case 'closed': return 'destructive'
-      default: return 'secondary'
+      fetchJobData()
     }
-  }
 
-  if (isLoading) {
+    initializeComponent()
+  }, [params, router])
+
+  const getStatusBadge = (status: Job['status']) => {
+    const colors = {
+      draft: 'bg-gray-100 text-gray-800',
+      published: 'bg-green-100 text-green-800',
+      closed: 'bg-red-100 text-red-800',
+      paused: 'bg-yellow-100 text-yellow-800',
+    }
+    
+    const labels = {
+      draft: '下書き',
+      published: '公開中',
+      closed: '終了',
+      paused: '一時停止',
+    }
+    
     return (
-      <div className="container mx-auto py-8 px-4">
+      <Badge className={colors[status]}>
+        {labels[status]}
+      </Badge>
+    )
+  }
+
+  const getEmploymentTypeBadge = (type: Job['employmentType']) => {
+    const colors = {
+      full-time: 'bg-blue-100 text-blue-800',
+      part-time: 'bg-purple-100 text-purple-800',
+      contract: 'bg-orange-100 text-orange-800',
+      temporary: 'bg-pink-100 text-pink-800',
+      intern: 'bg-green-100 text-green-800',
+    }
+    
+    const labels = {
+      'full-time': '正社員',
+      'part-time': 'アルバイト・パート',
+      'contract': '契約社員',
+      'temporary': '派遣社員',
+      'intern': 'インターン',
+    }
+    
+    return (
+      <Badge className={colors[type]}>
+        {labels[type]}
+      </Badge>
+    )
+  }
+
+  const formatSalary = (job: Job) => {
+    if (job.salaryType === 'hourly') {
+      return `時給 ${job.salaryMin?.toLocaleString()}円${job.salaryMax ? ` ～ ${job.salaryMax.toLocaleString()}円` : ''}`
+    } else if (job.salaryType === 'monthly') {
+      return `月給 ${job.salaryMin?.toLocaleString()}円${job.salaryMax ? ` ～ ${job.salaryMax.toLocaleString()}円` : ''}`
+    } else if (job.salaryType === 'annual') {
+      return `年収 ${job.salaryMin?.toLocaleString()}万円${job.salaryMax ? ` ～ ${job.salaryMax.toLocaleString()}万円` : ''}`
+    }
+    return '要相談'
+  }
+
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
         <div className="text-center">読み込み中...</div>
       </div>
     )
@@ -85,339 +177,350 @@ export default function JobDetailPage() {
 
   if (!job) {
     return (
-      <div className="container mx-auto py-8 px-4">
-        <div className="text-center">求人が見つかりませんでした</div>
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center">求人が見つかりません</div>
       </div>
     )
   }
 
   return (
-    <div className="container mx-auto py-8 px-4">
+    <div className="container mx-auto px-4 py-8">
       {/* ヘッダー */}
-      <div className="flex items-center gap-4 mb-8">
-        <Button variant="outline" onClick={() => router.back()}>
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          戻る
-        </Button>
-        <div className="flex-1">
-          <h1 className="text-3xl font-bold text-gray-900">{job.title}</h1>
-          <div className="flex items-center gap-2 mt-2">
-            <Badge variant={getStatusBadgeVariant(job.status)}>
-              {jobStatusLabels[job.status]}
-            </Badge>
-            <Badge variant="outline">
-              {employmentTypeLabels[job.employmentType]}
-            </Badge>
-            <Badge variant="secondary">
-              {visibilityLabels[job.visibility]}
-            </Badge>
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center gap-4">
+          <Link href="/jobs">
+            <Button variant="outline" size="sm">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              求人一覧に戻る
+            </Button>
+          </Link>
+          <div>
+            <h1 className="text-3xl font-bold flex items-center gap-2">
+              <Briefcase className="h-8 w-8" />
+              {job.title}
+            </h1>
+            <div className="flex items-center gap-2 mt-2">
+              {getStatusBadge(job.status)}
+              {getEmploymentTypeBadge(job.employmentType)}
+              {job.isUrgent && (
+                <Badge variant="destructive">急募</Badge>
+              )}
+              {job.isRemoteOk && (
+                <Badge variant="outline">リモートOK</Badge>
+              )}
+            </div>
           </div>
         </div>
-        <Link href={`/jobs/${job.id}/edit`}>
-          <Button>
-            <Edit className="h-4 w-4 mr-2" />
+        
+        <Link href={`/jobs/${jobId}/edit`}>
+          <Button className="flex items-center gap-2">
+            <Edit className="h-4 w-4" />
             編集
           </Button>
         </Link>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* メインコンテンツ */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* メイン情報 */}
         <div className="lg:col-span-2 space-y-6">
           {/* 基本情報 */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Building2 className="h-5 w-5" />
-                企業・店舗情報
-              </CardTitle>
+              <CardTitle>求人基本情報</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <p className="text-sm text-gray-600">企業名</p>
-                  <p className="font-medium">{company?.name || '不明'}</p>
+                  <h3 className="font-medium text-gray-700">職種</h3>
+                  <p className="text-lg">{job.title}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">店舗名</p>
-                  <p className="font-medium">{store?.name || '不明'}</p>
+                  <h3 className="font-medium text-gray-700 flex items-center gap-2">
+                    <DollarSign className="h-4 w-4" />
+                    給与
+                  </h3>
+                  <p className="text-lg">{formatSalary(job)}</p>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div>
+                <h3 className="font-medium text-gray-700 flex items-center gap-2">
+                  <MapPin className="h-4 w-4" />
+                  勤務地
+                </h3>
+                <p className="mt-1">{job.location}</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <h3 className="font-medium text-gray-700 flex items-center gap-2">
+                    <Clock className="h-4 w-4" />
+                    勤務時間
+                  </h3>
+                  <p className="mt-1">{job.workingHours || '要相談'}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">所在地</p>
-                  <p className="font-medium">{store?.address || company?.address || '不明'}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">担当者</p>
-                  <p className="font-medium">{company?.representative || '不明'}</p>
+                  <h3 className="font-medium text-gray-700 flex items-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    休日
+                  </h3>
+                  <p className="mt-1">{job.holidays || '要相談'}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* 職務内容 */}
-          {job.jobDescription && (
+          {/* 仕事内容 */}
+          {job.description && (
             <Card>
               <CardHeader>
-                <CardTitle>職務内容</CardTitle>
+                <CardTitle>仕事内容</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="whitespace-pre-wrap">{job.jobDescription}</p>
+                <div className="whitespace-pre-wrap">{job.description}</div>
               </CardContent>
             </Card>
           )}
 
-          {/* 求めるスキル */}
-          {job.requiredSkills && (
+          {/* 応募要件 */}
+          {(job.requirements || job.preferredSkills) && (
             <Card>
               <CardHeader>
-                <CardTitle>求めるスキル</CardTitle>
+                <CardTitle>応募要件・歓迎スキル</CardTitle>
               </CardHeader>
-              <CardContent>
-                <p className="whitespace-pre-wrap">{job.requiredSkills}</p>
+              <CardContent className="space-y-4">
+                {job.requirements && (
+                  <div>
+                    <h3 className="font-medium text-gray-700 mb-2">必要なスキル・経験</h3>
+                    <div className="whitespace-pre-wrap">{job.requirements}</div>
+                  </div>
+                )}
+                {job.preferredSkills && (
+                  <div>
+                    <h3 className="font-medium text-gray-700 mb-2">歓迎するスキル・経験</h3>
+                    <div className="whitespace-pre-wrap">{job.preferredSkills}</div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
 
-          {/* 勤務条件 */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Clock className="h-5 w-5" />
-                勤務条件
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {job.workSchedule?.workingHours && (
-                <div>
-                  <p className="text-sm text-gray-600">勤務時間</p>
-                  <p className="font-medium">{job.workSchedule.workingHours}</p>
-                </div>
-              )}
-              
-              {job.workSchedule?.shiftType && (
-                <div>
-                  <p className="text-sm text-gray-600">勤務シフト</p>
-                  <p className="font-medium">{job.workSchedule.shiftType}</p>
-                </div>
-              )}
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {job.workSchedule?.weeklyHolidays && (
-                  <div>
-                    <p className="text-sm text-gray-600">週休</p>
-                    <p className="font-medium">{job.workSchedule.weeklyHolidays}日</p>
-                  </div>
-                )}
-                
-                {job.workSchedule?.holidays && (
-                  <div>
-                    <p className="text-sm text-gray-600">休日詳細</p>
-                    <p className="font-medium">{job.workSchedule.holidays}</p>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* 福利厚生 */}
+          {/* 福利厚生・待遇 */}
           {job.benefits && (
             <Card>
               <CardHeader>
-                <CardTitle>福利厚生</CardTitle>
+                <CardTitle>福利厚生・待遇</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-2">
-                  {job.benefits.socialInsurance && (
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      <span>社会保険完備</span>
-                    </div>
-                  )}
-                  {job.benefits.uniform && (
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      <span>制服貸与</span>
-                    </div>
-                  )}
-                  {job.benefits.meals && (
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      <span>食事補助</span>
-                    </div>
-                  )}
-                  {job.benefits.training && (
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      <span>研修制度</span>
-                    </div>
-                  )}
-                  {job.benefits.other && job.benefits.other.length > 0 && (
-                    <div>
-                      <p className="text-sm text-gray-600 mb-2">その他の福利厚生:</p>
-                      {job.benefits.other.map((benefit, index) => (
-                        <div key={index} className="flex items-center gap-2">
-                          <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                          <span>{benefit}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                <div className="whitespace-pre-wrap">{job.benefits}</div>
               </CardContent>
             </Card>
           )}
+
+          {/* 応募情報 */}
+          <Card>
+            <CardHeader>
+              <CardTitle>応募情報</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {job.applicationDeadline && (
+                  <div>
+                    <h3 className="font-medium text-gray-700">応募締切</h3>
+                    <p className="mt-1">
+                      {new Date(job.applicationDeadline).toLocaleDateString('ja-JP')}
+                    </p>
+                  </div>
+                )}
+                {job.startDate && (
+                  <div>
+                    <h3 className="font-medium text-gray-700">勤務開始日</h3>
+                    <p className="mt-1">
+                      {new Date(job.startDate).toLocaleDateString('ja-JP')}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <Separator />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
+                <div>
+                  <h3 className="font-medium">作成日時</h3>
+                  <p>{new Date(job.createdAt).toLocaleString('ja-JP')}</p>
+                </div>
+                <div>
+                  <h3 className="font-medium">更新日時</h3>
+                  <p>{new Date(job.updatedAt).toLocaleString('ja-JP')}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* サイドバー */}
         <div className="space-y-6">
-          {/* 給与情報 */}
+          {/* 企業・店舗情報 */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <DollarSign className="h-5 w-5" />
-                給与情報
-              </CardTitle>
+              <CardTitle>勤務先情報</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {job.salary.baseSalary && (
+              {company && (
                 <div>
-                  <p className="text-sm text-gray-600">基本給</p>
-                  <p className="text-lg font-bold">{job.salary.baseSalary.toLocaleString()}円</p>
-                </div>
-              )}
-              
-              {job.salary.housingAllowance && (
-                <div>
-                  <p className="text-sm text-gray-600">住宅手当</p>
-                  <p className="font-medium">{job.salary.housingAllowance.toLocaleString()}円</p>
-                </div>
-              )}
-              
-              {job.salary.transportationAllowance?.provided && (
-                <div>
-                  <p className="text-sm text-gray-600">交通費</p>
-                  <p className="font-medium">
-                    支給あり
-                    {job.salary.transportationAllowance.maxAmount && 
-                      ` (上限 ${job.salary.transportationAllowance.maxAmount.toLocaleString()}円)`
-                    }
-                  </p>
-                </div>
-              )}
-              
-              <div className="space-y-2">
-                {job.salary.commission && (
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    <span className="text-sm">歩合制あり</span>
+                  <h3 className="font-medium text-gray-700 flex items-center gap-2">
+                    <Building2 className="h-4 w-4" />
+                    企業
+                  </h3>
+                  <div className="mt-1 flex items-center justify-between">
+                    <span>{company.name}</span>
+                    <Link href={`/companies/${company.id}`}>
+                      <Button variant="outline" size="sm">詳細</Button>
+                    </Link>
                   </div>
-                )}
-                {job.salary.tips && (
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    <span className="text-sm">チップ制あり</span>
+                </div>
+              )}
+
+              {store && (
+                <div>
+                  <h3 className="font-medium text-gray-700 flex items-center gap-2">
+                    <Store className="h-4 w-4" />
+                    店舗
+                  </h3>
+                  <div className="mt-1 flex items-center justify-between">
+                    <span>{store.name}</span>
+                    <Link href={`/stores/${store.id}`}>
+                      <Button variant="outline" size="sm">詳細</Button>
+                    </Link>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
-          {/* 試用期間 */}
-          {job.trialPeriod && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Calendar className="h-5 w-5" />
-                  試用期間
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <div>
-                  <p className="text-sm text-gray-600">期間</p>
-                  <p className="font-medium">{job.trialPeriod.duration}ヶ月</p>
-                </div>
-                {job.trialPeriod.conditions && (
-                  <div>
-                    <p className="text-sm text-gray-600">条件</p>
-                    <p className="font-medium">{job.trialPeriod.conditions}</p>
-                  </div>
-                )}
-                {job.trialPeriod.salaryDifference && (
-                  <div>
-                    <p className="text-sm text-gray-600">給与差異</p>
-                    <p className="font-medium">{job.trialPeriod.salaryDifference.toLocaleString()}円</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* 応募条件 */}
-          {job.requirements && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5" />
-                  応募条件
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {job.requirements.experienceYears && (
-                  <div>
-                    <p className="text-sm text-gray-600">経験年数</p>
-                    <p className="font-medium">{job.requirements.experienceYears}年以上</p>
-                  </div>
-                )}
-                
-                {job.requirements.requiredSkills && job.requirements.requiredSkills.length > 0 && (
-                  <div>
-                    <p className="text-sm text-gray-600">必要スキル</p>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {job.requirements.requiredSkills.map((skill, index) => (
-                        <Badge key={index} variant="outline" className="text-xs">
-                          {skill}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                
-                {job.requirements.certifications && job.requirements.certifications.length > 0 && (
-                  <div>
-                    <p className="text-sm text-gray-600">資格</p>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {job.requirements.certifications.map((cert, index) => (
-                        <Badge key={index} variant="outline" className="text-xs">
-                          {cert}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                
-                {job.requirements.other && (
-                  <div>
-                    <p className="text-sm text-gray-600">その他条件</p>
-                    <p className="text-sm">{job.requirements.other}</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* 作成情報 */}
+          {/* クイックアクション */}
           <Card>
             <CardHeader>
-              <CardTitle>作成情報</CardTitle>
+              <CardTitle>クイックアクション</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              <div>
-                <p className="text-sm text-gray-600">作成日</p>
-                <p className="font-medium">{new Date(job.createdAt).toLocaleDateString()}</p>
+              <Link href={`/jobs/${jobId}/edit`}>
+                <Button variant="outline" className="w-full justify-start">
+                  <Edit className="h-4 w-4 mr-2" />
+                  求人情報を編集
+                </Button>
+              </Link>
+              
+              <Button 
+                variant="outline" 
+                className="w-full justify-start"
+                onClick={() => {
+                  if (job.status === 'published') {
+                    // 公開停止の処理
+                    console.log('求人を非公開にする')
+                  } else {
+                    // 公開の処理
+                    console.log('求人を公開する')
+                  }
+                }}
+              >
+                {job.status === 'published' ? (
+                  <>
+                    <EyeOff className="h-4 w-4 mr-2" />
+                    公開を停止
+                  </>
+                ) : (
+                  <>
+                    <Eye className="h-4 w-4 mr-2" />
+                    求人を公開
+                  </>
+                )}
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* 統計情報 */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5" />
+                応募状況
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">総応募数</span>
+                  <span className="font-medium">{applications.length}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">新規応募</span>
+                  <span className="font-medium">
+                    {applications.filter(app => app.status === 'applied').length}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">書類選考中</span>
+                  <span className="font-medium">
+                    {applications.filter(app => app.status === 'screening').length}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">面接予定</span>
+                  <span className="font-medium">
+                    {applications.filter(app => app.status === 'interview').length}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">内定</span>
+                  <span className="font-medium">
+                    {applications.filter(app => app.status === 'offered').length}
+                  </span>
+                </div>
               </div>
-              <div>
-                <p className="text-sm text-gray-600">更新日</p>
-                <p className="font-medium">{new Date(job.updatedAt).toLocaleDateString()}</p>
+              
+              {applications.length > 0 && (
+                <div className="mt-4">
+                  <Link href={`/applications?job=${jobId}`}>
+                    <Button variant="outline" className="w-full">
+                      <User className="h-4 w-4 mr-2" />
+                      応募者一覧を見る
+                    </Button>
+                  </Link>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* 求人設定 */}
+          <Card>
+            <CardHeader>
+              <CardTitle>求人設定</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">公開状況</span>
+                  <span>{job.status === 'published' ? '公開中' : '非公開'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">雇用形態</span>
+                  <span>{getEmploymentTypeBadge(job.employmentType)}</span>
+                </div>
+                {job.isUrgent && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">急募</span>
+                    <Badge variant="destructive" className="text-xs">はい</Badge>
+                  </div>
+                )}
+                {job.isRemoteOk && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">リモート</span>
+                    <Badge variant="outline" className="text-xs">対応</Badge>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

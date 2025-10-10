@@ -141,23 +141,27 @@ export default function CandidatesPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      {/* ページヘッダー */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Users className="h-8 w-8" />
-            求職者管理
-          </h1>
-          <p className="text-gray-600 mt-2">
-            求職者の管理・検索を行います
-          </p>
+      {/* ページヘッダー - 青系テーマ */}
+      <div className="mb-8 p-6 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg text-white">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-white/20 rounded-full">
+              <Users className="h-8 w-8" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold">求職者管理</h1>
+              <p className="text-blue-100 mt-1">
+                登録された求職者の管理・マッチング
+              </p>
+            </div>
+          </div>
+          <Link href="/candidates/new">
+            <Button variant="outline" className="bg-white text-blue-600 hover:bg-blue-50 border-white">
+              <Plus className="h-4 w-4 mr-2" />
+              新規登録
+            </Button>
+          </Link>
         </div>
-        <Link href="/candidates/new">
-          <Button className="flex items-center gap-2">
-            <Plus className="h-4 w-4" />
-            新規登録
-          </Button>
-        </Link>
       </div>
 
       {/* 統計カード */}

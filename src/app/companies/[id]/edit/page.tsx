@@ -1,166 +1,117 @@
 "use client"
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { useParams } from 'next/navigation'
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Checkbox } from '@/components/ui/checkbox'
-import { 
-  Building2,
-  ArrowLeft,
-  Save
-} from 'lucide-react'
+import { Switch } from '@/components/ui/switch'
+import { ArrowLeft, Building2, Save } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { doc, getDoc, updateDoc, collection, getDocs, query, where } from 'firebase/firestore'
+import { db } from '@/lib/firebase'
 import { Company } from '@/types/company'
-import { getCompanyById, updateCompany } from '@/lib/firestore/companies'
-import { toast } from 'sonner'
+import { User } from '@/types/user'
 
-const companySizes = [
-  'startup',
-  'small', 
-  'medium',
-  'large',
-  'enterprise'
-]
-
-const companyStatuses: Company['status'][] = [
-  'active',
-  'inactive', 
-  'prospect',
-  'prospect_contacted',
-  'appointment',
-  'no_approach'
-]
-
-const businessTypes = [
-  'カウンター寿司（アラカルト）',
-  'カウンター寿司（おまかせ）', 
-  '回転寿司',
-  '寿司居酒屋',
-  'その他'
-]
-
-const statusLabels = {
-  active: 'アクティブ',
-  inactive: '非アクティブ',
-  prospect: '見込み客',
-  prospect_contacted: '見込み客/接触あり',
-  appointment: 'アポ',
-  no_approach: 'アプローチ不可',
+interface EditCompanyPageProps {
+  params: Promise<{
+    id: string
+  }>
 }
 
-const sizeLabels = {
-  startup: 'スタートアップ（1-10名）',
-  small: '小企業（11-50名）',
-  medium: '中企業（51-200名）',
-  large: '大企業（201-1000名）',
-  enterprise: '大企業（1000名以上）'
-}
-
-export default function CompanyEditPage() {
+export default function EditCompanyPage({ params }: EditCompanyPageProps) {
   const router = useRouter()
-  const params = useParams()
-  const companyId = params?.id as string
-
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  
-  const [formData, setFormData] = useState({
+  const [companyId, setCompanyId] = useState<string>('')
+  const [users, setUsers] = useState<User[]>([])
+  const [company, setCompany] = useState<Partial<Company>>({
     name: '',
-    industry: '',
-    size: 'small' as Company['size'],
-    phone: '',
-    email: '',
-    website: '',
     address: '',
-    description: '',
-    status: 'prospect' as Company['status'],
-    businessType: [] as string[]
+    employeeCount: 0,
+    capital: 0,
+    establishedYear: new Date().getFullYear(),
+    representative: '',
+    website: '',
+    logo: '',
+    feature1: '',
+    feature2: '',
+    feature3: '',
+    contractStartDate: '',
+    status: 'active',
+    isPublic: true,
+    consultantId: ''
   })
 
-  // 既存データを読み込み
   useEffect(() => {
-    const loadCompany = async () => {
-      if (!companyId) {
-        router.push('/companies')
-        return
-      }
+    const initializeComponent = async () => {
+      const resolvedParams = await params
+      setCompanyId(resolvedParams.id)
+      
+      const fetchCompany = async () => {
+        try {
+          // ユーザー一覧の取得
+          const usersQuery = query(
+            collection(db, 'users'),
+            where('role', '!=', 'rejected')
+          )
+          const usersSnapshot = await getDocs(usersQuery)
+          const usersData = usersSnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          })) as User[]
+          setUsers(usersData)
 
-      try {
-        setLoading(true)
-        const company = await getCompanyById(companyId)
-        
-        if (!company) {
-          toast.error('企業が見つかりませんでした')
-          router.push('/companies')
-          return
+          // 企業データの取得
+          const companyDoc = await getDoc(doc(db, 'companies', resolvedParams.id))
+          if (companyDoc.exists()) {
+            const companyData = companyDoc.data() as Company
+            setCompany(companyData)
+          } else {
+            alert('企業が見つかりません')
+            router.push('/companies')
+          }
+        } catch (error) {
+          console.error('企業データの取得に失敗しました:', error)
+          alert('企業データの取得に失敗しました')
+        } finally {
+          setLoading(false)
         }
-
-        setFormData({
-          name: company.name,
-          industry: company.industry || '',
-          size: company.size,
-          phone: company.phone,
-          email: company.email,
-          website: company.website,
-          address: company.address,
-          description: company.description,
-          status: company.status,
-          businessType: company.businessType || []
-        })
-      } catch (error) {
-        console.error('Error loading company:', error)
-        toast.error('企業データの読み込みに失敗しました')
-        router.push('/companies')
-      } finally {
-        setLoading(false)
       }
+
+      fetchCompany()
     }
 
-    loadCompany()
-  }, [companyId, router])
+    initializeComponent()
+  }, [params, router])
 
-  const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({
+  const handleChange = (field: keyof Company, value: any) => {
+    setCompany(prev => ({
       ...prev,
       [field]: value
     }))
   }
 
-  const handleBusinessTypeChange = (type: string, checked: boolean) => {
-    setFormData(prev => ({
-      ...prev,
-      businessType: checked 
-        ? [...prev.businessType, type]
-        : prev.businessType.filter(t => t !== type)
-    }))
-  }
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
-    if (!formData.name.trim()) {
-      toast.error('企業名は必須です')
-      return
-    }
-
-    if (!formData.email.trim()) {
-      toast.error('メールアドレスは必須です')
-      return
-    }
+    setSaving(true)
 
     try {
-      setSaving(true)
-      await updateCompany(companyId, formData)
-      toast.success('企業情報を更新しました')
+      const updatedCompany = {
+        ...company,
+        updatedAt: new Date().toISOString()
+      }
+
+      await updateDoc(doc(db, 'companies', companyId), updatedCompany)
+      
+      alert('企業情報を更新しました')
       router.push(`/companies/${companyId}`)
     } catch (error) {
-      console.error('Error updating company:', error)
-      toast.error('企業の更新に失敗しました')
+      console.error('企業更新に失敗しました:', error)
+      alert('企業更新に失敗しました')
     } finally {
       setSaving(false)
     }
@@ -169,236 +120,247 @@ export default function CompanyEditPage() {
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-          <span className="ml-2">企業データを読み込み中...</span>
-        </div>
+        <div className="text-center">読み込み中...</div>
       </div>
     )
   }
 
   return (
     <div className="container mx-auto px-4 py-8">
-      {/* ページヘッダー */}
       <div className="flex items-center gap-4 mb-8">
-        <Button
-          variant="outline"
-          onClick={() => router.push(`/companies/${companyId}`)}
-          className="flex items-center gap-2"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          企業詳細に戻る
-        </Button>
+        <Link href={`/companies/${companyId}`}>
+          <Button variant="outline" size="sm">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            戻る
+          </Button>
+        </Link>
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">
             <Building2 className="h-8 w-8" />
-            企業情報編集
+            企業編集
           </h1>
           <p className="text-gray-600 mt-2">
-            企業情報を編集してください
+            企業情報を編集します
           </p>
         </div>
       </div>
 
-      {/* フォーム */}
-      <form onSubmit={handleSubmit} className="max-w-2xl">
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* 基本情報 */}
         <Card>
           <CardHeader>
             <CardTitle>基本情報</CardTitle>
-            <CardDescription>
-              企業の基本情報を編集してください
-            </CardDescription>
+            <CardDescription>企業の基本的な情報を入力してください</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
-            {/* 企業名 */}
-            <div className="space-y-2">
+          <CardContent className="space-y-4">
+            <div>
               <Label htmlFor="name">企業名 *</Label>
               <Input
                 id="name"
-                value={formData.name}
-                onChange={(e) => handleInputChange('name', e.target.value)}
-                placeholder="株式会社サンプル"
+                value={company.name || ''}
+                onChange={(e) => handleChange('name', e.target.value)}
                 required
               />
             </div>
 
-            {/* 業界 */}
-            <div className="space-y-2">
-              <Label htmlFor="industry">業界</Label>
-              <Input
-                id="industry"
-                value={formData.industry}
-                onChange={(e) => handleInputChange('industry', e.target.value)}
-                placeholder="飲食業"
+            <div>
+              <Label htmlFor="address">所在地 *</Label>
+              <Textarea
+                id="address"
+                value={company.address || ''}
+                onChange={(e) => handleChange('address', e.target.value)}
+                rows={3}
+                required
               />
             </div>
 
-            {/* 企業規模 */}
-            <div className="space-y-2">
-              <Label htmlFor="size">企業規模 *</Label>
-              <Select 
-                value={formData.size} 
-                onValueChange={(value) => handleInputChange('size', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {companySizes.map(size => (
-                    <SelectItem key={size} value={size}>
-                      {sizeLabels[size as keyof typeof sizeLabels]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div>
+              <Label htmlFor="representative">代表者名</Label>
+              <Input
+                id="representative"
+                value={company.representative || ''}
+                onChange={(e) => handleChange('representative', e.target.value)}
+              />
             </div>
 
-            {/* ステータス */}
-            <div className="space-y-2">
-              <Label htmlFor="status">ステータス *</Label>
-              <Select 
-                value={formData.status} 
-                onValueChange={(value) => handleInputChange('status', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {companyStatuses.map(status => (
-                    <SelectItem key={status} value={status}>
-                      {statusLabels[status]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <Label htmlFor="employeeCount">従業員数</Label>
+                <Input
+                  id="employeeCount"
+                  type="number"
+                  value={company.employeeCount || 0}
+                  onChange={(e) => handleChange('employeeCount', parseInt(e.target.value) || 0)}
+                />
+              </div>
 
-            {/* 業態 */}
-            <div className="space-y-2">
-              <Label>業態</Label>
-              <div className="grid grid-cols-2 gap-2">
-                {businessTypes.map(type => (
-                  <div key={type} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={type}
-                      checked={formData.businessType.includes(type)}
-                      onCheckedChange={(checked) => 
-                        handleBusinessTypeChange(type, checked as boolean)
-                      }
-                    />
-                    <Label 
-                      htmlFor={type}
-                      className="text-sm font-normal cursor-pointer"
-                    >
-                      {type}
-                    </Label>
-                  </div>
-                ))}
+              <div>
+                <Label htmlFor="capital">資本金（万円）</Label>
+                <Input
+                  id="capital"
+                  type="number"
+                  value={company.capital || 0}
+                  onChange={(e) => handleChange('capital', parseInt(e.target.value) || 0)}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="establishedYear">設立年</Label>
+                <Input
+                  id="establishedYear"
+                  type="number"
+                  value={company.establishedYear || new Date().getFullYear()}
+                  onChange={(e) => handleChange('establishedYear', parseInt(e.target.value) || new Date().getFullYear())}
+                />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="mt-6">
+        {/* 連絡先・特徴情報 */}
+        <Card>
           <CardHeader>
-            <CardTitle>連絡先情報</CardTitle>
-            <CardDescription>
-              企業の連絡先情報を編集してください
-            </CardDescription>
+            <CardTitle>連絡先・特徴情報</CardTitle>
+            <CardDescription>企業の連絡先と特徴を入力してください</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
-            {/* メールアドレス */}
-            <div className="space-y-2">
-              <Label htmlFor="email">メールアドレス *</Label>
-              <Input
-                id="email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => handleInputChange('email', e.target.value)}
-                placeholder="info@example.com"
-                required
-              />
-            </div>
-
-            {/* 電話番号 */}
-            <div className="space-y-2">
-              <Label htmlFor="phone">電話番号</Label>
-              <Input
-                id="phone"
-                type="tel"
-                value={formData.phone}
-                onChange={(e) => handleInputChange('phone', e.target.value)}
-                placeholder="03-1234-5678"
-              />
-            </div>
-
-            {/* ウェブサイト */}
-            <div className="space-y-2">
+          <CardContent className="space-y-4">
+            <div>
               <Label htmlFor="website">ウェブサイト</Label>
               <Input
                 id="website"
                 type="url"
-                value={formData.website}
-                onChange={(e) => handleInputChange('website', e.target.value)}
+                value={company.website || ''}
+                onChange={(e) => handleChange('website', e.target.value)}
                 placeholder="https://example.com"
               />
             </div>
 
-            {/* 住所 */}
-            <div className="space-y-2">
-              <Label htmlFor="address">住所</Label>
+            <div>
+              <Label htmlFor="logo">ロゴ画像URL</Label>
               <Input
-                id="address"
-                value={formData.address}
-                onChange={(e) => handleInputChange('address', e.target.value)}
-                placeholder="東京都渋谷区..."
+                id="logo"
+                type="url"
+                value={company.logo || ''}
+                onChange={(e) => handleChange('logo', e.target.value)}
+                placeholder="https://example.com/logo.png"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="feature1">会社特徴1</Label>
+              <Input
+                id="feature1"
+                value={company.feature1 || ''}
+                onChange={(e) => handleChange('feature1', e.target.value)}
+                placeholder="例: 地域密着型"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="feature2">会社特徴2</Label>
+              <Input
+                id="feature2"
+                value={company.feature2 || ''}
+                onChange={(e) => handleChange('feature2', e.target.value)}
+                placeholder="例: 研修制度充実"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="feature3">会社特徴3</Label>
+              <Input
+                id="feature3"
+                value={company.feature3 || ''}
+                onChange={(e) => handleChange('feature3', e.target.value)}
+                placeholder="例: 成長企業"
               />
             </div>
           </CardContent>
         </Card>
 
-        <Card className="mt-6">
+        {/* 取引・管理情報 */}
+        <Card>
           <CardHeader>
-            <CardTitle>企業説明</CardTitle>
-            <CardDescription>
-              企業の詳細説明を編集してください
-            </CardDescription>
+            <CardTitle>取引・管理情報</CardTitle>
+            <CardDescription>取引状況と担当者情報</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <Label htmlFor="description">説明</Label>
-              <Textarea
-                id="description"
-                value={formData.description}
-                onChange={(e) => handleInputChange('description', e.target.value)}
-                placeholder="企業の詳細説明を入力してください..."
-                rows={6}
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="contractStartDate">取引開始日</Label>
+              <Input
+                id="contractStartDate"
+                type="date"
+                value={typeof company.contractStartDate === 'string' ? company.contractStartDate.split('T')[0] : ''}
+                onChange={(e) => handleChange('contractStartDate', e.target.value)}
               />
+            </div>
+
+            <div>
+              <Label htmlFor="consultantId">担当コンサルタント</Label>
+              <Select 
+                value={company.consultantId || ''} 
+                onValueChange={(value) => handleChange('consultantId', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="担当コンサルタントを選択してください" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">担当者なし</SelectItem>
+                  {users
+                    .filter(user => user.status === 'active' && (user.role === 'admin' || user.role === 'user'))
+                    .map(user => (
+                      <SelectItem key={user.id} value={user.id}>
+                        {user.displayName || user.email} ({user.role === 'admin' ? '管理者' : 'ユーザー'})
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="status">取引状況</Label>
+              <Select 
+                value={company.status || 'active'} 
+                onValueChange={(value) => handleChange('status', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">有効</SelectItem>
+                  <SelectItem value="suspended">停止</SelectItem>
+                  <SelectItem value="paused">休止</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="isPublic"
+                checked={company.isPublic ?? true}
+                onCheckedChange={(checked) => handleChange('isPublic', checked)}
+              />
+              <Label htmlFor="isPublic">企業情報を公開する</Label>
             </div>
           </CardContent>
         </Card>
 
-        {/* 保存ボタン */}
-        <div className="flex gap-4 mt-8">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => router.push(`/companies/${companyId}`)}
-          >
-            キャンセル
-          </Button>
-          <Button
-            type="submit"
+        {/* 送信ボタン */}
+        <div className="flex gap-4">
+          <Button 
+            type="submit" 
             disabled={saving}
             className="flex items-center gap-2"
           >
-            {saving ? (
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-            ) : (
-              <Save className="h-4 w-4" />
-            )}
-            更新
+            <Save className="h-4 w-4" />
+            {saving ? '更新中...' : '更新する'}
           </Button>
+          
+          <Link href={`/companies/${companyId}`}>
+            <Button type="button" variant="outline">
+              キャンセル
+            </Button>
+          </Link>
         </div>
       </form>
     </div>
