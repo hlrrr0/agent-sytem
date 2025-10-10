@@ -8,7 +8,6 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { 
   Store as StoreIcon, 
   Plus, 
@@ -40,10 +39,6 @@ export default function StoresPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [businessTypeFilter, setBusinessTypeFilter] = useState<Store['businessType'] | 'all'>('all')
   const [statusFilter, setStatusFilter] = useState<Store['status'] | 'all'>('all')
-  
-  // 削除ダイアログ
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [storeToDelete, setStoreToDelete] = useState<Store | null>(null)
 
   useEffect(() => {
     loadData()
@@ -66,19 +61,17 @@ export default function StoresPage() {
     }
   }
 
-  const handleDeleteStore = async () => {
-    if (!storeToDelete) return
-
-    try {
-      await deleteStore(storeToDelete.id)
-      toast.success('店舗を削除しました')
-      await loadData()
-      setDeleteDialogOpen(false)
-      setStoreToDelete(null)
-    } catch (error) {
-      console.error('Error deleting store:', error)
-      toast.error('店舗の削除に失敗しました')
+  const handleDeleteStore = async (store: Store) => {
+    if (confirm(`${store.name}を削除しますか？この操作は取り消せません。`)) {
+      try {
+        await deleteStore(store.id)
+        await loadData()
+      } catch (error) {
+        console.error('Error deleting store:', error)
+        alert('店舗の削除に失敗しました')
+      }
     }
+  }
   }
 
   const getStatusBadge = (status: Store['status']) => {
@@ -330,10 +323,7 @@ export default function StoresPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => {
-                            setStoreToDelete(store)
-                            setDeleteDialogOpen(true)
-                          }}
+                          onClick={() => handleDeleteStore(store)}
                           className="text-red-600 hover:text-red-700"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -347,33 +337,8 @@ export default function StoresPage() {
           )}
         </CardContent>
       </Card>
-
-      {/* 削除確認ダイアログ */}
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>店舗の削除</DialogTitle>
-            <DialogDescription>
-              「{storeToDelete?.name}」を削除しますか？
-              この操作は取り消すことができません。
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setDeleteDialogOpen(false)}
-            >
-              キャンセル
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDeleteStore}
-            >
-              削除
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
+  )
+}
   )
 }
