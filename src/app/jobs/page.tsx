@@ -29,6 +29,7 @@ import { Store as StoreType } from '@/types/store'
 
 const statusColors = {
   draft: 'bg-gray-100 text-gray-800',
+  published: 'bg-green-100 text-green-800',
   active: 'bg-green-100 text-green-800',
   paused: 'bg-yellow-100 text-yellow-800',
   closed: 'bg-red-100 text-red-800',
@@ -111,6 +112,7 @@ function JobsPageContent() {
 
   const stats = {
     total: jobs.length,
+    published: jobs.filter(j => j.status === 'published').length,
     active: jobs.filter(j => j.status === 'active').length,
     draft: jobs.filter(j => j.status === 'draft').length,
     paused: jobs.filter(j => j.status === 'paused').length,
@@ -203,6 +205,15 @@ function JobsPageContent() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">公開中</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">{stats.published}</div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">募集中</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">{stats.active}</div>

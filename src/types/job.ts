@@ -3,6 +3,9 @@
 // 給与情報
 export interface SalaryInfo {
   baseSalary?: number                      // 固定給
+  type?: 'hourly' | 'daily' | 'monthly' | 'annual'  // 給与形態
+  min?: number                            // 最低額
+  max?: number                            // 最高額
   commission?: boolean                     // 歩合制
   tips?: boolean                          // チップ制
   housingAllowance?: number               // 住宅手当
@@ -50,30 +53,46 @@ export interface Job {
   
   // 関連ID
   companyId: string                       // 企業ID
-  storeId: string                         // 店舗ID
+  storeId?: string                        // 店舗ID（任意）
   
   // 基本情報
   title: string                           // 求人タイトル
-  employmentType: 'full-time' | 'contract' | 'part-time'  // 雇用区分（正社員／契約社員／アルバイト）
+  employmentType: 'full-time' | 'contract' | 'part-time' | 'temporary' | 'intern'  // 雇用区分
   
   // 給与・勤務条件
   salary: SalaryInfo                      // 給与情報
-  workSchedule: WorkSchedule              // 勤務時間・休日
+  workSchedule?: WorkSchedule             // 勤務時間・休日
+  workingHours?: string                   // 勤務時間（簡易版）
+  holidays?: string                       // 休日（簡易版）
   trialPeriod?: TrialPeriod              // 試用期間
   
   // 職務内容・スキル
   jobDescription?: string                 // 職務内容
+  description?: string                    // 職務内容（別名）
   requiredSkills?: string                // 求めるスキル（握り／仕込み／焼き／接客／衛生等）
+  preferredSkills?: string               // 歓迎スキル
+  preferredQualifications?: string        // 歓迎条件
   
   // 福利厚生・応募条件
-  benefits?: Benefits                     // 福利厚生
-  requirements?: ApplicationRequirements  // 応募条件
+  benefits?: Benefits | string            // 福利厚生
+  requirements?: ApplicationRequirements | string  // 応募条件
+  
+  // 応募情報
+  applicationProcess?: string             // 応募方法
+  applicationDeadline?: string | Date     // 応募締切
+  contactInfo?: string                    // 連絡先
+  startDate?: string | Date               // 勤務開始日
+  location?: string                       // 勤務地
+  
+  // 特別条件
+  isUrgent?: boolean                      // 急募フラグ
+  isRemoteOk?: boolean                    // リモートOKフラグ
   
   // 公開設定
-  visibility: 'private' | 'limited' | 'public'  // 公開設定（非公開／限定公開／公開）
+  visibility?: 'private' | 'limited' | 'public'  // 公開設定（非公開／限定公開／公開）
   
   // ステータス
-  status: 'draft' | 'active' | 'paused' | 'closed'  // 求人ステータス
+  status: 'draft' | 'published' | 'active' | 'paused' | 'closed'  // 求人ステータス
   
   // メタデータ
   createdAt: string | Date
@@ -83,8 +102,10 @@ export interface Job {
 
 export const employmentTypeLabels = {
   'full-time': '正社員',
+  'part-time': 'アルバイト・パート',
   'contract': '契約社員', 
-  'part-time': 'アルバイト'
+  'temporary': '派遣社員',
+  'intern': 'インターン'
 }
 
 export const visibilityLabels = {
@@ -95,6 +116,7 @@ export const visibilityLabels = {
 
 export const jobStatusLabels = {
   'draft': '下書き',
+  'published': '公開中',
   'active': '募集中',
   'paused': '一時停止',
   'closed': '募集終了'

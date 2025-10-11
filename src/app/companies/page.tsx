@@ -31,6 +31,8 @@ const statusLabels = {
   prospect_contacted: '見込み客/接触あり',
   appointment: 'アポ',
   no_approach: 'アプローチ不可',
+  suspended: '停止',
+  paused: '休止',
 }
 
 const statusColors = {
@@ -40,6 +42,8 @@ const statusColors = {
   prospect_contacted: 'bg-yellow-100 text-yellow-800',
   appointment: 'bg-purple-100 text-purple-800',
   no_approach: 'bg-red-100 text-red-800',
+  suspended: 'bg-red-100 text-red-800',
+  paused: 'bg-orange-100 text-orange-800',
 }
 
 const sizeLabels = {

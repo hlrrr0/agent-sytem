@@ -114,6 +114,7 @@ function JobDetailContent({ params }: JobDetailPageProps) {
     const colors = {
       draft: 'bg-gray-100 text-gray-800',
       published: 'bg-green-100 text-green-800',
+      active: 'bg-green-100 text-green-800',
       closed: 'bg-red-100 text-red-800',
       paused: 'bg-yellow-100 text-yellow-800',
     }
@@ -121,6 +122,7 @@ function JobDetailContent({ params }: JobDetailPageProps) {
     const labels = {
       draft: '下書き',
       published: '公開中',
+      active: '募集中',
       closed: '終了',
       paused: '一時停止',
     }
@@ -134,11 +136,11 @@ function JobDetailContent({ params }: JobDetailPageProps) {
 
   const getEmploymentTypeBadge = (type: Job['employmentType']) => {
     const colors = {
-      full-time: 'bg-blue-100 text-blue-800',
-      part-time: 'bg-purple-100 text-purple-800',
-      contract: 'bg-orange-100 text-orange-800',
-      temporary: 'bg-pink-100 text-pink-800',
-      intern: 'bg-green-100 text-green-800',
+      'full-time': 'bg-blue-100 text-blue-800',
+      'part-time': 'bg-purple-100 text-purple-800',
+      'contract': 'bg-orange-100 text-orange-800',
+      'temporary': 'bg-pink-100 text-pink-800',
+      'intern': 'bg-green-100 text-green-800',
     }
     
     const labels = {
@@ -157,12 +159,12 @@ function JobDetailContent({ params }: JobDetailPageProps) {
   }
 
   const formatSalary = (job: Job) => {
-    if (job.salaryType === 'hourly') {
-      return `時給 ${job.salaryMin?.toLocaleString()}円${job.salaryMax ? ` ～ ${job.salaryMax.toLocaleString()}円` : ''}`
-    } else if (job.salaryType === 'monthly') {
-      return `月給 ${job.salaryMin?.toLocaleString()}円${job.salaryMax ? ` ～ ${job.salaryMax.toLocaleString()}円` : ''}`
-    } else if (job.salaryType === 'annual') {
-      return `年収 ${job.salaryMin?.toLocaleString()}万円${job.salaryMax ? ` ～ ${job.salaryMax.toLocaleString()}万円` : ''}`
+    if (job.salary?.type === 'hourly') {
+      return `時給 ${job.salary?.min?.toLocaleString()}円${job.salary?.max ? ` ～ ${job.salary.max.toLocaleString()}円` : ''}`
+    } else if (job.salary?.type === 'monthly') {
+      return `月給 ${job.salary?.min?.toLocaleString()}円${job.salary?.max ? ` ～ ${job.salary.max.toLocaleString()}円` : ''}`
+    } else if (job.salary?.type === 'annual') {
+      return `年収 ${job.salary?.min?.toLocaleString()}万円${job.salary?.max ? ` ～ ${job.salary.max.toLocaleString()}万円` : ''}`
     }
     return '要相談'
   }
@@ -294,7 +296,9 @@ function JobDetailContent({ params }: JobDetailPageProps) {
                 {job.requirements && (
                   <div>
                     <h3 className="font-medium text-gray-700 mb-2">必要なスキル・経験</h3>
-                    <div className="whitespace-pre-wrap">{job.requirements}</div>
+                    <div className="whitespace-pre-wrap">
+                      {typeof job.requirements === 'string' ? job.requirements : JSON.stringify(job.requirements)}
+                    </div>
                   </div>
                 )}
                 {job.preferredSkills && (
@@ -314,7 +318,9 @@ function JobDetailContent({ params }: JobDetailPageProps) {
                 <CardTitle>福利厚生・待遇</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="whitespace-pre-wrap">{job.benefits}</div>
+                <div className="whitespace-pre-wrap">
+                  {typeof job.benefits === 'string' ? job.benefits : JSON.stringify(job.benefits)}
+                </div>
               </CardContent>
             </Card>
           )}

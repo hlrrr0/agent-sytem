@@ -20,6 +20,11 @@ export default function NewCompanyPage() {
   const [formData, setFormData] = useState({
     name: '',
     address: '',
+    email: '',
+    phone: '',
+    industry: '',
+    businessType: '',
+    size: 'small' as Company['size'],
     website: '',
     logo: '',
     employeeCount: '',
@@ -49,6 +54,11 @@ export default function NewCompanyPage() {
       const newCompany: Omit<Company, 'id'> = {
         name: formData.name,
         address: formData.address,
+        email: formData.email || '',
+        phone: formData.phone || undefined,
+        industry: formData.industry || undefined,
+        businessType: formData.businessType ? formData.businessType.split(',').map(s => s.trim()) : undefined,
+        size: (formData.size as Company['size']) || 'small',
         website: formData.website || undefined,
         logo: formData.logo || undefined,
         employeeCount: formData.employeeCount ? parseInt(formData.employeeCount) : undefined,

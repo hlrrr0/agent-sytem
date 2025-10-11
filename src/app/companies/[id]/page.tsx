@@ -115,12 +115,22 @@ function CompanyDetailContent({ params }: CompanyDetailPageProps) {
   const getStatusBadge = (status: Company['status']) => {
     const colors = {
       active: 'bg-green-100 text-green-800',
+      inactive: 'bg-gray-100 text-gray-800',
+      prospect: 'bg-blue-100 text-blue-800',
+      prospect_contacted: 'bg-yellow-100 text-yellow-800',
+      appointment: 'bg-purple-100 text-purple-800',
+      no_approach: 'bg-red-100 text-red-800',
       suspended: 'bg-red-100 text-red-800',
-      paused: 'bg-yellow-100 text-yellow-800',
+      paused: 'bg-orange-100 text-orange-800',
     }
     
     const labels = {
       active: '有効',
+      inactive: '非アクティブ',
+      prospect: '見込み客',
+      prospect_contacted: '見込み客/接触あり',
+      appointment: 'アポ',
+      no_approach: 'アプローチ不可',
       suspended: '停止',
       paused: '休止',
     }

@@ -35,6 +35,7 @@ export default function EditJobPage({ params }: EditJobPageProps) {
     storeId: '',
     jobDescription: '',
     requiredSkills: '',
+    preferredQualifications: '',
     employmentType: 'full-time',
     salary: {
       baseSalary: 0
@@ -264,17 +265,16 @@ export default function EditJobPage({ params }: EditJobPageProps) {
               <Label htmlFor="requirements">応募要件</Label>
               <Textarea
                 id="requirements"
-                value={job.requirements}
+                value={typeof job.requirements === 'string' ? job.requirements : ''}
                 onChange={(e) => handleChange('requirements', e.target.value)}
                 rows={3}
               />
             </div>
-
             <div>
               <Label htmlFor="preferredQualifications">歓迎条件</Label>
               <Textarea
                 id="preferredQualifications"
-                value={job.preferredQualifications}
+                value={job.preferredQualifications || ''}
                 onChange={(e) => handleChange('preferredQualifications', e.target.value)}
                 rows={3}
               />

@@ -12,6 +12,15 @@ export interface Company {
   website?: string                         // 公式HP URL
   logo?: string                           // ロゴ画像URL
   
+  // 連絡先情報
+  email: string                           // メールアドレス
+  phone?: string                          // 電話番号
+  
+  // 企業分類
+  industry?: string                       // 業界
+  businessType?: string[]                 // 事業種別
+  size: 'startup' | 'small' | 'medium' | 'large' | 'enterprise'  // 企業規模
+  
   // 会社特徴
   feature1?: string                       // 会社特徴1
   feature2?: string                       // 会社特徴2  
@@ -19,7 +28,7 @@ export interface Company {
   
   // 取引情報
   contractStartDate?: string | Date       // 取引開始日
-  status: 'active' | 'suspended' | 'paused'  // 取引状況（有効／停止／休止）
+  status: 'active' | 'inactive' | 'prospect' | 'prospect_contacted' | 'appointment' | 'no_approach' | 'suspended' | 'paused'  // 取引状況
   isPublic: boolean                       // 公開状況（公開／非公開）
   consultantId?: string                   // 担当コンサルタントID
   
@@ -33,9 +42,22 @@ export interface Company {
 }
 
 export const companyStatusLabels = {
-  active: '有効',
+  active: 'アクティブ',
+  inactive: '非アクティブ',
+  prospect: '見込み客',
+  prospect_contacted: '見込み客/接触あり',
+  appointment: 'アポ',
+  no_approach: 'アプローチ不可',
   suspended: '停止',
   paused: '休止'
+}
+
+export const companySizeLabels = {
+  startup: 'スタートアップ',
+  small: '小企業',
+  medium: '中企業',
+  large: '大企業',
+  enterprise: '大企業'
 }
 
 export const publicStatusLabels = {
