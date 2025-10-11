@@ -15,15 +15,16 @@ import { db } from '@/lib/firebase'
 import { Candidate } from '@/types/candidate'
 
 interface EditCandidatePageProps {
-  params: {
+  params: Promise<{
     id: string
-  }
+  }>
 }
 
 export default function EditCandidatePage({ params }: EditCandidatePageProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [candidateId, setCandidateId] = useState<string>('')
   const [candidate, setCandidate] = useState<Partial<Candidate>>({
     firstName: '',
     lastName: '',
@@ -44,9 +45,19 @@ export default function EditCandidatePage({ params }: EditCandidatePageProps) {
   })
 
   useEffect(() => {
+    const initializeParams = async () => {
+      const resolvedParams = await params
+      setCandidateId(resolvedParams.id)
+    }
+    initializeParams()
+  }, [params])
+
+  useEffect(() => {
+    if (!candidateId) return
+
     const fetchCandidate = async () => {
       try {
-        const candidateDoc = await getDoc(doc(db, 'candidates', params.id))
+        const candidateDoc = await getDoc(doc(db, 'candidates', candidateId))
         if (candidateDoc.exists()) {
           const candidateData = candidateDoc.data() as Candidate
           setCandidate(candidateData)
@@ -63,7 +74,7 @@ export default function EditCandidatePage({ params }: EditCandidatePageProps) {
     }
 
     fetchCandidate()
-  }, [params.id, router])
+  }, [candidateId, router])
 
   const handleChange = (field: keyof Candidate, value: any) => {
     setCandidate(prev => ({
@@ -82,6 +93,7 @@ export default function EditCandidatePage({ params }: EditCandidatePageProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!candidateId) return
     setSaving(true)
 
     try {
@@ -90,10 +102,10 @@ export default function EditCandidatePage({ params }: EditCandidatePageProps) {
         updatedAt: new Date().toISOString()
       }
 
-      await updateDoc(doc(db, 'candidates', params.id), updatedCandidate)
+      await updateDoc(doc(db, 'candidates', candidateId), updatedCandidate)
       
       alert('求職者情報を更新しました')
-      router.push(`/candidates/${params.id}`)
+      router.push(`/candidates/${candidateId}`)
     } catch (error) {
       console.error('求職者更新に失敗しました:', error)
       alert('求職者更新に失敗しました')
@@ -113,7 +125,7 @@ export default function EditCandidatePage({ params }: EditCandidatePageProps) {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex items-center gap-4 mb-8">
-        <Link href={`/candidates/${params.id}`}>
+        <Link href={`/candidates/${candidateId}`}>
           <Button variant="outline" size="sm">
             <ArrowLeft className="h-4 w-4 mr-2" />
             戻る
@@ -353,7 +365,7 @@ export default function EditCandidatePage({ params }: EditCandidatePageProps) {
             {saving ? '更新中...' : '更新する'}
           </Button>
           
-          <Link href={`/candidates/${params.id}`}>
+          <Link href={`/candidates/${candidateId}`}>
             <Button type="button" variant="outline">
               キャンセル
             </Button>

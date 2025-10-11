@@ -17,15 +17,16 @@ import { Company } from '@/types/company'
 import { Store } from '@/types/store'
 
 interface EditJobPageProps {
-  params: {
+  params: Promise<{
     id: string
-  }
+  }>
 }
 
 export default function EditJobPage({ params }: EditJobPageProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [jobId, setJobId] = useState<string>('')
   const [companies, setCompanies] = useState<Company[]>([])
   const [stores, setStores] = useState<Store[]>([])
   const [filteredStores, setFilteredStores] = useState<Store[]>([])
@@ -51,10 +52,20 @@ export default function EditJobPage({ params }: EditJobPageProps) {
   })
 
   useEffect(() => {
+    const initializeParams = async () => {
+      const resolvedParams = await params
+      setJobId(resolvedParams.id)
+    }
+    initializeParams()
+  }, [params])
+
+  useEffect(() => {
+    if (!jobId) return
+
     const fetchData = async () => {
       try {
         // 求人データを取得
-        const jobDoc = await getDoc(doc(db, 'jobs', params.id))
+        const jobDoc = await getDoc(doc(db, 'jobs', jobId))
         if (jobDoc.exists()) {
           const jobData = jobDoc.data() as Job
           setJob(jobData)
@@ -89,7 +100,7 @@ export default function EditJobPage({ params }: EditJobPageProps) {
     }
 
     fetchData()
-  }, [params.id, router])
+  }, [jobId, router])
 
   useEffect(() => {
     // 選択された企業の店舗のみをフィルタリング
@@ -120,6 +131,7 @@ export default function EditJobPage({ params }: EditJobPageProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!jobId) return
     setSaving(true)
 
     try {
@@ -128,10 +140,10 @@ export default function EditJobPage({ params }: EditJobPageProps) {
         updatedAt: new Date().toISOString()
       }
 
-      await updateDoc(doc(db, 'jobs', params.id), updatedJob)
+      await updateDoc(doc(db, 'jobs', jobId), updatedJob)
       
       alert('求人情報を更新しました')
-      router.push(`/jobs/${params.id}`)
+      router.push(`/jobs/${jobId}`)
     } catch (error) {
       console.error('求人更新に失敗しました:', error)
       alert('求人更新に失敗しました')
@@ -151,7 +163,7 @@ export default function EditJobPage({ params }: EditJobPageProps) {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex items-center gap-4 mb-8">
-        <Link href={`/jobs/${params.id}`}>
+        <Link href={`/jobs/${jobId}`}>
           <Button variant="outline" size="sm">
             <ArrowLeft className="h-4 w-4 mr-2" />
             戻る
@@ -431,7 +443,7 @@ export default function EditJobPage({ params }: EditJobPageProps) {
             {saving ? '更新中...' : '更新する'}
           </Button>
           
-          <Link href={`/jobs/${params.id}`}>
+          <Link href={`/jobs/${jobId}`}>
             <Button type="button" variant="outline">
               キャンセル
             </Button>

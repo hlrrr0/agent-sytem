@@ -16,15 +16,16 @@ import { Store as StoreType } from '@/types/store'
 import { Company } from '@/types/company'
 
 interface EditStorePageProps {
-  params: {
+  params: Promise<{
     id: string
-  }
+  }>
 }
 
 export default function EditStorePage({ params }: EditStorePageProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [storeId, setStoreId] = useState<string>('')
   const [companies, setCompanies] = useState<Company[]>([])
   const [store, setStore] = useState<Partial<StoreType>>({
     name: '',
@@ -38,10 +39,20 @@ export default function EditStorePage({ params }: EditStorePageProps) {
   })
 
   useEffect(() => {
+    const initializeParams = async () => {
+      const resolvedParams = await params
+      setStoreId(resolvedParams.id)
+    }
+    initializeParams()
+  }, [params])
+
+  useEffect(() => {
+    if (!storeId) return
+
     const fetchData = async () => {
       try {
         // 店舗データを取得
-        const storeDoc = await getDoc(doc(db, 'stores', params.id))
+        const storeDoc = await getDoc(doc(db, 'stores', storeId))
         if (storeDoc.exists()) {
           const storeData = storeDoc.data() as StoreType
           setStore(storeData)
@@ -68,7 +79,7 @@ export default function EditStorePage({ params }: EditStorePageProps) {
     }
 
     fetchData()
-  }, [params.id, router])
+  }, [storeId, router])
 
   const handleChange = (field: keyof StoreType, value: any) => {
     setStore(prev => ({
@@ -79,6 +90,7 @@ export default function EditStorePage({ params }: EditStorePageProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!storeId) return
     setSaving(true)
 
     try {
@@ -87,10 +99,10 @@ export default function EditStorePage({ params }: EditStorePageProps) {
         updatedAt: new Date().toISOString()
       }
 
-      await updateDoc(doc(db, 'stores', params.id), updatedStore)
+      await updateDoc(doc(db, 'stores', storeId), updatedStore)
       
       alert('店舗情報を更新しました')
-      router.push(`/stores/${params.id}`)
+      router.push(`/stores/${storeId}`)
     } catch (error) {
       console.error('店舗更新に失敗しました:', error)
       alert('店舗更新に失敗しました')
@@ -110,7 +122,7 @@ export default function EditStorePage({ params }: EditStorePageProps) {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex items-center gap-4 mb-8">
-        <Link href={`/stores/${params.id}`}>
+        <Link href={`/stores/${storeId}`}>
           <Button variant="outline" size="sm">
             <ArrowLeft className="h-4 w-4 mr-2" />
             戻る
@@ -260,7 +272,7 @@ export default function EditStorePage({ params }: EditStorePageProps) {
             {saving ? '更新中...' : '更新する'}
           </Button>
           
-          <Link href={`/stores/${params.id}`}>
+          <Link href={`/stores/${storeId}`}>
             <Button type="button" variant="outline">
               キャンセル
             </Button>
