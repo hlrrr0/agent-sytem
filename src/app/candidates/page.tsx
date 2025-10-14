@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import ProtectedRoute from '@/components/ProtectedRoute'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -140,9 +141,10 @@ export default function CandidatesPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      {/* ページヘッダー - 青系テーマ */}
-      <div className="mb-8 p-6 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg text-white">
+    <ProtectedRoute>
+      <div className="container mx-auto px-4 py-8">
+        {/* ページヘッダー - 青系テーマ */}
+        <div className="mb-8 p-6 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg text-white">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-white/20 rounded-full">
@@ -358,6 +360,7 @@ export default function CandidatesPage() {
           )}
         </CardContent>
       </Card>
-    </div>
+      </div>
+    </ProtectedRoute>
   )
 }

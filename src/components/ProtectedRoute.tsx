@@ -16,6 +16,29 @@ export default function ProtectedRoute({ children, adminOnly = false }: Protecte
   const { user, userProfile, loading, isApproved, isAdmin, canAccess, logout } = useAuth()
   const router = useRouter()
 
+  // デバッグ情報
+  if (user && userProfile) {
+    console.log('🛡️ ProtectedRoute Debug:', {
+      timestamp: new Date().toISOString(),
+      loading,
+      hasUser: !!user,
+      hasUserProfile: !!userProfile,
+      uid: user.uid,
+      email: user.email,
+      role: userProfile.role,
+      status: userProfile.status,
+      isApproved,
+      isAdmin,
+      canAccess,
+      adminOnly
+    })
+    
+    // ブラウザコンソールにも表示（開発環境のみ）
+    if (process.env.NODE_ENV === 'development') {
+      console.warn(`🚨 User ${user.email} (${user.uid}) - canAccess: ${canAccess}, role: ${userProfile.role}, status: ${userProfile.status}`)
+    }
+  }
+
   useEffect(() => {
     if (!loading && !user) {
       router.push('/auth/login')
@@ -190,6 +213,37 @@ export default function ProtectedRoute({ children, adminOnly = false }: Protecte
     )
   }
 
-  // 承認済みユーザーのみコンテンツを表示
-  return <>{children}</>
+  // 承認済みかつアクティブなユーザーのみコンテンツを表示
+  if (canAccess) {
+    return <>{children}</>
+  }
+
+  // アクセス不可の場合は適切なエラーメッセージを表示
+  return (
+    <div className="min-h-screen flex items-center justify-center p-4">
+      <Card className="max-w-md w-full">
+        <CardHeader className="text-center">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
+            <AlertCircle className="h-6 w-6 text-red-600" />
+          </div>
+          <CardTitle className="text-red-800">アクセス拒否</CardTitle>
+          <CardDescription>
+            アカウントの状態により、システムにアクセスできません。詳細については管理者にお問い合わせください。
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="text-sm text-gray-600 text-center">
+            <p>ユーザー状態: {userProfile?.role || 'unknown'} / {userProfile?.status || 'unknown'}</p>
+          </div>
+          <Button 
+            onClick={logout}
+            variant="outline"
+            className="w-full"
+          >
+            ログアウト
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
+  )
 }

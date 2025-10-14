@@ -91,7 +91,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       if (userDoc.exists()) {
         const userData = userDoc.data() as User
-        console.log('Existing user profile:', userData)
+        console.log('🔍 Existing user profile loaded:', userData)
+        console.log('🔍 User access control:', {
+          role: userData.role,
+          status: userData.status,
+          isApproved: userData.role === 'user' || userData.role === 'admin',
+          isActive: userData.status === 'active',
+          canAccess: (userData.role === 'user' || userData.role === 'admin') && userData.status === 'active'
+        })
         setUserProfile(userData)
         
         // ログイン時刻を更新
@@ -173,6 +180,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const isAdmin = userProfile?.role === 'admin'
   const isActive = userProfile?.status === 'active'
   const canAccess = isApproved && isActive
+
+  // デバッグ情報をログ出力
+  if (userProfile && user) {
+    console.log('🔍 AuthContext User Debug Info:', {
+      uid: user.uid,
+      email: user.email,
+      profileRole: userProfile.role,
+      profileStatus: userProfile.status,
+      isApproved,
+      isActive,
+      canAccess,
+      timestamp: new Date().toISOString()
+    })
+  }
 
   const value = {
     user,

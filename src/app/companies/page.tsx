@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import ProtectedRoute from '@/components/ProtectedRoute'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -156,9 +157,10 @@ export default function CompaniesPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      {/* ページヘッダー - 緑系テーマ */}
-      <div className="mb-8 p-6 bg-gradient-to-r from-green-500 to-green-600 rounded-lg text-white">
+    <ProtectedRoute>
+      <div className="container mx-auto px-4 py-8">
+        {/* ページヘッダー - 緑系テーマ */}
+        <div className="mb-8 p-6 bg-gradient-to-r from-green-500 to-green-600 rounded-lg text-white">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-white/20 rounded-full">
@@ -425,6 +427,7 @@ export default function CompaniesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </ProtectedRoute>
   )
 }
