@@ -83,11 +83,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const handleUserProfile = async (firebaseUser: FirebaseUser) => {
     try {
+      console.log('handleUserProfile called for:', firebaseUser.email)
       const userDocRef = doc(db, 'users', firebaseUser.uid)
       const userDoc = await getDoc(userDocRef)
       
       if (userDoc.exists()) {
         const userData = userDoc.data() as User
+        console.log('Existing user profile:', userData)
         setUserProfile(userData)
         
         // ログイン時刻を更新
@@ -95,13 +97,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           lastLoginAt: new Date().toISOString()
         })
       } else {
+        console.log('Creating new user profile for:', firebaseUser.email)
         // 新規ユーザーの場合、プロファイルを作成（承認待ち状態）
+        let role: User['role'] = 'pending'
+        
+        // 開発環境では自動的に管理者権限を付与
+        if (process.env.NODE_ENV === 'development' || 
+            firebaseUser.email === 'hiroki.imai@super-shift.co.jp') {
+          role = 'admin'
+          console.log('Auto-approving user in development:', firebaseUser.email)
+        }
+        
         const newUserProfile: User = {
           id: firebaseUser.uid,
           email: firebaseUser.email || '',
           displayName: firebaseUser.displayName || '',
           photoURL: firebaseUser.photoURL || undefined,
-          role: 'pending',
+          role,
           status: 'active',
           permissions: [],
           createdAt: new Date().toISOString(),
@@ -109,6 +121,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
         
         await setDoc(userDocRef, newUserProfile)
+        console.log('New user profile created:', newUserProfile)
         setUserProfile(newUserProfile)
       }
     } catch (error) {

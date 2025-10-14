@@ -31,7 +31,7 @@ interface DashboardStats {
 }
 
 export default function HomePage() {
-  const { user, loading: authLoading, isApproved } = useAuth()
+  const { user, userProfile, loading: authLoading, isApproved } = useAuth()
   const [stats, setStats] = useState<DashboardStats>({
     totalCompanies: 0,
     activeCompanies: 0,
@@ -43,6 +43,16 @@ export default function HomePage() {
     activeCandidates: 0
   })
   const [loading, setLoading] = useState(true)
+
+  // デバッグ情報をコンソールに出力
+  useEffect(() => {
+    console.log('HomePage Debug:', {
+      user: user ? { uid: user.uid, email: user.email } : null,
+      userProfile,
+      authLoading,
+      isApproved
+    })
+  }, [user, userProfile, authLoading, isApproved])
 
   useEffect(() => {
     if (!user || authLoading || !isApproved) {
@@ -92,8 +102,57 @@ export default function HomePage() {
     fetchStats()
   }, [user, authLoading, isApproved])
 
+  // 認証中の表示
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">認証状態を確認中...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // ログイン済みだが承認待ちの状態
+  if (user && !isApproved) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Card className="max-w-md mx-auto">
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-4 p-3 bg-yellow-100 rounded-full w-16 h-16 flex items-center justify-center">
+              <Users className="h-8 w-8 text-yellow-600" />
+            </div>
+            <CardTitle className="text-xl">承認待ちです</CardTitle>
+          </CardHeader>
+          <CardContent className="text-center space-y-4">
+            <p className="text-gray-600">
+              アカウントが管理者によって承認されるまでお待ちください。
+            </p>
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <p className="text-sm text-blue-800">
+                <strong>ログイン中のアカウント:</strong><br />
+                {user.email}
+              </p>
+            </div>
+            <p className="text-sm text-gray-500">
+              承認完了後、このページが自動的に更新されます。
+            </p>
+            <Button 
+              variant="outline" 
+              onClick={() => window.location.reload()}
+              className="w-full"
+            >
+              ページを更新
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
   // 未ログイン状態の表示
-  if (!user && !authLoading) {
+  if (!user) {
     return (
       <div className="flex flex-col min-h-screen">
         <main className="flex-1 space-y-8 p-8">
