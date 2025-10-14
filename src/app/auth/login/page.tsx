@@ -1,11 +1,12 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { LogIn, AlertCircle } from 'lucide-react'
+import { diagnoseProblem, testFirebaseConnection } from '@/lib/auth-diagnostics'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -13,16 +14,29 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
+  useEffect(() => {
+    // 診断情報をコンソールに出力
+    diagnoseProblem()
+    testFirebaseConnection()
+  }, [])
+
   const handleGoogleSignIn = async () => {
     setLoading(true)
     setError('')
 
     try {
       console.log('Starting Google sign-in...')
-      await signInWithGoogle()
-      console.log('Google sign-in successful')
-      // ログイン成功後、ユーザーの承認状態に応じてリダイレクト
-      router.push('/')
+      const result = await signInWithGoogle()
+      
+      if (result) {
+        console.log('Google sign-in successful')
+        // ログイン成功後、ユーザーの承認状態に応じてリダイレクト
+        router.push('/')
+      } else {
+        console.log('Redirect sign-in initiated, waiting for result...')
+        // リダイレクトの場合は結果待ち
+        setError('認証のためページが移動します...')
+      }
     } catch (error: any) {
       console.error('Googleログインエラー:', error)
       console.error('Error code:', error.code)
@@ -31,11 +45,13 @@ export default function LoginPage() {
       if (error.code === 'auth/popup-closed-by-user') {
         setError('ログインがキャンセルされました')
       } else if (error.code === 'auth/popup-blocked') {
-        setError('ポップアップがブロックされました。ポップアップを許可してください')
+        setError('ポップアップがブロックされました。リダイレクト認証に切り替えます')
       } else if (error.code === 'auth/unauthorized-domain') {
         setError('このドメインは認証が許可されていません。管理者に連絡してください')
       } else if (error.code === 'auth/api-key-not-valid') {
         setError('Firebase設定エラーです。管理者に連絡してください')
+      } else if (error.message?.includes('iframe')) {
+        setError('認証方法を変更して再試行しています...')
       } else {
         setError(`ログインに失敗しました: ${error.message}`)
       }

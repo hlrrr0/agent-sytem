@@ -4,6 +4,8 @@ import React, { createContext, useContext, useEffect, useState } from 'react'
 import { 
   User as FirebaseUser, 
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   GoogleAuthProvider,
   signOut, 
   onAuthStateChanged,
@@ -17,7 +19,7 @@ interface AuthContextType {
   user: FirebaseUser | null
   userProfile: User | null
   loading: boolean
-  signInWithGoogle: () => Promise<UserCredential>
+  signInWithGoogle: () => Promise<UserCredential | void>
   logout: () => Promise<void>
   isApproved: boolean
   isAdmin: boolean
@@ -56,6 +58,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setLoading(false)
     })
 
+    // リダイレクト結果を処理
+    const handleRedirectResult = async () => {
+      try {
+        const result = await getRedirectResult(auth)
+        if (result) {
+          console.log('Redirect sign-in successful:', result.user)
+        }
+      } catch (error) {
+        console.error('Redirect result error:', error)
+      }
+    }
+
+    handleRedirectResult()
     return () => unsubscribe()
   }, [])
 
@@ -94,7 +109,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }
 
-  const signInWithGoogle = async (): Promise<UserCredential> => {
+  const signInWithGoogle = async (): Promise<UserCredential | void> => {
     try {
       const provider = new GoogleAuthProvider()
       provider.addScope('email')
@@ -108,7 +123,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.log('Firebase Auth Domain:', auth.config.authDomain)
       console.log('Current Domain:', typeof window !== 'undefined' ? window.location.origin : 'SSR')
       
-      return await signInWithPopup(auth, provider)
+      // まずポップアップを試行
+      try {
+        console.log('Attempting popup sign-in...')
+        return await signInWithPopup(auth, provider)
+      } catch (popupError: any) {
+        console.warn('Popup sign-in failed, falling back to redirect:', popupError)
+        
+        // ポップアップが失敗した場合はリダイレクトにフォールバック
+        if (popupError.code === 'auth/popup-blocked' || 
+            popupError.code === 'auth/popup-closed-by-user' ||
+            popupError.message?.includes('iframe')) {
+          console.log('Using redirect sign-in...')
+          await signInWithRedirect(auth, provider)
+          return // リダイレクトの場合は結果はgetRedirectResultで処理
+        } else {
+          throw popupError
+        }
+      }
     } catch (error: any) {
       console.error('signInWithGoogle error:', error)
       throw error
