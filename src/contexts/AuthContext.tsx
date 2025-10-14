@@ -23,6 +23,8 @@ interface AuthContextType {
   logout: () => Promise<void>
   isApproved: boolean
   isAdmin: boolean
+  isActive: boolean
+  canAccess: boolean
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -169,6 +171,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const isApproved = userProfile?.role === 'user' || userProfile?.role === 'admin'
   const isAdmin = userProfile?.role === 'admin'
+  const isActive = userProfile?.status === 'active'
+  const canAccess = isApproved && isActive
 
   const value = {
     user,
@@ -177,7 +181,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     signInWithGoogle,
     logout,
     isApproved,
-    isAdmin
+    isAdmin,
+    isActive,
+    canAccess
   }
 
   return (

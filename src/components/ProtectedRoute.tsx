@@ -13,7 +13,7 @@ interface ProtectedRouteProps {
 }
 
 export default function ProtectedRoute({ children, adminOnly = false }: ProtectedRouteProps) {
-  const { user, userProfile, loading, isApproved, isAdmin, logout } = useAuth()
+  const { user, userProfile, loading, isApproved, isAdmin, canAccess, logout } = useAuth()
   const router = useRouter()
 
   useEffect(() => {
@@ -65,86 +65,115 @@ export default function ProtectedRoute({ children, adminOnly = false }: Protecte
     )
   }
 
-  // 承認待ちの場合
-  if (userProfile?.role === 'pending') {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <Card className="max-w-md w-full">
-          <CardHeader className="text-center">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-yellow-100">
-              <Clock className="h-6 w-6 text-yellow-600" />
-            </div>
-            <CardTitle className="text-yellow-800">承認待ち</CardTitle>
-            <CardDescription>
-              アカウントの承認待ちです。管理者による承認をお待ちください。
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="text-sm text-gray-600 text-center">
-              <p>登録されたメールアドレス:</p>
-              <p className="font-medium">{user.email}</p>
-            </div>
-            <div className="flex gap-2">
+  // アクセス権限がない場合（非アクティブまたは非承認）
+  if (!canAccess) {
+    // 承認待ちの場合
+    if (userProfile?.role === 'pending') {
+      return (
+        <div className="min-h-screen flex items-center justify-center p-4">
+          <Card className="max-w-md w-full">
+            <CardHeader className="text-center">
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-yellow-100">
+                <Clock className="h-6 w-6 text-yellow-600" />
+              </div>
+              <CardTitle className="text-yellow-800">承認待ち</CardTitle>
+              <CardDescription>
+                アカウントの承認待ちです。管理者による承認をお待ちください。
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="text-sm text-gray-600 text-center">
+                <p>登録されたメールアドレス:</p>
+                <p className="font-medium">{user.email}</p>
+              </div>
+              <div className="flex gap-2">
+                <Button 
+                  onClick={logout}
+                  variant="outline"
+                  className="flex-1"
+                >
+                  ログアウト
+                </Button>
+                <Button 
+                  onClick={() => window.location.reload()}
+                  className="flex-1"
+                >
+                  更新
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )
+    }
+
+    // 拒否された場合
+    if (userProfile?.role === 'rejected') {
+      return (
+        <div className="min-h-screen flex items-center justify-center p-4">
+          <Card className="max-w-md w-full">
+            <CardHeader className="text-center">
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
+                <AlertCircle className="h-6 w-6 text-red-600" />
+              </div>
+              <CardTitle className="text-red-800">アクセス拒否</CardTitle>
+              <CardDescription>
+                このアカウントのアクセスは拒否されました。詳細については管理者にお問い合わせください。
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="text-center">
               <Button 
                 onClick={logout}
                 variant="outline"
-                className="flex-1"
+                className="w-full"
               >
                 ログアウト
               </Button>
+            </CardContent>
+          </Card>
+        </div>
+      )
+    }
+
+    // 非アクティブユーザーの場合
+    if (userProfile?.status === 'inactive') {
+      return (
+        <div className="min-h-screen flex items-center justify-center p-4">
+          <Card className="max-w-md w-full">
+            <CardHeader className="text-center">
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gray-100">
+                <UserX className="h-6 w-6 text-gray-600" />
+              </div>
+              <CardTitle className="text-gray-800">アカウント非アクティブ</CardTitle>
+              <CardDescription>
+                このアカウントは現在非アクティブ状態です。詳細については管理者にお問い合わせください。
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="text-center">
               <Button 
-                onClick={() => window.location.reload()}
-                className="flex-1"
+                onClick={logout}
+                variant="outline"
+                className="w-full"
               >
-                更新
+                ログアウト
               </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
+            </CardContent>
+          </Card>
+        </div>
+      )
+    }
 
-  // 拒否された場合
-  if (userProfile?.role === 'rejected') {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <Card className="max-w-md w-full">
-          <CardHeader className="text-center">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
-              <AlertCircle className="h-6 w-6 text-red-600" />
-            </div>
-            <CardTitle className="text-red-800">アクセス拒否</CardTitle>
-            <CardDescription>
-              このアカウントのアクセスは拒否されました。詳細については管理者にお問い合わせください。
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="text-center">
-            <Button 
-              onClick={logout}
-              variant="outline"
-              className="w-full"
-            >
-              ログアウト
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
-
-  // 非アクティブユーザーの場合
-  if (userProfile?.status === 'inactive') {
+    // その他の場合
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <Card className="max-w-md w-full">
           <CardHeader className="text-center">
             <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gray-100">
-              <UserX className="h-6 w-6 text-gray-600" />
+              <Clock className="h-6 w-6 text-gray-600" />
             </div>
-            <CardTitle className="text-gray-800">アカウント非アクティブ</CardTitle>
+            <CardTitle>アクセス許可が必要です</CardTitle>
             <CardDescription>
-              このアカウントは現在非アクティブ状態です。詳細については管理者にお問い合わせください。
+              システムにアクセスするには管理者の承認が必要です
             </CardDescription>
           </CardHeader>
           <CardContent className="text-center">
@@ -162,33 +191,5 @@ export default function ProtectedRoute({ children, adminOnly = false }: Protecte
   }
 
   // 承認済みユーザーのみコンテンツを表示
-  if (isApproved) {
-    return <>{children}</>
-  }
-
-  // その他の場合は承認待ち画面を表示
-  return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <Card className="max-w-md w-full">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gray-100">
-            <Clock className="h-6 w-6 text-gray-600" />
-          </div>
-          <CardTitle>アクセス許可が必要です</CardTitle>
-          <CardDescription>
-            システムにアクセスするには管理者の承認が必要です
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="text-center">
-          <Button 
-            onClick={logout}
-            variant="outline"
-            className="w-full"
-          >
-            ログアウト
-          </Button>
-        </CardContent>
-      </Card>
-    </div>
-  )
+  return <>{children}</>
 }
