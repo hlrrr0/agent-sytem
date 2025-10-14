@@ -65,13 +65,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         if (result) {
           console.log('Redirect sign-in successful:', result.user)
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('Redirect result error:', error)
+        // リダイレクト結果のエラーは無視（iframe の問題が続く可能性があるため）
+        // 実際の認証状態は onAuthStateChanged で確認される
       }
     }
 
-    handleRedirectResult()
-    return () => unsubscribe()
+    // 少し遅延させてからリダイレクト結果を確認
+    const timeoutId = setTimeout(handleRedirectResult, 1000)
+    
+    return () => {
+      unsubscribe()
+      clearTimeout(timeoutId)
+    }
   }, [])
 
   const handleUserProfile = async (firebaseUser: FirebaseUser) => {
@@ -115,32 +122,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       provider.addScope('email')
       provider.addScope('profile')
       
-      // カスタムパラメータを追加してドメインの問題を回避
+      // カスタムパラメータを追加
       provider.setCustomParameters({
-        prompt: 'select_account'
+        prompt: 'select_account',
+        hd: '' // ドメイン制限を解除
       })
       
       console.log('Firebase Auth Domain:', auth.config.authDomain)
       console.log('Current Domain:', typeof window !== 'undefined' ? window.location.origin : 'SSR')
       
-      // まずポップアップを試行
-      try {
-        console.log('Attempting popup sign-in...')
-        return await signInWithPopup(auth, provider)
-      } catch (popupError: any) {
-        console.warn('Popup sign-in failed, falling back to redirect:', popupError)
-        
-        // ポップアップが失敗した場合はリダイレクトにフォールバック
-        if (popupError.code === 'auth/popup-blocked' || 
-            popupError.code === 'auth/popup-closed-by-user' ||
-            popupError.message?.includes('iframe')) {
-          console.log('Using redirect sign-in...')
-          await signInWithRedirect(auth, provider)
-          return // リダイレクトの場合は結果はgetRedirectResultで処理
-        } else {
-          throw popupError
-        }
-      }
+      // iframe の問題があるため、リダイレクト認証のみを使用
+      console.log('Using redirect sign-in (iframe issues detected)...')
+      await signInWithRedirect(auth, provider)
+      return // リダイレクトの場合は結果はgetRedirectResultで処理
     } catch (error: any) {
       console.error('signInWithGoogle error:', error)
       throw error

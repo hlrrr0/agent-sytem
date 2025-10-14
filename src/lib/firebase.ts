@@ -4,12 +4,12 @@ import { getAuth, connectAuthEmulator } from 'firebase/auth'
 import { getStorage, connectStorageEmulator } from 'firebase/storage'
 
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || 'demo-api-key',
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || 'demo-project.firebaseapp.com',
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'demo-project',
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 'demo-project.appspot.com',
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '123456789',
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || '1:123456789:web:demo'
+  apiKey: (process.env.NEXT_PUBLIC_FIREBASE_API_KEY || 'demo-api-key').trim(),
+  authDomain: (process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || 'demo-project.firebaseapp.com').trim(),
+  projectId: (process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'demo-project').trim(),
+  storageBucket: (process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 'demo-project.appspot.com').trim(),
+  messagingSenderId: (process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '123456789').trim(),
+  appId: (process.env.NEXT_PUBLIC_FIREBASE_APP_ID || '1:123456789:web:demo').trim()
 }
 
 // デバッグ用ログ（本番環境でも一時的に有効化）

@@ -35,7 +35,8 @@ export default function LoginPage() {
       } else {
         console.log('Redirect sign-in initiated, waiting for result...')
         // リダイレクトの場合は結果待ち
-        setError('認証のためページが移動します...')
+        setError('Googleの認証ページに移動します。しばらくお待ちください...')
+        setLoading(false) // リダイレクトのためローディングを解除
       }
     } catch (error: any) {
       console.error('Googleログインエラー:', error)
