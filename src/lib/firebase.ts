@@ -12,6 +12,16 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || '1:123456789:web:demo'
 }
 
+// デバッグ用ログ（本番環境でも一時的に有効化）
+if (typeof window !== 'undefined') {
+  console.log('Firebase Config Debug:', {
+    apiKey: firebaseConfig.apiKey ? '***CONFIGURED***' : 'MISSING',
+    authDomain: firebaseConfig.authDomain,
+    projectId: firebaseConfig.projectId,
+    currentDomain: window.location.origin
+  })
+}
+
 // Firebase アプリを初期化（重複初期化を防ぐ）
 let app
 if (getApps().length === 0) {

@@ -95,11 +95,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }
 
   const signInWithGoogle = async (): Promise<UserCredential> => {
-    const provider = new GoogleAuthProvider()
-    provider.addScope('email')
-    provider.addScope('profile')
-    
-    return signInWithPopup(auth, provider)
+    try {
+      const provider = new GoogleAuthProvider()
+      provider.addScope('email')
+      provider.addScope('profile')
+      
+      // カスタムパラメータを追加してドメインの問題を回避
+      provider.setCustomParameters({
+        prompt: 'select_account'
+      })
+      
+      console.log('Firebase Auth Domain:', auth.config.authDomain)
+      console.log('Current Domain:', typeof window !== 'undefined' ? window.location.origin : 'SSR')
+      
+      return await signInWithPopup(auth, provider)
+    } catch (error: any) {
+      console.error('signInWithGoogle error:', error)
+      throw error
+    }
   }
 
   const logout = async (): Promise<void> => {

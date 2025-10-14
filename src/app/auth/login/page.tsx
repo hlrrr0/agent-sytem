@@ -18,17 +18,26 @@ export default function LoginPage() {
     setError('')
 
     try {
+      console.log('Starting Google sign-in...')
       await signInWithGoogle()
+      console.log('Google sign-in successful')
       // ログイン成功後、ユーザーの承認状態に応じてリダイレクト
       router.push('/')
     } catch (error: any) {
       console.error('Googleログインエラー:', error)
+      console.error('Error code:', error.code)
+      console.error('Error message:', error.message)
+      
       if (error.code === 'auth/popup-closed-by-user') {
         setError('ログインがキャンセルされました')
       } else if (error.code === 'auth/popup-blocked') {
         setError('ポップアップがブロックされました。ポップアップを許可してください')
+      } else if (error.code === 'auth/unauthorized-domain') {
+        setError('このドメインは認証が許可されていません。管理者に連絡してください')
+      } else if (error.code === 'auth/api-key-not-valid') {
+        setError('Firebase設定エラーです。管理者に連絡してください')
       } else {
-        setError('ログインに失敗しました。再度お試しください')
+        setError(`ログインに失敗しました: ${error.message}`)
       }
     } finally {
       setLoading(false)
