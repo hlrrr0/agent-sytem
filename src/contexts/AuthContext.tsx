@@ -130,6 +130,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }
 
   const signInWithGoogle = async (): Promise<UserCredential | void> => {
+    console.log('🟡 signInWithGoogle called')
     try {
       const provider = new GoogleAuthProvider()
       provider.addScope('email')
@@ -141,15 +142,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         hd: '' // ドメイン制限を解除
       })
       
-      console.log('Firebase Auth Domain:', auth.config.authDomain)
-      console.log('Current Domain:', typeof window !== 'undefined' ? window.location.origin : 'SSR')
+      console.log('🟡 Firebase Auth Domain:', auth.config.authDomain)
+      console.log('🟡 Current Domain:', typeof window !== 'undefined' ? window.location.origin : 'SSR')
       
-      // iframe の問題があるため、リダイレクト認証のみを使用
-      console.log('Using redirect sign-in (iframe issues detected)...')
-      await signInWithRedirect(auth, provider)
-      return // リダイレクトの場合は結果はgetRedirectResultで処理
+      // ローカル環境ではポップアップを試す、本番環境ではリダイレクト
+      if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+        console.log('🟡 Using popup sign-in for localhost...')
+        try {
+          return await signInWithPopup(auth, provider)
+        } catch (popupError: any) {
+          console.warn('🟠 Popup failed, falling back to redirect:', popupError)
+          console.log('🟡 Using redirect sign-in fallback...')
+          await signInWithRedirect(auth, provider)
+          return
+        }
+      } else {
+        // iframe の問題があるため、リダイレクト認証のみを使用
+        console.log('🟡 Using redirect sign-in (production)...')
+        await signInWithRedirect(auth, provider)
+        console.log('🟡 signInWithRedirect completed')
+        return // リダイレクトの場合は結果はgetRedirectResultで処理
+      }
     } catch (error: any) {
-      console.error('signInWithGoogle error:', error)
+      console.error('🔴 signInWithGoogle error:', error)
       throw error
     }
   }

@@ -21,27 +21,29 @@ export default function LoginPage() {
   }, [])
 
   const handleGoogleSignIn = async () => {
+    console.log('🔵 handleGoogleSignIn called')
     setLoading(true)
     setError('')
 
     try {
-      console.log('Starting Google sign-in...')
+      console.log('🔵 Starting Google sign-in...')
       const result = await signInWithGoogle()
+      console.log('🔵 Sign-in result:', result)
       
       if (result) {
-        console.log('Google sign-in successful')
+        console.log('🔵 Google sign-in successful')
         // ログイン成功後、ユーザーの承認状態に応じてリダイレクト
         router.push('/')
       } else {
-        console.log('Redirect sign-in initiated, waiting for result...')
+        console.log('🔵 Redirect sign-in initiated, waiting for result...')
         // リダイレクトの場合は結果待ち
         setError('Googleの認証ページに移動します。しばらくお待ちください...')
         setLoading(false) // リダイレクトのためローディングを解除
       }
     } catch (error: any) {
-      console.error('Googleログインエラー:', error)
-      console.error('Error code:', error.code)
-      console.error('Error message:', error.message)
+      console.error('🔴 Googleログインエラー:', error)
+      console.error('🔴 Error code:', error.code)
+      console.error('🔴 Error message:', error.message)
       
       if (error.code === 'auth/popup-closed-by-user') {
         setError('ログインがキャンセルされました')
