@@ -27,7 +27,8 @@ import {
   Filter,
   Eye,
   Edit,
-  Trash2
+  Trash2,
+  RefreshCw
 } from 'lucide-react'
 import { Candidate, candidateStatusLabels } from '@/types/candidate'
 import { getCandidates, getCandidateStats, deleteCandidate } from '@/lib/firestore/candidates'
@@ -55,10 +56,13 @@ export default function CandidatesPage() {
   const loadData = async () => {
     try {
       setLoading(true)
+      console.log('🔍 求職者データを読み込み開始...')
       const [candidatesData, statsData] = await Promise.all([
         getCandidates(),
         getCandidateStats()
       ])
+      console.log('📋 取得した求職者データ:', candidatesData)
+      console.log('📊 統計データ:', statsData)
       setCandidates(candidatesData)
       setStats(statsData)
     } catch (error) {
@@ -70,11 +74,18 @@ export default function CandidatesPage() {
   }
 
   const applyFilters = () => {
+    console.log('🔍 フィルタリング開始', { 
+      candidatesCount: candidates.length, 
+      statusFilter, 
+      searchTerm 
+    })
+    
     let filtered = candidates
 
     // ステータスフィルタ
     if (statusFilter !== 'all') {
       filtered = filtered.filter(candidate => candidate.status === statusFilter)
+      console.log('📊 ステータスフィルタ後:', filtered.length)
     }
 
     // 検索フィルタ
@@ -86,8 +97,10 @@ export default function CandidatesPage() {
         candidate.email.toLowerCase().includes(searchLower) ||
         candidate.phone?.toLowerCase().includes(searchLower)
       )
+      console.log('🔍 検索フィルタ後:', filtered.length)
     }
 
+    console.log('✅ 最終的なフィルタ結果:', filtered)
     setFilteredCandidates(filtered)
   }
 
@@ -157,12 +170,22 @@ export default function CandidatesPage() {
               </p>
             </div>
           </div>
-          <Link href="/candidates/new">
-            <Button variant="outline" className="bg-white text-blue-600 hover:bg-blue-50 border-white">
-              <Plus className="h-4 w-4 mr-2" />
-              新規登録
+          <div className="flex gap-2">
+            <Button
+              onClick={loadData}
+              variant="outline"
+              className="bg-white text-blue-600 hover:bg-blue-50 border-white flex items-center gap-2"
+            >
+              <RefreshCw className="h-4 w-4" />
+              更新
             </Button>
-          </Link>
+            <Link href="/candidates/new">
+              <Button variant="outline" className="bg-white text-blue-600 hover:bg-blue-50 border-white">
+                <Plus className="h-4 w-4 mr-2" />
+                新規登録
+              </Button>
+            </Link>
+          </div>
         </div>
       </div>
 

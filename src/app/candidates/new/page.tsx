@@ -44,7 +44,7 @@ export default function NewCandidatePage() {
     try {
       const skillsArray = formData.skills.split(',').map(skill => skill.trim()).filter(skill => skill)
 
-      const newCandidate: Omit<Candidate, 'id'> = {
+      const newCandidate: Omit<Candidate, 'id' | 'createdAt' | 'updatedAt'> = {
         firstName: formData.firstName,
         lastName: formData.lastName,
         firstNameKana: formData.firstNameKana,
@@ -59,12 +59,12 @@ export default function NewCandidatePage() {
         certifications: [],
         preferences: {},
         consultantComment: formData.consultantComment || undefined,
-        status: formData.status,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        status: formData.status
       }
 
-      await createCandidate(newCandidate)
+      console.log('🆕 新規求職者データ:', newCandidate)
+      const candidateId = await createCandidate(newCandidate)
+      console.log('✅ 求職者作成完了 ID:', candidateId)
       alert('求職者が正常に追加されました')
       router.push('/candidates')
     } catch (error) {

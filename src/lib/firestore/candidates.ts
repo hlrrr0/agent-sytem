@@ -72,13 +72,51 @@ const candidateToFirestore = (candidate: Omit<Candidate, 'id'>) => {
 
 // Firestoreからのデータ変換（Timestamp型をDate型に変換）
 const candidateFromFirestore = (doc: QueryDocumentSnapshot<DocumentData>): Candidate => {
-  const data = doc.data()
-  return {
-    id: doc.id,
-    ...data,
-    createdAt: data.createdAt?.toDate() || new Date(),
-    updatedAt: data.updatedAt?.toDate() || new Date()
-  } as Candidate
+  try {
+    const data = doc.data()
+    console.log('🔄 変換中のドキュメント ID:', doc.id, 'データ:', data)
+    
+    const result = {
+      id: doc.id,
+      ...data,
+      createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt || Date.now()),
+      updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date(data.updatedAt || Date.now()),
+      // 必須フィールドのデフォルト値を確保
+      firstName: data.firstName || '',
+      lastName: data.lastName || '',
+      firstNameKana: data.firstNameKana || '',
+      lastNameKana: data.lastNameKana || '',
+      email: data.email || '',
+      status: data.status || 'active',
+      experience: data.experience || [],
+      education: data.education || [],
+      skills: data.skills || [],
+      certifications: data.certifications || [],
+      preferences: data.preferences || {}
+    } as Candidate
+    
+    console.log('✅ 変換完了:', result)
+    return result
+  } catch (error) {
+    console.error('❌ 求職者データ変換エラー ID:', doc.id, error)
+    // エラーでも基本的な構造を返す
+    return {
+      id: doc.id,
+      firstName: 'データエラー',
+      lastName: '',
+      firstNameKana: '',
+      lastNameKana: '',
+      email: '',
+      status: 'active',
+      experience: [],
+      education: [],
+      skills: [],
+      certifications: [],
+      preferences: {},
+      createdAt: new Date(),
+      updatedAt: new Date()
+    } as Candidate
+  }
 }
 
 // 求職者一覧取得（フィルタリング・ソート対応）
@@ -90,43 +128,33 @@ export const getCandidates = async (options?: {
   orderDirection?: 'asc' | 'desc'
 }): Promise<Candidate[]> => {
   try {
-    let baseQuery = collection(db, COLLECTION_NAME)
-    let constraints = []
+    console.log('🔍 getCandidates開始', options)
     
-    // フィルタリング
-    if (options?.status) {
-      constraints.push(where('status', '==', options.status))
+    // 一時的に最もシンプルなクエリでテスト
+    console.log('⚠️ 一時的にシンプルクエリでテスト中')
+    const snapshot = await getDocs(collection(db, COLLECTION_NAME))
+    console.log('📋 Firestoreから取得したドキュメント数:', snapshot.docs.length)
+    
+    if (snapshot.docs.length === 0) {
+      console.log('❌ Firestoreにドキュメントが存在しません')
+      return []
     }
     
-    // ソート
-    const orderByField = options?.orderBy || 'updatedAt'
-    const orderDirection = options?.orderDirection || 'desc'
-    constraints.push(orderBy(orderByField, orderDirection))
+    // 生データを確認
+    const rawData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+    console.log('📋 生データサンプル:', rawData[0])
     
-    // 制限
-    if (options?.limit) {
-      constraints.push(limit(options.limit))
-    }
-    
-    const q = query(baseQuery, ...constraints)
-    const snapshot = await getDocs(q)
     let candidates = snapshot.docs.map(candidateFromFirestore)
+    console.log('🔄 変換後の求職者データ:', candidates)
     
-    // 検索フィルタ（クライアントサイド）
-    if (options?.searchTerm) {
-      const searchLower = options.searchTerm.toLowerCase()
-      candidates = candidates.filter(candidate => 
-        `${candidate.firstName} ${candidate.lastName}`.toLowerCase().includes(searchLower) ||
-        `${candidate.firstNameKana} ${candidate.lastNameKana}`.toLowerCase().includes(searchLower) ||
-        candidate.email.toLowerCase().includes(searchLower) ||
-        candidate.phone?.toLowerCase().includes(searchLower) ||
-        candidate.skills.some(skill => skill.toLowerCase().includes(searchLower))
-      )
+    if (candidates.length === 0) {
+      console.log('❌ 変換後にデータが0件になりました')
     }
     
+    console.log('✅ getCandidates完了 返却データ件数:', candidates.length)
     return candidates
   } catch (error) {
-    console.error('Error getting candidates:', error)
+    console.error('❌ getCandidatesエラー:', error)
     throw error
   }
 }
