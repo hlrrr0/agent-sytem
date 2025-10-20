@@ -220,3 +220,20 @@ export const searchJobs = async (searchTerm: string): Promise<Job[]> => {
     throw error
   }
 }
+
+// 個別の求人取得
+export const getJob = async (id: string): Promise<Job | null> => {
+  try {
+    const docRef = doc(db, COLLECTION_NAME, id)
+    const docSnap = await getDoc(docRef)
+    
+    if (docSnap.exists()) {
+      return firestoreToJob(docSnap)
+    } else {
+      return null
+    }
+  } catch (error) {
+    console.error('Error getting job:', error)
+    throw error
+  }
+}

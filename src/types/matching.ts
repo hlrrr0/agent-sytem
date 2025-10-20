@@ -24,7 +24,7 @@ export interface Match {
 
 // マッチング理由
 export interface MatchReason {
-  type: 'skill' | 'experience' | 'location' | 'industry' | 'salary' | 'culture'
+  type: 'skill' | 'experience' | 'location' | 'industry' | 'salary' | 'culture' | 'manual'
   description: string
   weight: number // 重要度 0-1
 }

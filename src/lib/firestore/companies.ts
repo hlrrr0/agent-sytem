@@ -242,3 +242,23 @@ export async function importCompaniesFromDomino(companies: Company[]): Promise<{
 
   return { success, failed, errors }
 }
+
+// 個別の企業取得
+export const getCompany = async (id: string): Promise<Company | null> => {
+  try {
+    const docRef = doc(companiesCollection, id)
+    const docSnap = await getDoc(docRef)
+    
+    if (docSnap.exists()) {
+      return {
+        id: docSnap.id,
+        ...docSnap.data()
+      } as Company
+    } else {
+      return null
+    }
+  } catch (error) {
+    console.error('Error getting company:', error)
+    throw error
+  }
+}

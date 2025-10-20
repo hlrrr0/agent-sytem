@@ -324,3 +324,20 @@ export const getCandidateStats = async () => {
     throw error
   }
 }
+
+// 個別の候補者取得
+export const getCandidate = async (id: string): Promise<Candidate | null> => {
+  try {
+    const docRef = doc(db, COLLECTION_NAME, id)
+    const docSnap = await getDoc(docRef)
+    
+    if (docSnap.exists()) {
+      return candidateFromFirestore(docSnap)
+    } else {
+      return null
+    }
+  } catch (error) {
+    console.error('Error getting candidate:', error)
+    throw error
+  }
+}
