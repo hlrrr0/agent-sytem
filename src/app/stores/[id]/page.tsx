@@ -18,7 +18,7 @@ import {
 } from 'lucide-react'
 import { doc, getDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
-import { Store as StoreType, businessTypeLabels, statusLabels } from '@/types/store'
+import { Store as StoreType, statusLabels } from '@/types/store'
 import { Company } from '@/types/company'
 
 interface StoreDetailPageProps {
@@ -81,28 +81,13 @@ function StoreDetailContent({ params }: StoreDetailPageProps) {
 
   const getStatusBadge = (status: StoreType['status']) => {
     const colors = {
-      open: 'bg-green-100 text-green-800',
-      closed: 'bg-red-100 text-red-800',
+      active: 'bg-green-100 text-green-800',
+      inactive: 'bg-red-100 text-red-800',
     }
     
     return (
       <Badge className={colors[status]}>
         {statusLabels[status]}
-      </Badge>
-    )
-  }
-
-  const getBusinessTypeBadge = (businessType: StoreType['businessType']) => {
-    const colors = {
-      kaiten: 'bg-orange-100 text-orange-800',
-      counter_alacarte: 'bg-blue-100 text-blue-800',
-      counter_omakase: 'bg-purple-100 text-purple-800',
-      other: 'bg-gray-100 text-gray-800',
-    }
-    
-    return (
-      <Badge className={colors[businessType]}>
-        {businessTypeLabels[businessType]}
       </Badge>
     )
   }
@@ -141,7 +126,6 @@ function StoreDetailContent({ params }: StoreDetailPageProps) {
             </h1>
             <div className="flex items-center gap-2 mt-2">
               {getStatusBadge(store.status)}
-              {getBusinessTypeBadge(store.businessType)}
             </div>
           </div>
         </div>
@@ -168,26 +152,28 @@ function StoreDetailContent({ params }: StoreDetailPageProps) {
                   <p className="text-lg">{store.name}</p>
                 </div>
                 <div>
-                  <h3 className="font-medium text-gray-700">業態</h3>
-                  <p className="text-lg">{businessTypeLabels[store.businessType]}</p>
+                  <h3 className="font-medium text-gray-700">ステータス</h3>
+                  <div className="mt-1">{getStatusBadge(store.status)}</div>
                 </div>
               </div>
 
               <Separator />
 
-              <div>
-                <h3 className="font-medium text-gray-700 flex items-center gap-2">
-                  <MapPin className="h-4 w-4" />
-                  住所
-                </h3>
-                <p className="mt-1">{store.address}</p>
-              </div>
+              {store.address && (
+                <div>
+                  <h3 className="font-medium text-gray-700 flex items-center gap-2">
+                    <MapPin className="h-4 w-4" />
+                    店舗住所
+                  </h3>
+                  <p className="mt-1">{store.address}</p>
+                </div>
+              )}
 
               {store.website && (
                 <div>
                   <h3 className="font-medium text-gray-700 flex items-center gap-2">
                     <ExternalLink className="h-4 w-4" />
-                    公式サイト
+                    店舗URL
                   </h3>
                   <a 
                     href={store.website} 
@@ -196,6 +182,51 @@ function StoreDetailContent({ params }: StoreDetailPageProps) {
                     className="mt-1 text-blue-600 hover:underline"
                   >
                     {store.website}
+                  </a>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {store.unitPrice && (
+                  <div>
+                    <h3 className="font-medium text-gray-700">単価</h3>
+                    <p className="mt-1">{store.unitPrice.toLocaleString()}円</p>
+                  </div>
+                )}
+                {store.seatCount && (
+                  <div>
+                    <h3 className="font-medium text-gray-700">席数</h3>
+                    <p className="mt-1">{store.seatCount}席</p>
+                  </div>
+                )}
+              </div>
+
+              {store.isReservationRequired !== undefined && (
+                <div>
+                  <h3 className="font-medium text-gray-700">予約制（時間固定）</h3>
+                  <p className="mt-1">{store.isReservationRequired ? 'あり' : 'なし'}</p>
+                </div>
+              )}
+
+            </CardContent>
+          </Card>
+
+          {/* SNS・外部サイト */}
+          <Card>
+            <CardHeader>
+              <CardTitle>SNS・外部サイト</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {store.instagramUrl && (
+                <div>
+                  <h3 className="font-medium text-gray-700">Instagram URL</h3>
+                  <a 
+                    href={store.instagramUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="mt-1 text-blue-600 hover:underline"
+                  >
+                    {store.instagramUrl}
                   </a>
                 </div>
               )}
@@ -213,33 +244,101 @@ function StoreDetailContent({ params }: StoreDetailPageProps) {
                   </a>
                 </div>
               )}
-
-              {store.instagramUrl && (
-                <div>
-                  <h3 className="font-medium text-gray-700">Instagram</h3>
-                  <a 
-                    href={store.instagramUrl} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="mt-1 text-blue-600 hover:underline"
-                  >
-                    {store.instagramUrl}
-                  </a>
-                </div>
-              )}
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <h3 className="font-medium text-gray-700">業態</h3>
-                  <p className="mt-1">{businessTypeLabels[store.businessType]}</p>
-                </div>
-                <div>
-                  <h3 className="font-medium text-gray-700">ステータス</h3>
-                  <p className="mt-1">{statusLabels[store.status]}</p>
-                </div>
-              </div>
             </CardContent>
           </Card>
+
+          {/* 実績・評価 */}
+          {store.reputation && (
+            <Card>
+              <CardHeader>
+                <CardTitle>実績・評価</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div>
+                  <h3 className="font-medium text-gray-700">食べログスコア / ミシュラン等の獲得状況</h3>
+                  <p className="mt-2 whitespace-pre-line">{store.reputation}</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* スタッフレビュー */}
+          {store.staffReview && (
+            <Card>
+              <CardHeader>
+                <CardTitle>スタッフ正直レビュー</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div>
+                  <h3 className="font-medium text-gray-700">スタッフが食べに行った"正直な"感想</h3>
+                  <p className="mt-2 whitespace-pre-line">{store.staffReview}</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* 素材セクション */}
+          {(store.ownerPhoto || store.ownerVideo || store.interiorPhoto) && (
+            <Card>
+              <CardHeader>
+                <CardTitle>素材</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {store.ownerPhoto && (
+                  <div>
+                    <h3 className="font-medium text-gray-700">大将の写真</h3>
+                    <div className="mt-2">
+                      <img 
+                        src={store.ownerPhoto} 
+                        alt="大将の写真"
+                        className="max-w-md rounded-lg"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none'
+                        }}
+                      />
+                      <p className="text-sm text-gray-500 mt-1">{store.ownerPhoto}</p>
+                    </div>
+                  </div>
+                )}
+
+                {store.ownerVideo && (
+                  <div>
+                    <h3 className="font-medium text-gray-700">大将の動画</h3>
+                    <div className="mt-2">
+                      <video 
+                        controls 
+                        className="max-w-md rounded-lg"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none'
+                        }}
+                      >
+                        <source src={store.ownerVideo} />
+                        動画を再生できません
+                      </video>
+                      <p className="text-sm text-gray-500 mt-1">{store.ownerVideo}</p>
+                    </div>
+                  </div>
+                )}
+
+                {store.interiorPhoto && (
+                  <div>
+                    <h3 className="font-medium text-gray-700">店内の写真</h3>
+                    <div className="mt-2">
+                      <img 
+                        src={store.interiorPhoto} 
+                        alt="店内の写真"
+                        className="max-w-md rounded-lg"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none'
+                        }}
+                      />
+                      <p className="text-sm text-gray-500 mt-1">{store.interiorPhoto}</p>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {/* 管理情報 */}
           <Card>

@@ -20,7 +20,7 @@ import {
   Building2,
   Store
 } from 'lucide-react'
-import { Job, jobStatusLabels, employmentTypeLabels } from '@/types/job'
+import { Job, jobStatusLabels } from '@/types/job'
 import { getJobs, deleteJob } from '@/lib/firestore/jobs'
 import { getCompanies } from '@/lib/firestore/companies'
 import { getStores } from '@/lib/firestore/stores'
@@ -119,6 +119,11 @@ function JobsPageContent() {
     closed: jobs.filter(j => j.status === 'closed').length,
   }
 
+  // 実際のデータから雇用形態のオプションを動的に作成
+  const availableEmploymentTypes = Array.from(
+    new Set(jobs.filter(job => job.employmentType && job.employmentType.trim()).map(job => job.employmentType!))
+  ).sort()
+
   const getStatusBadge = (status: Job['status']) => {
     const color = statusColors[status] || 'bg-gray-100 text-gray-800'
     return (
@@ -126,11 +131,6 @@ function JobsPageContent() {
         {jobStatusLabels[status]}
       </Badge>
     )
-  }
-
-  const formatSalary = (salary: Job['salary']) => {
-    if (!salary.baseSalary) return '-'
-    return `${salary.baseSalary.toLocaleString()}円`
   }
 
   if (loading) {
@@ -291,8 +291,8 @@ function JobsPageContent() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">すべての雇用形態</SelectItem>
-                  {Object.entries(employmentTypeLabels).map(([key, label]) => (
-                    <SelectItem key={key} value={key}>{label}</SelectItem>
+                  {availableEmploymentTypes.map((type) => (
+                    <SelectItem key={type} value={type}>{type}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -340,11 +340,11 @@ function JobsPageContent() {
                     <TableCell>{getStoreName(job.storeId)}</TableCell>
                     <TableCell>
                       <Badge variant="outline">
-                        {employmentTypeLabels[job.employmentType]}
+                        {job.employmentType || '未設定'}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-sm">
-                      {formatSalary(job.salary)}
+                      {job.salaryExperienced || job.salaryInexperienced || '未設定'}
                     </TableCell>
                     <TableCell>{getStatusBadge(job.status)}</TableCell>
                     <TableCell className="text-right">

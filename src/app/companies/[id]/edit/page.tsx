@@ -40,10 +40,18 @@ export default function EditCompanyPage({ params }: EditCompanyPageProps) {
     feature1: '',
     feature2: '',
     feature3: '',
+    careerPath: '',
+    youngRecruitReason: '',
+    hasShokuninUnivRecord: false,
+    hasHousingSupport: false,
+    fullTimeAgeGroup: '',
+    independenceRecord: '',
+    hasIndependenceSupport: false,
     contractStartDate: '',
     status: 'active',
     isPublic: true,
-    consultantId: ''
+    consultantId: '',
+    memo: ''
   })
 
   useEffect(() => {
@@ -164,68 +172,7 @@ export default function EditCompanyPage({ params }: EditCompanyPageProps) {
             </div>
 
             <div>
-              <Label htmlFor="address">所在地 *</Label>
-              <Textarea
-                id="address"
-                value={company.address || ''}
-                onChange={(e) => handleChange('address', e.target.value)}
-                rows={3}
-                required
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="representative">代表者名</Label>
-              <Input
-                id="representative"
-                value={company.representative || ''}
-                onChange={(e) => handleChange('representative', e.target.value)}
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <Label htmlFor="employeeCount">従業員数</Label>
-                <Input
-                  id="employeeCount"
-                  type="number"
-                  value={company.employeeCount || 0}
-                  onChange={(e) => handleChange('employeeCount', parseInt(e.target.value) || 0)}
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="capital">資本金（万円）</Label>
-                <Input
-                  id="capital"
-                  type="number"
-                  value={company.capital || 0}
-                  onChange={(e) => handleChange('capital', parseInt(e.target.value) || 0)}
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="establishedYear">設立年</Label>
-                <Input
-                  id="establishedYear"
-                  type="number"
-                  value={company.establishedYear || new Date().getFullYear()}
-                  onChange={(e) => handleChange('establishedYear', parseInt(e.target.value) || new Date().getFullYear())}
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* 連絡先・特徴情報 */}
-        <Card>
-          <CardHeader>
-            <CardTitle>連絡先・特徴情報</CardTitle>
-            <CardDescription>企業の連絡先と特徴を入力してください</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="website">ウェブサイト</Label>
+              <Label htmlFor="website">会社HP</Label>
               <Input
                 id="website"
                 type="url"
@@ -236,44 +183,159 @@ export default function EditCompanyPage({ params }: EditCompanyPageProps) {
             </div>
 
             <div>
-              <Label htmlFor="logo">ロゴ画像URL</Label>
-              <Input
-                id="logo"
-                type="url"
-                value={company.logo || ''}
-                onChange={(e) => handleChange('logo', e.target.value)}
-                placeholder="https://example.com/logo.png"
+              <Label htmlFor="address">所在地</Label>
+              <Textarea
+                id="address"
+                value={company.address || ''}
+                onChange={(e) => handleChange('address', e.target.value)}
+                rows={3}
+                placeholder="都道府県、市区町村、番地を入力してください"
               />
             </div>
 
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="employeeCount">従業員数</Label>
+                <Input
+                  id="employeeCount"
+                  type="number"
+                  value={company.employeeCount || ''}
+                  onChange={(e) => handleChange('employeeCount', parseInt(e.target.value) || undefined)}
+                  placeholder="従業員数を入力してください"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="establishedYear">設立年</Label>
+                <Input
+                  id="establishedYear"
+                  type="number"
+                  value={company.establishedYear || ''}
+                  onChange={(e) => handleChange('establishedYear', parseInt(e.target.value) || undefined)}
+                  placeholder="例: 2010"
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 特徴セクション */}
+        <Card>
+          <CardHeader>
+            <CardTitle>特徴セクション</CardTitle>
+            <CardDescription>企業の特徴や魅力を入力してください</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
             <div>
-              <Label htmlFor="feature1">会社特徴1</Label>
-              <Input
+              <Label htmlFor="feature1">会社特徴①</Label>
+              <Textarea
                 id="feature1"
                 value={company.feature1 || ''}
                 onChange={(e) => handleChange('feature1', e.target.value)}
-                placeholder="例: 地域密着型"
+                rows={3}
+                placeholder="地域密着型、アットホームな雰囲気、社員同士の結束が強い など、企業の魅力や特徴を詳しく記載してください"
               />
             </div>
 
             <div>
-              <Label htmlFor="feature2">会社特徴2</Label>
-              <Input
+              <Label htmlFor="feature2">会社特徴②</Label>
+              <Textarea
                 id="feature2"
                 value={company.feature2 || ''}
                 onChange={(e) => handleChange('feature2', e.target.value)}
-                placeholder="例: 研修制度充実"
+                rows={3}
+                placeholder="研修制度充実、福利厚生充実、キャリアアップ支援 など、従業員へのサポート体制について詳しく記載してください"
               />
             </div>
 
             <div>
-              <Label htmlFor="feature3">会社特徴3</Label>
-              <Input
+              <Label htmlFor="feature3">会社特徴③</Label>
+              <Textarea
                 id="feature3"
                 value={company.feature3 || ''}
                 onChange={(e) => handleChange('feature3', e.target.value)}
-                placeholder="例: 成長企業"
+                rows={3}
+                placeholder="成長企業、安定経営、業界のリーディングカンパニー など、事業面での強みや特徴を詳しく記載してください"
               />
+            </div>
+
+            <div>
+              <Label htmlFor="careerPath">目指せるキャリア</Label>
+              <Textarea
+                id="careerPath"
+                value={company.careerPath || ''}
+                onChange={(e) => handleChange('careerPath', e.target.value)}
+                rows={3}
+                placeholder="海外就職、海外独立、国内独立、経営層への道筋 など、将来的なキャリアパスについて詳しく記載してください"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="youngRecruitReason">若手の入社理由</Label>
+              <Textarea
+                id="youngRecruitReason"
+                value={company.youngRecruitReason || ''}
+                onChange={(e) => handleChange('youngRecruitReason', e.target.value)}
+                rows={3}
+                placeholder="若い人材が入社を決める理由や魅力を記載してください"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* オプションセクション */}
+        <Card>
+          <CardHeader>
+            <CardTitle>オプションセクション</CardTitle>
+            <CardDescription>企業の詳細情報や支援制度について</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="hasShokuninUnivRecord"
+                checked={company.hasShokuninUnivRecord ?? false}
+                onCheckedChange={(checked) => handleChange('hasShokuninUnivRecord', checked)}
+              />
+              <Label htmlFor="hasShokuninUnivRecord">飲食人大学就職実績の有無</Label>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="hasHousingSupport"
+                checked={company.hasHousingSupport ?? false}
+                onCheckedChange={(checked) => handleChange('hasHousingSupport', checked)}
+              />
+              <Label htmlFor="hasHousingSupport">寮・家賃保証の有無</Label>
+            </div>
+
+            <div>
+              <Label htmlFor="fullTimeAgeGroup">正社員年齢層</Label>
+              <Input
+                id="fullTimeAgeGroup"
+                value={company.fullTimeAgeGroup || ''}
+                onChange={(e) => handleChange('fullTimeAgeGroup', e.target.value)}
+                placeholder="例: 20代中心、30代～40代、幅広い年齢層"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="independenceRecord">独立実績</Label>
+              <Textarea
+                id="independenceRecord"
+                value={company.independenceRecord || ''}
+                onChange={(e) => handleChange('independenceRecord', e.target.value)}
+                rows={3}
+                placeholder="過去の独立実績や成功事例を記載してください"
+              />
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="hasIndependenceSupport"
+                checked={company.hasIndependenceSupport ?? false}
+                onCheckedChange={(checked) => handleChange('hasIndependenceSupport', checked)}
+              />
+              <Label htmlFor="hasIndependenceSupport">独立支援の有無</Label>
             </div>
           </CardContent>
         </Card>
@@ -327,11 +389,21 @@ export default function EditCompanyPage({ params }: EditCompanyPageProps) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="active">有効</SelectItem>
-                  <SelectItem value="suspended">停止</SelectItem>
-                  <SelectItem value="paused">休止</SelectItem>
+                  <SelectItem value="active">アクティブ</SelectItem>
+                  <SelectItem value="inactive">非アクティブ</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="memo">メモ</Label>
+              <Textarea
+                id="memo"
+                value={company.memo || ''}
+                onChange={(e) => handleChange('memo', e.target.value)}
+                rows={4}
+                placeholder="企業に関するメモや特記事項を記載してください"
+              />
             </div>
 
             <div className="flex items-center space-x-2">

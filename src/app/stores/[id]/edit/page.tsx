@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
 import { ArrowLeft, Store, Save } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
@@ -31,11 +32,19 @@ export default function EditStorePage({ params }: EditStorePageProps) {
     name: '',
     companyId: '',
     address: '',
-    businessType: 'kaiten',
     website: '',
-    tabelogUrl: '',
+    unitPrice: undefined,
+    seatCount: undefined,
+    isReservationRequired: false,
     instagramUrl: '',
-    status: 'open'
+    tabelogUrl: '',
+    reputation: '',
+    staffReview: '',
+    trainingPeriod: '',
+    ownerPhoto: '',
+    ownerVideo: '',
+    interiorPhoto: '',
+    status: 'active'
   })
 
   useEffect(() => {
@@ -147,69 +156,106 @@ export default function EditStorePage({ params }: EditStorePageProps) {
             <CardDescription>店舗の基本的な情報を入力してください</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="name">店舗名 *</Label>
-                <Input
-                  id="name"
-                  value={store.name}
-                  onChange={(e) => handleChange('name', e.target.value)}
-                  required
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="companyId">所属企業 *</Label>
-                <Select 
-                  value={store.companyId} 
-                  onValueChange={(value) => handleChange('companyId', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="企業を選択" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {companies.map((company) => (
-                      <SelectItem key={company.id} value={company.id}>
-                        {company.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div>
+              <Label htmlFor="status">店舗ステータス *</Label>
+              <Select 
+                value={store.status || 'active'} 
+                onValueChange={(value) => handleChange('status', value)}
+                required
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">アクティブ</SelectItem>
+                  <SelectItem value="inactive">非アクティブ</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div>
-              <Label htmlFor="address">住所 *</Label>
+              <Label htmlFor="name">店舗名 *</Label>
               <Input
-                id="address"
-                value={store.address}
-                onChange={(e) => handleChange('address', e.target.value)}
+                id="name"
+                value={store.name || ''}
+                onChange={(e) => handleChange('name', e.target.value)}
                 required
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="companyId">所属企業 *</Label>
+              <Select 
+                value={store.companyId || ''} 
+                onValueChange={(value) => handleChange('companyId', value)}
+                required
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="企業を選択" />
+                </SelectTrigger>
+                <SelectContent>
+                  {companies.map((company) => (
+                    <SelectItem key={company.id} value={company.id}>
+                      {company.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="address">店舗住所</Label>
+              <Textarea
+                id="address"
+                value={store.address || ''}
+                onChange={(e) => handleChange('address', e.target.value)}
+                rows={2}
+                placeholder="店舗の住所を入力してください"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="website">店舗URL</Label>
+              <Input
+                id="website"
+                type="url"
+                value={store.website || ''}
+                onChange={(e) => handleChange('website', e.target.value)}
+                placeholder="https://example.com"
               />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="website">ウェブサイト</Label>
+                <Label htmlFor="unitPrice">単価</Label>
                 <Input
-                  id="website"
-                  type="url"
-                  value={store.website}
-                  onChange={(e) => handleChange('website', e.target.value)}
-                  placeholder="https://example.com"
+                  id="unitPrice"
+                  type="number"
+                  value={store.unitPrice || ''}
+                  onChange={(e) => handleChange('unitPrice', parseInt(e.target.value) || undefined)}
+                  placeholder="円"
                 />
               </div>
 
               <div>
-                <Label htmlFor="tabelogUrl">食べログURL</Label>
+                <Label htmlFor="seatCount">席数</Label>
                 <Input
-                  id="tabelogUrl"
-                  type="url"
-                  value={store.tabelogUrl}
-                  onChange={(e) => handleChange('tabelogUrl', e.target.value)}
-                  placeholder="https://tabelog.com/..."
+                  id="seatCount"
+                  type="number"
+                  value={store.seatCount || ''}
+                  onChange={(e) => handleChange('seatCount', parseInt(e.target.value) || undefined)}
+                  placeholder="席"
                 />
               </div>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="isReservationRequired"
+                checked={store.isReservationRequired ?? false}
+                onCheckedChange={(checked) => handleChange('isReservationRequired', checked)}
+              />
+              <Label htmlFor="isReservationRequired">予約制なのか（時間固定の）</Label>
             </div>
 
             <div>
@@ -217,46 +263,95 @@ export default function EditStorePage({ params }: EditStorePageProps) {
               <Input
                 id="instagramUrl"
                 type="url"
-                value={store.instagramUrl}
+                value={store.instagramUrl || ''}
                 onChange={(e) => handleChange('instagramUrl', e.target.value)}
                 placeholder="https://instagram.com/..."
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="businessType">業種</Label>
-                <Select 
-                  value={store.businessType} 
-                  onValueChange={(value) => handleChange('businessType', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="kaiten">回転寿司</SelectItem>
-                    <SelectItem value="counter_alacarte">カウンター寿司（アラカルト）</SelectItem>
-                    <SelectItem value="counter_omakase">カウンター寿司（おまかせ）</SelectItem>
-                    <SelectItem value="other">その他</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            <div>
+              <Label htmlFor="tabelogUrl">食べログURL</Label>
+              <Input
+                id="tabelogUrl"
+                type="url"
+                value={store.tabelogUrl || ''}
+                onChange={(e) => handleChange('tabelogUrl', e.target.value)}
+                placeholder="https://tabelog.com/..."
+              />
+            </div>
 
-              <div>
-                <Label htmlFor="status">ステータス</Label>
-                <Select 
-                  value={store.status} 
-                  onValueChange={(value) => handleChange('status', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="open">営業中</SelectItem>
-                    <SelectItem value="closed">閉店</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            <div>
+              <Label htmlFor="reputation">食べログの口コミスコア / ミシュランなどの獲得状況等の実績</Label>
+              <Textarea
+                id="reputation"
+                value={store.reputation || ''}
+                onChange={(e) => handleChange('reputation', e.target.value)}
+                rows={3}
+                placeholder="食べログスコア、ミシュラン獲得状況、その他の実績を記載してください"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="staffReview">スタッフが食べに行った"正直な"感想</Label>
+              <Textarea
+                id="staffReview"
+                value={store.staffReview || ''}
+                onChange={(e) => handleChange('staffReview', e.target.value)}
+                rows={4}
+                placeholder="実際に食べに行ったスタッフの正直な感想を記載してください"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="trainingPeriod">握れるまでの期間</Label>
+              <Input
+                id="trainingPeriod"
+                value={store.trainingPeriod || ''}
+                onChange={(e) => handleChange('trainingPeriod', e.target.value)}
+                placeholder="例: 3ヶ月、半年、1年"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 素材セクション */}
+        <Card>
+          <CardHeader>
+            <CardTitle>素材セクション</CardTitle>
+            <CardDescription>店舗の写真や動画素材を管理します</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="ownerPhoto">大将の写真</Label>
+              <Input
+                id="ownerPhoto"
+                type="url"
+                value={store.ownerPhoto || ''}
+                onChange={(e) => handleChange('ownerPhoto', e.target.value)}
+                placeholder="https://example.com/owner-photo.jpg"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="ownerVideo">大将の動画</Label>
+              <Input
+                id="ownerVideo"
+                type="url"
+                value={store.ownerVideo || ''}
+                onChange={(e) => handleChange('ownerVideo', e.target.value)}
+                placeholder="https://example.com/owner-video.mp4"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="interiorPhoto">店内の写真</Label>
+              <Input
+                id="interiorPhoto"
+                type="url"
+                value={store.interiorPhoto || ''}
+                onChange={(e) => handleChange('interiorPhoto', e.target.value)}
+                placeholder="https://example.com/interior-photo.jpg"
+              />
             </div>
           </CardContent>
         </Card>

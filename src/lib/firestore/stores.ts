@@ -52,6 +52,29 @@ function removeUndefinedFields(obj: any): any {
   return cleaned
 }
 
+// 安全な日付変換関数
+function safeToDate(value: any): Date {
+  if (!value) return new Date()
+  
+  // Firestoreのタイムスタンプの場合
+  if (value.toDate && typeof value.toDate === 'function') {
+    return value.toDate()
+  }
+  
+  // 文字列の場合
+  if (typeof value === 'string') {
+    const date = new Date(value)
+    return isNaN(date.getTime()) ? new Date() : date
+  }
+  
+  // Dateオブジェクトの場合
+  if (value instanceof Date) {
+    return value
+  }
+  
+  return new Date()
+}
+
 // 店舗一覧を取得
 export async function getStores(): Promise<Store[]> {
   try {
@@ -61,8 +84,8 @@ export async function getStores(): Promise<Store[]> {
     return querySnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
-      createdAt: doc.data().createdAt?.toDate() || new Date(),
-      updatedAt: doc.data().updatedAt?.toDate() || new Date(),
+      createdAt: safeToDate(doc.data().createdAt),
+      updatedAt: safeToDate(doc.data().updatedAt),
     } as Store))
   } catch (error) {
     console.error('Error getting stores:', error)
@@ -83,8 +106,8 @@ export async function getStoresByCompany(companyId: string): Promise<Store[]> {
     return querySnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
-      createdAt: doc.data().createdAt?.toDate() || new Date(),
-      updatedAt: doc.data().updatedAt?.toDate() || new Date(),
+      createdAt: safeToDate(doc.data().createdAt),
+      updatedAt: safeToDate(doc.data().updatedAt),
     } as Store))
   } catch (error) {
     console.error('Error getting stores by company:', error)
@@ -102,8 +125,8 @@ export async function getStoreById(id: string): Promise<Store | null> {
       return {
         id: docSnap.id,
         ...docSnap.data(),
-        createdAt: docSnap.data().createdAt?.toDate() || new Date(),
-        updatedAt: docSnap.data().updatedAt?.toDate() || new Date(),
+        createdAt: safeToDate(docSnap.data().createdAt),
+        updatedAt: safeToDate(docSnap.data().updatedAt),
       } as Store
     }
     
@@ -186,28 +209,6 @@ export async function searchStoresByName(searchTerm: string): Promise<Store[]> {
     )
   } catch (error) {
     console.error('Error searching stores:', error)
-    throw error
-  }
-}
-
-// 業態で店舗を絞り込み
-export async function getStoresByBusinessType(businessType: Store['businessType']): Promise<Store[]> {
-  try {
-    const q = query(
-      storesCollection,
-      where('businessType', '==', businessType),
-      orderBy('createdAt', 'desc')
-    )
-    const querySnapshot = await getDocs(q)
-    
-    return querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: doc.data().createdAt?.toDate() || new Date(),
-      updatedAt: doc.data().updatedAt?.toDate() || new Date(),
-    } as Store))
-  } catch (error) {
-    console.error('Error getting stores by business type:', error)
     throw error
   }
 }
