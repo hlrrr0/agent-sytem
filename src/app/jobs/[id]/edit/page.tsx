@@ -405,7 +405,7 @@ export default function EditJobPage({ params }: EditJobPageProps) {
             </div>
 
             <div>
-              <Label htmlFor="consultantReview">キャリア担当からの"正直な"感想</Label>
+              <Label htmlFor="consultantReview">キャリア担当からの&quot;正直な&quot;感想</Label>
               <Textarea
                 id="consultantReview"
                 value={job.consultantReview || ''}

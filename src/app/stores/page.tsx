@@ -20,14 +20,14 @@ import {
   RefreshCw,
   Building2
 } from 'lucide-react'
-import { Store, businessTypeLabels, statusLabels } from '@/types/store'
+import { Store, statusLabels } from '@/types/store'
 import { getStores, deleteStore } from '@/lib/firestore/stores'
 import { getCompanies } from '@/lib/firestore/companies'
 import { Company } from '@/types/company'
 
 const statusColors = {
-  open: 'bg-green-100 text-green-800',
-  closed: 'bg-red-100 text-red-800',
+  active: 'bg-green-100 text-green-800',
+  inactive: 'bg-red-100 text-red-800',
 }
 
 export default function StoresPage() {
@@ -45,7 +45,6 @@ function StoresPageContent() {
   
   // フィルター・検索状態
   const [searchTerm, setSearchTerm] = useState('')
-  const [businessTypeFilter, setBusinessTypeFilter] = useState<Store['businessType'] | 'all'>('all')
   const [statusFilter, setStatusFilter] = useState<Store['status'] | 'all'>('all')
 
   useEffect(() => {
@@ -89,17 +88,15 @@ function StoresPageContent() {
     const matchesSearch = store.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          getCompanyName(store.companyId).toLowerCase().includes(searchTerm.toLowerCase())
     
-    const matchesBusinessType = businessTypeFilter === 'all' || store.businessType === businessTypeFilter
     const matchesStatus = statusFilter === 'all' || store.status === statusFilter
 
-    return matchesSearch && matchesBusinessType && matchesStatus
+    return matchesSearch && matchesStatus
   })
 
   const stats = {
     total: stores.length,
-    open: stores.filter(s => s.status === 'open').length,
-    closed: stores.filter(s => s.status === 'closed').length,
-    kaiten: stores.filter(s => s.businessType === 'kaiten').length,
+    active: stores.filter(s => s.status === 'active').length,
+    inactive: stores.filter(s => s.status === 'inactive').length,
   }
 
   const getStatusBadge = (status: Store['status']) => {
@@ -173,28 +170,19 @@ function StoresPageContent() {
         
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">営業中</CardTitle>
+            <CardTitle className="text-sm font-medium">アクティブ</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{stats.open}</div>
+            <div className="text-2xl font-bold text-green-600">{stats.active}</div>
           </CardContent>
         </Card>
         
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">閉店</CardTitle>
+            <CardTitle className="text-sm font-medium">非アクティブ</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{stats.closed}</div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">回転寿司</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-orange-600">{stats.kaiten}</div>
+            <div className="text-2xl font-bold text-red-600">{stats.inactive}</div>
           </CardContent>
         </Card>
       </div>
@@ -217,21 +205,6 @@ function StoresPageContent() {
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full"
               />
-            </div>
-            
-            {/* 業態フィルター */}
-            <div>
-              <Select value={businessTypeFilter} onValueChange={(value: Store['businessType'] | 'all') => setBusinessTypeFilter(value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="業態" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">すべての業態</SelectItem>
-                  {Object.entries(businessTypeLabels).map(([key, label]) => (
-                    <SelectItem key={key} value={key}>{label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
             
             {/* ステータスフィルター */}
@@ -271,7 +244,6 @@ function StoresPageContent() {
                 <TableRow>
                   <TableHead>店舗名</TableHead>
                   <TableHead>企業名</TableHead>
-                  <TableHead>業態</TableHead>
                   <TableHead>所在地</TableHead>
                   <TableHead>取引状況</TableHead>
                   <TableHead>外部リンク</TableHead>
@@ -285,11 +257,6 @@ function StoresPageContent() {
                       <div className="font-semibold">{store.name}</div>
                     </TableCell>
                     <TableCell>{getCompanyName(store.companyId)}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">
-                        {businessTypeLabels[store.businessType]}
-                      </Badge>
-                    </TableCell>
                     <TableCell className="max-w-xs truncate">{store.address}</TableCell>
                     <TableCell>{getStatusBadge(store.status)}</TableCell>
                     <TableCell>

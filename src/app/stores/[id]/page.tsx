@@ -270,7 +270,7 @@ function StoreDetailContent({ params }: StoreDetailPageProps) {
               </CardHeader>
               <CardContent>
                 <div>
-                  <h3 className="font-medium text-gray-700">スタッフが食べに行った"正直な"感想</h3>
+                  <h3 className="font-medium text-gray-700">スタッフが食べに行った&quot;正直な&quot;感想</h3>
                   <p className="mt-2 whitespace-pre-line">{store.staffReview}</p>
                 </div>
               </CardContent>

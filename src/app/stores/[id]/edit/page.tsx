@@ -292,7 +292,7 @@ export default function EditStorePage({ params }: EditStorePageProps) {
             </div>
 
             <div>
-              <Label htmlFor="staffReview">スタッフが食べに行った"正直な"感想</Label>
+              <Label htmlFor="staffReview">スタッフが食べに行った&quot;正直な&quot;感想</Label>
               <Textarea
                 id="staffReview"
                 value={store.staffReview || ''}
