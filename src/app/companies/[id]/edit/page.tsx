@@ -299,13 +299,13 @@ export default function EditCompanyPage({ params }: EditCompanyPageProps) {
               <Label htmlFor="consultantId">担当コンサルタント</Label>
               <Select 
                 value={company.consultantId || ''} 
-                onValueChange={(value) => handleChange('consultantId', value)}
+                onValueChange={(value) => handleChange('consultantId', value === 'none' ? undefined : value)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="担当コンサルタントを選択してください" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">担当者なし</SelectItem>
+                  <SelectItem value="none">担当者なし</SelectItem>
                   {users
                     .filter(user => user.status === 'active' && (user.role === 'admin' || user.role === 'user'))
                     .map(user => (
