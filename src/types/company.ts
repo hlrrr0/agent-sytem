@@ -17,8 +17,6 @@ export interface Company {
   phone?: string                          // 電話番号
   
   // 企業分類
-  industry?: string                       // 業界
-  businessType?: string[]                 // 事業種別
   size: 'startup' | 'small' | 'medium' | 'large' | 'enterprise'  // 企業規模
   
   // 会社特徴

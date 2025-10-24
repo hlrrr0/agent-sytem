@@ -437,9 +437,6 @@ export default function MatchDetailPage() {
                         <div className="font-medium text-lg">
                           {company.name}
                         </div>
-                        <div className="text-sm text-gray-600 mt-1">
-                          {company.industry}
-                        </div>
                         <div className="flex gap-2 mt-2">
                           <Button size="sm" variant="outline" asChild>
                             <Link href={`/companies/${company.id}`}>

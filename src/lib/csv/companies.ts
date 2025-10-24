@@ -35,8 +35,6 @@ export const importCompaniesFromCSV = async (csvText: string): Promise<ImportRes
       'ウェブサイト': 'website',
       'ロゴURL': 'logo',
       '電話番号': 'phone',
-      '業界': 'industry',
-      '事業種別': 'businessType',
       '会社特徴1': 'feature1',
       '会社特徴2': 'feature2',
       '会社特徴3': 'feature3',
@@ -110,8 +108,6 @@ export const importCompaniesFromCSV = async (csvText: string): Promise<ImportRes
           representative: rowData.representative?.trim(),
           website: rowData.website?.trim(),
           phone: rowData.phone?.trim(),
-          industry: rowData.industry?.trim(),
-          businessType: rowData.businessType ? rowData.businessType.split(';').map(t => t.trim()).filter(Boolean) : undefined,
           feature1: rowData.feature1?.trim(),
           feature2: rowData.feature2?.trim(),
           feature3: rowData.feature3?.trim(),
@@ -197,8 +193,6 @@ export const generateCompaniesCSVTemplate = (): string => {
     { jp: 'ウェブサイト', en: 'website' },
     { jp: 'ロゴURL', en: 'logo' },
     { jp: '電話番号', en: 'phone' },
-    { jp: '業界', en: 'industry' },
-    { jp: '事業種別', en: 'businessType' },                  // セミコロン区切り
     { jp: '会社特徴1', en: 'feature1' },
     { jp: '会社特徴2', en: 'feature2' },
     { jp: '会社特徴3', en: 'feature3' },
@@ -234,8 +228,6 @@ export const generateCompaniesCSVTemplate = (): string => {
     'https://www.sample-company.co.jp',     // ウェブサイト
     'https://example.com/logo.png',         // ロゴURL
     '03-1234-5678',                         // 電話番号
-    'IT・サービス',                         // 業界
-    'システム開発;コンサルティング;AI開発',   // 事業種別（セミコロン区切り）
     '最新技術の積極的な導入',                // 会社特徴1
     '働きやすい環境づくり',                  // 会社特徴2
     '社員の成長を重視',                     // 会社特徴3

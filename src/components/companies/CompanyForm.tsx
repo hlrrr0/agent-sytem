@@ -135,16 +135,6 @@ export default function CompanyForm({
                 placeholder="田中 太郎"
               />
             </div>
-
-            <div>
-              <Label htmlFor="industry">業界</Label>
-              <Input
-                id="industry"
-                value={formData.industry ?? ''}
-                onChange={(e) => handleChange('industry', e.target.value)}
-                placeholder="IT・サービス業"
-              />
-            </div>
           </div>
 
           <div className="grid grid-cols-3 gap-4">

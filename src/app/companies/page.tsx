@@ -375,7 +375,6 @@ function CompaniesPageContent() {
               <TableHeader>
                 <TableRow>
                   <TableHead>企業名</TableHead>
-                  <TableHead>業界</TableHead>
                   <TableHead>規模</TableHead>
                   <TableHead>ステータス</TableHead>
                   <TableHead>連絡先</TableHead>
@@ -389,14 +388,8 @@ function CompaniesPageContent() {
                     <TableCell className="font-medium">
                       <div>
                         <div className="font-semibold">{company.name}</div>
-                        {company.businessType && company.businessType.length > 0 && (
-                          <div className="text-sm text-gray-500">
-                            {company.businessType.join(', ')}
-                          </div>
-                        )}
                       </div>
                     </TableCell>
-                    <TableCell>{company.industry || '-'}</TableCell>
                     <TableCell>
                       <Badge variant="outline">{sizeLabels[company.size as keyof typeof sizeLabels]}</Badge>
                     </TableCell>
