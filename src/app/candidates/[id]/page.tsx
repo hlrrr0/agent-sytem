@@ -13,8 +13,6 @@ import { doc, getDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { Candidate, campusLabels } from '@/types/candidate'
 import { Match } from '@/types/matching'
-import { Job } from '@/types/job'
-import { Company } from '@/types/company'
 import { getMatchesByCandidate } from '@/lib/firestore/matches'
 import { getJob } from '@/lib/firestore/jobs'
 import { getCompany } from '@/lib/firestore/companies'
@@ -291,7 +289,7 @@ export default function CandidateDetailPage({ params }: CandidateDetailPageProps
                   <p className="mt-1">{candidate.jobSearchTiming || '未登録'}</p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-500">卒業"直後"の希望進路</label>
+                  <label className="text-sm font-medium text-gray-500">卒業&quot;直後&quot;の希望進路</label>
                   <p className="mt-1">{candidate.graduationCareerPlan || '未登録'}</p>
                 </div>
                 <div>

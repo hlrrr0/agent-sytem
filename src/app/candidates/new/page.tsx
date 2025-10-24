@@ -10,9 +10,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { ArrowLeft, Users, Save, Loader2 } from 'lucide-react'
+import { ArrowLeft, Users, Save } from 'lucide-react'
 import { createCandidate } from '@/lib/firestore/candidates'
-import { Candidate, campusLabels } from '@/types/candidate'
+import { Candidate } from '@/types/candidate'
 
 export default function NewCandidatePage() {
   const router = useRouter()
@@ -311,7 +311,7 @@ export default function NewCandidatePage() {
             </div>
 
             <div>
-              <Label htmlFor="graduationCareerPlan">卒業"直後"の希望進路</Label>
+              <Label htmlFor="graduationCareerPlan">卒業&quot;直後&quot;の希望進路</Label>
               <Textarea
                 id="graduationCareerPlan"
                 value={formData.graduationCareerPlan}

@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import ProtectedRoute from '@/components/ProtectedRoute'
@@ -15,13 +15,11 @@ import {
   MapPin, 
   Clock, 
   DollarSign,
-  Users,
   Calendar,
   Building2,
   Store,
   Eye,
   EyeOff,
-  Star,
   TrendingUp,
   User
 } from 'lucide-react'

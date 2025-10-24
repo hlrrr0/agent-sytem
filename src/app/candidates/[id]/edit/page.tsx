@@ -117,18 +117,10 @@ export default function EditCandidatePage({ params }: EditCandidatePageProps) {
     fetchCandidate()
   }, [candidateId, router])
 
-  const handleChange = (field: keyof Candidate, value: any) => {
+  const handleChange = (field: keyof Candidate, value: string) => {
     setCandidate(prev => ({
       ...prev,
       [field]: value
-    }))
-  }
-
-  const handleSkillsChange = (value: string) => {
-    const skillsArray = value.split(',').map(skill => skill.trim()).filter(skill => skill)
-    setCandidate(prev => ({
-      ...prev,
-      skills: skillsArray
     }))
   }
 
@@ -392,7 +384,7 @@ export default function EditCandidatePage({ params }: EditCandidatePageProps) {
             </div>
 
             <div>
-              <Label htmlFor="graduationCareerPlan">卒業"直後"の希望進路</Label>
+              <Label htmlFor="graduationCareerPlan">卒業&quot;直後&quot;の希望進路</Label>
               <Textarea
                 id="graduationCareerPlan"
                 value={candidate.graduationCareerPlan ?? ''}
