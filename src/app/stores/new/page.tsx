@@ -23,11 +23,10 @@ export default function NewStorePage() {
     companyId: '',
     name: '',
     address: '',
-    businessType: '' as const,
     website: '',
     tabelogUrl: '',
     instagramUrl: '',
-    status: 'open' as const
+    status: 'active' as const
   })
 
   useEffect(() => {
@@ -46,7 +45,7 @@ export default function NewStorePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!formData.companyId || !formData.name || !formData.address || !formData.businessType) {
+    if (!formData.companyId || !formData.name || !formData.address) {
       alert('必須項目を入力してください')
       return
     }
@@ -58,7 +57,6 @@ export default function NewStorePage() {
         companyId: formData.companyId,
         name: formData.name,
         address: formData.address,
-        businessType: formData.businessType as 'kaiten' | 'counter_alacarte' | 'counter_omakase' | 'other',
         website: formData.website || undefined,
         tabelogUrl: formData.tabelogUrl || undefined,
         instagramUrl: formData.instagramUrl || undefined,
@@ -156,29 +154,14 @@ export default function NewStorePage() {
               </div>
 
               <div>
-                <Label htmlFor="businessType">業態 *</Label>
-                <Select value={formData.businessType} onValueChange={(value) => handleChange('businessType', value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="業態を選択してください" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="kaiten">回転寿司</SelectItem>
-                    <SelectItem value="counter_alacarte">カウンター寿司（アラカルト）</SelectItem>
-                    <SelectItem value="counter_omakase">カウンター寿司（おまかせ）</SelectItem>
-                    <SelectItem value="other">その他</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
                 <Label htmlFor="status">営業状況</Label>
-                <Select value={formData.status} onValueChange={(value) => handleChange('status', value as 'open' | 'closed')}>
+                <Select value={formData.status} onValueChange={(value) => handleChange('status', value as 'active' | 'inactive')}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="open">営業中</SelectItem>
-                    <SelectItem value="closed">閉店</SelectItem>
+                    <SelectItem value="active">アクティブ</SelectItem>
+                    <SelectItem value="inactive">非アクティブ</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

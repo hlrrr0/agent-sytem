@@ -410,7 +410,7 @@ export default function MatchDetailPage() {
                           {job.title}
                         </div>
                         <div className="text-sm text-gray-600 mt-1">
-                          {job.employmentType} • ¥{job.salary?.min?.toLocaleString()}-{job.salary?.max?.toLocaleString()}
+                          {job.employmentType}{job.salaryInexperienced ? ` • ${job.salaryInexperienced}` : ''}
                         </div>
                         <div className="flex gap-2 mt-2">
                           <Button size="sm" variant="outline" asChild>

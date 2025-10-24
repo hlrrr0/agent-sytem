@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
-import { ArrowLeft, Briefcase, Save, Loader2 } from 'lucide-react'
+import { ArrowLeft, Briefcase, Save, Loader2, Plus } from 'lucide-react'
 import { createJob } from '@/lib/firestore/jobs'
 import { getCompanies } from '@/lib/firestore/companies'
 import { getStores } from '@/lib/firestore/stores'
@@ -25,30 +25,26 @@ export default function NewJobPage() {
   const [stores, setStores] = useState<Store[]>([])
   const [filteredStores, setFilteredStores] = useState<Store[]>([])
   
-  const [formData, setFormData] = useState({
+    const [formData, setFormData] = useState({
     companyId: '',
-    storeId: '',
+    storeId: 'none',
     title: '',
-    employmentType: '' as const,
-    baseSalary: '',
-    commission: false,
-    tips: false,
-    housingAllowance: '',
-    transportationProvided: false,
-    transportationMaxAmount: '',
+    businessType: '',
+    employmentType: '',
+    trialPeriod: '',
     workingHours: '',
-    shiftType: '',
-    weeklyHolidays: '',
     holidays: '',
-    jobDescription: '',
+    overtime: '',
+    salaryInexperienced: '',
+    salaryExperienced: '',
     requiredSkills: '',
-    experienceYears: '',
-    socialInsurance: false,
-    uniform: false,
-    meals: false,
-    training: false,
-    visibility: 'private' as const,
-    status: 'draft' as const
+    jobDescription: '',
+    smokingPolicy: '',
+    insurance: '',
+    benefits: '',
+    selectionProcess: '',
+    consultantReview: '',
+    status: 'draft' as const,
   })
 
   useEffect(() => {
@@ -91,40 +87,26 @@ export default function NewJobPage() {
     setLoading(true)
 
     try {
-      const newJob: Omit<Job, 'id'> = {
-        companyId: formData.companyId,
-        storeId: formData.storeId,
+            const newJob: Omit<Job, 'id'> = {
         title: formData.title,
-        employmentType: formData.employmentType as 'full-time' | 'contract' | 'part-time',
-        salary: {
-          baseSalary: formData.baseSalary ? parseInt(formData.baseSalary) : undefined,
-          commission: formData.commission,
-          tips: formData.tips,
-          housingAllowance: formData.housingAllowance ? parseInt(formData.housingAllowance) : undefined,
-          transportationAllowance: {
-            provided: formData.transportationProvided,
-            maxAmount: formData.transportationMaxAmount ? parseInt(formData.transportationMaxAmount) : undefined
-          }
-        },
-        workSchedule: {
-          workingHours: formData.workingHours || undefined,
-          shiftType: formData.shiftType || undefined,
-          weeklyHolidays: formData.weeklyHolidays ? parseInt(formData.weeklyHolidays) : undefined,
-          holidays: formData.holidays || undefined
-        },
-        jobDescription: formData.jobDescription || undefined,
+        companyId: formData.companyId,
+        storeId: formData.storeId === 'none' ? undefined : formData.storeId,
+        businessType: formData.businessType || undefined,
+        employmentType: formData.employmentType || undefined,
+        trialPeriod: formData.trialPeriod || undefined,
+        workingHours: formData.workingHours || undefined,
+        holidays: formData.holidays || undefined,
+        overtime: formData.overtime || undefined,
+        salaryInexperienced: formData.salaryInexperienced || undefined,
+        salaryExperienced: formData.salaryExperienced || undefined,
         requiredSkills: formData.requiredSkills || undefined,
-        requirements: {
-          experienceYears: formData.experienceYears ? parseInt(formData.experienceYears) : undefined
-        },
-        benefits: {
-          socialInsurance: formData.socialInsurance,
-          uniform: formData.uniform,
-          meals: formData.meals,
-          training: formData.training
-        },
-        visibility: formData.visibility,
-        status: formData.status,
+        jobDescription: formData.jobDescription || undefined,
+        smokingPolicy: formData.smokingPolicy || undefined,
+        insurance: formData.insurance || undefined,
+        benefits: formData.benefits || undefined,
+        selectionProcess: formData.selectionProcess || undefined,
+        consultantReview: formData.consultantReview || undefined,
+        status: formData.status || 'draft',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       }
@@ -140,7 +122,7 @@ export default function NewJobPage() {
     }
   }
 
-  const handleChange = (field: string, value: string | boolean) => {
+  const handleChange = (field: string, value: any) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -167,20 +149,35 @@ export default function NewJobPage() {
         </div>
       </div>
       
-      <form onSubmit={handleSubmit}>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* 基本情報 */}
-          <Card>
-            <CardHeader>
-              <CardTitle>基本情報</CardTitle>
-              <CardDescription>
-                求人の基本的な情報を入力してください
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>基本情報</CardTitle>
+            <CardDescription>求人の基本的な情報を入力してください</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="title">職種名 *</Label>
+              <Input
+                id="title"
+                value={formData.title}
+                onChange={(e) => handleChange('title', e.target.value)}
+                required
+                placeholder="例: 寿司職人、調理補助、ホールスタッフ"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="companyId">企業 *</Label>
-                <Select value={formData.companyId} onValueChange={(value) => handleChange('companyId', value)}>
+                <Select 
+                  value={formData.companyId} 
+                  onValueChange={(value) => {
+                    handleChange('companyId', value)
+                    handleChange('storeId', 'none')
+                  }}
+                  required
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="企業を選択してください" />
                   </SelectTrigger>
@@ -195,16 +192,17 @@ export default function NewJobPage() {
               </div>
 
               <div>
-                <Label htmlFor="storeId">店舗 *</Label>
+                <Label htmlFor="storeId">店舗</Label>
                 <Select 
                   value={formData.storeId} 
                   onValueChange={(value) => handleChange('storeId', value)}
                   disabled={!formData.companyId}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder={formData.companyId ? "店舗を選択してください" : "まず企業を選択してください"} />
+                    <SelectValue placeholder="店舗を選択してください" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="none">店舗なし</SelectItem>
                     {filteredStores.map((store) => (
                       <SelectItem key={store.id} value={store.id}>
                         {store.name}
@@ -213,284 +211,243 @@ export default function NewJobPage() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
 
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="title">求人タイトル *</Label>
+                <Label htmlFor="businessType">業態</Label>
                 <Input
-                  id="title"
-                  value={formData.title}
-                  onChange={(e) => handleChange('title', e.target.value)}
-                  placeholder="例: 寿司職人募集"
-                  required
+                  id="businessType"
+                  value={formData.businessType}
+                  onChange={(e) => handleChange('businessType', e.target.value)}
+                  placeholder="例: 回転寿司、カウンター寿司"
                 />
               </div>
 
               <div>
-                <Label htmlFor="employmentType">雇用形態 *</Label>
-                <Select value={formData.employmentType} onValueChange={(value) => handleChange('employmentType', value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="雇用形態を選択してください" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="full-time">正社員</SelectItem>
-                    <SelectItem value="contract">契約社員</SelectItem>
-                    <SelectItem value="part-time">アルバイト</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label htmlFor="jobDescription">職務内容</Label>
-                <Textarea
-                  id="jobDescription"
-                  value={formData.jobDescription}
-                  onChange={(e) => handleChange('jobDescription', e.target.value)}
-                  placeholder="職務内容を詳しく記載してください"
-                  rows={4}
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="requiredSkills">求めるスキル</Label>
-                <Textarea
-                  id="requiredSkills"
-                  value={formData.requiredSkills}
-                  onChange={(e) => handleChange('requiredSkills', e.target.value)}
-                  placeholder="握り、仕込み、焼き、接客、衛生など"
-                  rows={3}
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* 給与・勤務条件 */}
-          <Card>
-            <CardHeader>
-              <CardTitle>給与・勤務条件</CardTitle>
-              <CardDescription>
-                給与と勤務に関する情報を入力してください
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="baseSalary">基本給（円）</Label>
-                  <Input
-                    id="baseSalary"
-                    type="number"
-                    value={formData.baseSalary}
-                    onChange={(e) => handleChange('baseSalary', e.target.value)}
-                    placeholder="300000"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="housingAllowance">住宅手当（円）</Label>
-                  <Input
-                    id="housingAllowance"
-                    type="number"
-                    value={formData.housingAllowance}
-                    onChange={(e) => handleChange('housingAllowance', e.target.value)}
-                    placeholder="20000"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="commission"
-                    checked={formData.commission}
-                    onCheckedChange={(checked) => handleChange('commission', checked as boolean)}
-                  />
-                  <Label htmlFor="commission">歩合制</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="tips"
-                    checked={formData.tips}
-                    onCheckedChange={(checked) => handleChange('tips', checked as boolean)}
-                  />
-                  <Label htmlFor="tips">チップ制</Label>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="transportationProvided"
-                    checked={formData.transportationProvided}
-                    onCheckedChange={(checked) => handleChange('transportationProvided', checked as boolean)}
-                  />
-                  <Label htmlFor="transportationProvided">交通費支給</Label>
-                </div>
-                {formData.transportationProvided && (
-                  <div>
-                    <Label htmlFor="transportationMaxAmount">交通費上限額（円）</Label>
-                    <Input
-                      id="transportationMaxAmount"
-                      type="number"
-                      value={formData.transportationMaxAmount}
-                      onChange={(e) => handleChange('transportationMaxAmount', e.target.value)}
-                      placeholder="10000"
-                    />
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <Label htmlFor="workingHours">勤務時間</Label>
+                <Label htmlFor="employmentType">雇用形態</Label>
                 <Input
-                  id="workingHours"
-                  value={formData.workingHours}
-                  onChange={(e) => handleChange('workingHours', e.target.value)}
-                  placeholder="例: 10:00〜22:00"
+                  id="employmentType"
+                  value={formData.employmentType}
+                  onChange={(e) => handleChange('employmentType', e.target.value)}
+                  placeholder="例: 正社員、アルバイト"
                 />
               </div>
+            </div>
+          </CardContent>
+        </Card>
 
-              <div>
-                <Label htmlFor="weeklyHolidays">週休日数</Label>
-                <Input
-                  id="weeklyHolidays"
-                  type="number"
-                  value={formData.weeklyHolidays}
-                  onChange={(e) => handleChange('weeklyHolidays', e.target.value)}
-                  placeholder="2"
-                />
-              </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>勤務条件</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="trialPeriod">試用期間</Label>
+              <Input
+                id="trialPeriod"
+                value={formData.trialPeriod}
+                onChange={(e) => handleChange('trialPeriod', e.target.value)}
+                placeholder="例: 3ヶ月"
+              />
+            </div>
 
-              <div>
-                <Label htmlFor="holidays">休日詳細</Label>
-                <Input
-                  id="holidays"
-                  value={formData.holidays}
-                  onChange={(e) => handleChange('holidays', e.target.value)}
-                  placeholder="例: 木曜日、第3金曜日"
-                />
-              </div>
-            </CardContent>
-          </Card>
+            <div>
+              <Label htmlFor="workingHours">勤務時間</Label>
+              <Textarea
+                id="workingHours"
+                value={formData.workingHours}
+                onChange={(e) => handleChange('workingHours', e.target.value)}
+                rows={3}
+                placeholder="例: 10:00〜22:00（実働8時間）"
+              />
+            </div>
 
-          {/* 応募条件・福利厚生 */}
-          <Card>
-            <CardHeader>
-              <CardTitle>応募条件・福利厚生</CardTitle>
-              <CardDescription>
-                応募に関する条件と福利厚生を設定してください
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="experienceYears">必要経験年数</Label>
-                <Input
-                  id="experienceYears"
-                  type="number"
-                  value={formData.experienceYears}
-                  onChange={(e) => handleChange('experienceYears', e.target.value)}
-                  placeholder="3"
-                />
-              </div>
+            <div>
+              <Label htmlFor="holidays">休日・休暇</Label>
+              <Textarea
+                id="holidays"
+                value={formData.holidays}
+                onChange={(e) => handleChange('holidays', e.target.value)}
+                rows={3}
+                placeholder="例: 週休2日制、年末年始休暇"
+              />
+            </div>
 
-              <div className="space-y-2">
-                <Label>福利厚生</Label>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="socialInsurance"
-                      checked={formData.socialInsurance}
-                      onCheckedChange={(checked) => handleChange('socialInsurance', checked as boolean)}
-                    />
-                    <Label htmlFor="socialInsurance">社会保険</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="uniform"
-                      checked={formData.uniform}
-                      onCheckedChange={(checked) => handleChange('uniform', checked as boolean)}
-                    />
-                    <Label htmlFor="uniform">制服支給</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="meals"
-                      checked={formData.meals}
-                      onCheckedChange={(checked) => handleChange('meals', checked as boolean)}
-                    />
-                    <Label htmlFor="meals">食事支給</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="training"
-                      checked={formData.training}
-                      onCheckedChange={(checked) => handleChange('training', checked as boolean)}
-                    />
-                    <Label htmlFor="training">研修制度</Label>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+            <div>
+              <Label htmlFor="overtime">時間外労働</Label>
+              <Textarea
+                id="overtime"
+                value={formData.overtime}
+                onChange={(e) => handleChange('overtime', e.target.value)}
+                rows={2}
+                placeholder="例: 月平均20時間"
+              />
+            </div>
+          </CardContent>
+        </Card>
 
-          {/* 公開設定 */}
-          <Card>
-            <CardHeader>
-              <CardTitle>公開設定</CardTitle>
-              <CardDescription>
-                求人の公開範囲とステータスを設定してください
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="visibility">公開範囲</Label>
-                <Select value={formData.visibility} onValueChange={(value) => handleChange('visibility', value)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="private">非公開</SelectItem>
-                    <SelectItem value="limited">限定公開</SelectItem>
-                    <SelectItem value="public">公開</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>給与情報</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="salaryInexperienced">給与（未経験）</Label>
+              <Textarea
+                id="salaryInexperienced"
+                value={formData.salaryInexperienced}
+                onChange={(e) => handleChange('salaryInexperienced', e.target.value)}
+                rows={3}
+                placeholder="例: 月給22万円〜"
+              />
+            </div>
 
-              <div>
-                <Label htmlFor="status">求人ステータス</Label>
-                <Select value={formData.status} onValueChange={(value) => handleChange('status', value)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="draft">下書き</SelectItem>
-                    <SelectItem value="active">公開中</SelectItem>
-                    <SelectItem value="paused">一時停止</SelectItem>
-                    <SelectItem value="closed">終了</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+            <div>
+              <Label htmlFor="salaryExperienced">給与（経験者）</Label>
+              <Textarea
+                id="salaryExperienced"
+                value={formData.salaryExperienced}
+                onChange={(e) => handleChange('salaryExperienced', e.target.value)}
+                rows={3}
+                placeholder="例: 月給28万円〜"
+              />
+            </div>
+          </CardContent>
+        </Card>
 
-        {/* 保存ボタン */}
-        <div className="flex justify-end gap-4 mt-8">
+        <Card>
+          <CardHeader>
+            <CardTitle>職務・スキル</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="requiredSkills">求めるスキル</Label>
+              <Textarea
+                id="requiredSkills"
+                value={formData.requiredSkills}
+                onChange={(e) => handleChange('requiredSkills', e.target.value)}
+                rows={4}
+                placeholder="例: 寿司握り経験、調理経験"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="jobDescription">職務内容</Label>
+              <Textarea
+                id="jobDescription"
+                value={formData.jobDescription}
+                onChange={(e) => handleChange('jobDescription', e.target.value)}
+                rows={5}
+                placeholder="寿司の握り、仕込み、接客業務など"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>職場環境・福利厚生</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="smokingPolicy">受動喫煙防止措置</Label>
+              <Textarea
+                id="smokingPolicy"
+                value={formData.smokingPolicy}
+                onChange={(e) => handleChange('smokingPolicy', e.target.value)}
+                rows={2}
+                placeholder="例: 全席禁煙、分煙"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="insurance">加入保険</Label>
+              <Textarea
+                id="insurance"
+                value={formData.insurance}
+                onChange={(e) => handleChange('insurance', e.target.value)}
+                rows={2}
+                placeholder="例: 雇用保険、労災保険"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="benefits">待遇・福利厚生</Label>
+              <Textarea
+                id="benefits"
+                value={formData.benefits}
+                onChange={(e) => handleChange('benefits', e.target.value)}
+                rows={4}
+                placeholder="例: 交通費支給、制服貸与"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>選考・その他</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="selectionProcess">選考プロセス</Label>
+              <Textarea
+                id="selectionProcess"
+                value={formData.selectionProcess}
+                onChange={(e) => handleChange('selectionProcess', e.target.value)}
+                rows={4}
+                placeholder="例: 書類選考 → 面接 → 内定"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="consultantReview">キャリア担当からの&quot;正直な&quot;感想</Label>
+              <Textarea
+                id="consultantReview"
+                value={formData.consultantReview}
+                onChange={(e) => handleChange('consultantReview', e.target.value)}
+                rows={5}
+                placeholder="求人やお店の雰囲気、働きやすさなどについての正直な感想"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="status">求人ステータス</Label>
+              <Select 
+                value={formData.status} 
+                onValueChange={(value) => handleChange('status', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="draft">下書き</SelectItem>
+                  <SelectItem value="published">公開中</SelectItem>
+                  <SelectItem value="active">募集中</SelectItem>
+                  <SelectItem value="paused">一時停止</SelectItem>
+                  <SelectItem value="closed">募集終了</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="flex gap-4">
+          <Button 
+            type="submit" 
+            disabled={loading}
+            className="flex items-center gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            {loading ? '作成中...' : '求人を作成'}
+          </Button>
+          
           <Link href="/jobs">
-            <Button variant="outline" type="button">
+            <Button type="button" variant="outline">
               キャンセル
             </Button>
           </Link>
-          <Button type="submit" disabled={loading}>
-            {loading ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                保存中...
-              </>
-            ) : (
-              <>
-                <Save className="h-4 w-4 mr-2" />
-                求人を追加
-              </>
-            )}
-          </Button>
         </div>
       </form>
     </div>
