@@ -46,8 +46,8 @@ function DominoImportPageContent() {
       setImporting(false)
     }
   }
+
   return (
-      return (
     <div className="container mx-auto py-8">
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-4">
@@ -212,7 +212,5 @@ function DominoImportPageContent() {
         </Card>
       </div>
     </div>
-  )
-}
   )
 }

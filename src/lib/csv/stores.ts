@@ -20,14 +20,38 @@ export const importStoresFromCSV = async (csvText: string): Promise<ImportResult
       return result
     }
 
-    // ヘッダー行を取得
-    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''))
+    // 日本語ヘッダーから英語フィールド名へのマッピング
+    const headerMapping: Record<string, string> = {
+      '店舗名': 'name',
+      '企業ID': 'companyId',
+      '店舗住所': 'address',
+      '店舗URL': 'website',
+      '単価': 'unitPrice',
+      '席数': 'seatCount',
+      '予約制': 'isReservationRequired',
+      'InstagramURL': 'instagramUrl',
+      '食べログURL': 'tabelogUrl',
+      '実績・評価': 'reputation',
+      'スタッフレビュー': 'staffReview',
+      '握れるまでの期間': 'trainingPeriod',
+      '大将の写真URL': 'ownerPhoto',
+      '大将の動画URL': 'ownerVideo',
+      '店内写真URL': 'interiorPhoto',
+      'ステータス': 'status'
+    }
+
+    // ヘッダー行を取得（日本語と英語の両方に対応）
+    const originalHeaders = lines[0].split(',').map(h => h.trim().replace(/"/g, ''))
+    const headers = originalHeaders.map(header => headerMapping[header] || header)
     
-    // 必須フィールドの確認
+    // 必須フィールドの確認（英語フィールド名で）
     const requiredFields = ['name']
     const missingFields = requiredFields.filter(field => !headers.includes(field))
     if (missingFields.length > 0) {
-      result.errors.push(`必須フィールドが不足しています: ${missingFields.join(', ')}`)
+      // 日本語フィールド名で逆マッピングしてエラーメッセージを表示
+      const jpFieldMapping = Object.fromEntries(Object.entries(headerMapping).map(([jp, en]) => [en, jp]))
+      const missingJpFields = missingFields.map(field => jpFieldMapping[field] || field)
+      result.errors.push(`必須フィールドが不足しています: ${missingJpFields.join(', ')}`)
       return result
     }
 
@@ -125,43 +149,51 @@ function parseCSVLine(line: string): string[] {
 
 // CSVテンプレートを生成する関数
 export const generateStoresCSVTemplate = (): string => {
-  const headers = [
-    'name',                      // 店舗名（必須）
-    'companyId',                 // 企業ID（必須）
-    'address',                   // 店舗住所
-    'website',                   // 店舗URL
-    'unitPrice',                 // 単価
-    'seatCount',                 // 席数
-    'isReservationRequired',     // 予約制（true/false）
-    'instagramUrl',              // Instagram URL
-    'tabelogUrl',                // 食べログURL
-    'reputation',                // 実績・評価
-    'staffReview',               // スタッフレビュー
-    'trainingPeriod',            // 握れるまでの期間
-    'ownerPhoto',                // 大将の写真URL
-    'ownerVideo',                // 大将の動画URL
-    'interiorPhoto',             // 店内写真URL
-    'status'                     // ステータス（active/inactive）
+  // 日本語ヘッダーと対応する英語フィールド名のマッピング
+  const headerMapping = [
+    { jp: '店舗名', en: 'name' },                        // 必須
+    { jp: '企業ID', en: 'companyId' },                   // 必須
+    { jp: '店舗住所', en: 'address' },
+    { jp: '店舗URL', en: 'website' },
+    { jp: '単価', en: 'unitPrice' },
+    { jp: '席数', en: 'seatCount' },
+    { jp: '予約制', en: 'isReservationRequired' },      // true/false
+    { jp: 'InstagramURL', en: 'instagramUrl' },
+    { jp: '食べログURL', en: 'tabelogUrl' },
+    { jp: '実績・評価', en: 'reputation' },
+    { jp: 'スタッフレビュー', en: 'staffReview' },
+    { jp: '握れるまでの期間', en: 'trainingPeriod' },
+    { jp: '大将の写真URL', en: 'ownerPhoto' },
+    { jp: '大将の動画URL', en: 'ownerVideo' },
+    { jp: '店内写真URL', en: 'interiorPhoto' },
+    { jp: 'ステータス', en: 'status' }                   // active/inactive
   ]
 
+  // 日本語ヘッダー行を生成
+  const jpHeaders = headerMapping.map(item => item.jp)
+  
+  // サンプルデータ（日本語ヘッダーに対応）
   const sampleData = [
-    'サンプル寿司店',
-    'company-123',
-    '東京都渋谷区渋谷1-1-1',
-    'https://www.sample-sushi.com',
-    '5000',
-    '12',
-    'true',
-    'https://instagram.com/sample_sushi',
-    'https://tabelog.com/sample',
-    '食べログ4.2 ミシュラン一つ星',
-    'ネタが新鮮で大将の人柄も良い',
-    '6ヶ月',
-    'https://example.com/owner.jpg',
-    'https://example.com/owner-video.mp4',
-    'https://example.com/interior.jpg',
-    'active'
+    '鮨さくら',                                          // 店舗名
+    'company-sample-001',                               // 企業ID
+    '東京都中央区銀座3-4-5 銀座ビル1F',                  // 店舗住所
+    'https://www.sushi-sakura.co.jp',                   // 店舗URL
+    '15000',                                            // 単価（円）
+    '12',                                               // 席数
+    'true',                                             // 予約制（true/false）
+    'https://instagram.com/sushi_sakura_ginza',         // Instagram URL
+    'https://tabelog.com/tokyo/A1301/A130101/13001234', // 食べログURL
+    '食べログ4.3点・ミシュラン一つ星獲得・江戸前鮨の名店', // 実績・評価
+    'ネタの質が非常に高く、大将の技術も一流。コスパも良好で、接客も丁寧で気持ちよく食事できます。', // スタッフレビュー
+    '基本技術習得まで約8ヶ月、一人前まで約2年',        // 握れるまでの期間
+    'https://example.com/photos/owner-tanaka.jpg',      // 大将の写真URL
+    'https://example.com/videos/owner-interview.mp4',   // 大将の動画URL
+    'https://example.com/photos/interior-view.jpg',     // 店内写真URL
+    'active'                                            // ステータス（active/inactive）
   ]
 
-  return headers.join(',') + '\n' + sampleData.join(',')
+  // CSV形式で返す（日本語ヘッダー + サンプルデータ）
+  return jpHeaders.join(',') + '\n' + sampleData.map(value => 
+    value.includes(',') || value.includes('"') ? `"${value.replace(/"/g, '""')}"` : value
+  ).join(',')
 }

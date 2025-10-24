@@ -20,14 +20,52 @@ export const importCompaniesFromCSV = async (csvText: string): Promise<ImportRes
       return result
     }
 
-    // ヘッダー行を取得
-    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''))
+    // 日本語ヘッダーから英語フィールド名へのマッピング
+    const headerMapping: Record<string, string> = {
+      '企業名': 'name',
+      '住所': 'address',
+      'メールアドレス': 'email',
+      '企業規模': 'size',
+      '公開状況': 'isPublic',
+      'ステータス': 'status',
+      '従業員数': 'employeeCount',
+      '資本金': 'capital',
+      '設立年': 'establishedYear',
+      '代表者名': 'representative',
+      'ウェブサイト': 'website',
+      'ロゴURL': 'logo',
+      '電話番号': 'phone',
+      '業界': 'industry',
+      '事業種別': 'businessType',
+      '会社特徴1': 'feature1',
+      '会社特徴2': 'feature2',
+      '会社特徴3': 'feature3',
+      'キャリアパス': 'careerPath',
+      '若手入社理由': 'youngRecruitReason',
+      '飲食人大学実績': 'hasShokuninUnivRecord',
+      '住宅支援': 'hasHousingSupport',
+      '正社員年齢層': 'fullTimeAgeGroup',
+      '独立実績': 'independenceRecord',
+      '独立支援': 'hasIndependenceSupport',
+      '取引開始日': 'contractStartDate',
+      '担当コンサルタントID': 'consultantId',
+      'メモ': 'memo',
+      'DominoID': 'dominoId',
+      'インポート日時': 'importedAt'
+    }
+
+    // ヘッダー行を取得（日本語と英語の両方に対応）
+    const originalHeaders = lines[0].split(',').map(h => h.trim().replace(/"/g, ''))
+    const headers = originalHeaders.map(header => headerMapping[header] || header)
     
-    // 必須フィールドの確認
+    // 必須フィールドの確認（英語フィールド名で）
     const requiredFields = ['name', 'address', 'email', 'size', 'isPublic', 'status']
     const missingFields = requiredFields.filter(field => !headers.includes(field))
     if (missingFields.length > 0) {
-      result.errors.push(`必須フィールドが不足しています: ${missingFields.join(', ')}`)
+      // 日本語フィールド名で逆マッピングしてエラーメッセージを表示
+      const jpFieldMapping = Object.fromEntries(Object.entries(headerMapping).map(([jp, en]) => [en, jp]))
+      const missingJpFields = missingFields.map(field => jpFieldMapping[field] || field)
+      result.errors.push(`必須フィールドが不足しています: ${missingJpFields.join(', ')}`)
       return result
     }
 
@@ -144,69 +182,79 @@ function parseCSVLine(line: string): string[] {
 
 // CSVテンプレートを生成する関数
 export const generateCompaniesCSVTemplate = (): string => {
-  const headers = [
-    'name',                    // 企業名（必須）
-    'address',                 // 住所（必須）
-    'email',                   // メールアドレス（必須）
-    'size',                    // 企業規模（必須: startup/small/medium/large/enterprise）
-    'isPublic',                // 公開状況（必須: true/false）
-    'status',                  // ステータス（必須）
-    'employeeCount',           // 従業員数
-    'capital',                 // 資本金
-    'establishedYear',         // 設立年
-    'representative',          // 代表者名
-    'website',                 // ウェブサイト
-    'phone',                   // 電話番号
-    'industry',                // 業界
-    'businessType',            // 事業種別（セミコロン区切り）
-    'feature1',                // 会社特徴1
-    'feature2',                // 会社特徴2
-    'feature3',                // 会社特徴3
-    'careerPath',              // キャリアパス
-    'youngRecruitReason',      // 若手入社理由
-    'hasShokuninUnivRecord',   // 飲食人大学実績（true/false）
-    'hasHousingSupport',       // 住宅支援（true/false）
-    'fullTimeAgeGroup',        // 正社員年齢層
-    'independenceRecord',      // 独立実績
-    'hasIndependenceSupport',  // 独立支援（true/false）
-    'contractStartDate',       // 取引開始日
-    'consultantId',            // 担当コンサルタントID
-    'memo',                    // メモ
-    'dominoId',                // DominoID
-    'importedAt'               // インポート日時
+  // 日本語ヘッダーと対応する英語フィールド名のマッピング
+  const headerMapping = [
+    { jp: '企業名', en: 'name' },                            // 必須
+    { jp: '住所', en: 'address' },                           // 必須
+    { jp: 'メールアドレス', en: 'email' },                   // 必須
+    { jp: '企業規模', en: 'size' },                          // 必須: startup/small/medium/large/enterprise
+    { jp: '公開状況', en: 'isPublic' },                      // 必須: true/false
+    { jp: 'ステータス', en: 'status' },                      // 必須: active/inactive/prospect/prospect_contacted/appointment/no_approach/suspended/paused
+    { jp: '従業員数', en: 'employeeCount' },
+    { jp: '資本金', en: 'capital' },
+    { jp: '設立年', en: 'establishedYear' },
+    { jp: '代表者名', en: 'representative' },
+    { jp: 'ウェブサイト', en: 'website' },
+    { jp: 'ロゴURL', en: 'logo' },
+    { jp: '電話番号', en: 'phone' },
+    { jp: '業界', en: 'industry' },
+    { jp: '事業種別', en: 'businessType' },                  // セミコロン区切り
+    { jp: '会社特徴1', en: 'feature1' },
+    { jp: '会社特徴2', en: 'feature2' },
+    { jp: '会社特徴3', en: 'feature3' },
+    { jp: 'キャリアパス', en: 'careerPath' },
+    { jp: '若手入社理由', en: 'youngRecruitReason' },
+    { jp: '飲食人大学実績', en: 'hasShokuninUnivRecord' },   // true/false
+    { jp: '住宅支援', en: 'hasHousingSupport' },             // true/false
+    { jp: '正社員年齢層', en: 'fullTimeAgeGroup' },
+    { jp: '独立実績', en: 'independenceRecord' },
+    { jp: '独立支援', en: 'hasIndependenceSupport' },        // true/false
+    { jp: '取引開始日', en: 'contractStartDate' },           // YYYY-MM-DD形式
+    { jp: '担当コンサルタントID', en: 'consultantId' },
+    { jp: 'メモ', en: 'memo' },
+    { jp: 'DominoID', en: 'dominoId' },
+    { jp: 'インポート日時', en: 'importedAt' }               // YYYY-MM-DD形式
   ]
 
+  // 日本語ヘッダー行を生成
+  const jpHeaders = headerMapping.map(item => item.jp)
+  
+  // サンプルデータ（日本語ヘッダーに対応）
   const sampleData = [
-    '株式会社サンプル',
-    '東京都新宿区新宿1-1-1',
-    'info@example.com',
-    'small',
-    'true',
-    'active',
-    '50',
-    '1000',
-    '2000',
-    '田中太郎',
-    'https://www.example.com',
-    '03-1234-5678',
-    'IT・サービス',
-    'システム開発;コンサルティング',
-    '最新技術の導入',
-    '働きやすい環境',
-    '成長できる職場',
-    '海外就職可能',
-    '技術力向上',
-    'true',
-    'true',
-    '20代-30代',
-    '3名独立',
-    'true',
-    '2023-01-01',
-    'consultant-123',
-    '優良企業です',
-    'domino-123',
-    '2023-12-01'
+    '株式会社サンプル企業',                    // 企業名
+    '東京都新宿区新宿1-1-1 サンプルビル3F',    // 住所
+    'info@sample-company.co.jp',            // メールアドレス
+    'small',                                // 企業規模（startup/small/medium/large/enterprise）
+    'true',                                 // 公開状況（true/false）
+    'active',                               // ステータス（active/inactive/prospect/prospect_contacted/appointment/no_approach/suspended/paused）
+    '50',                                   // 従業員数
+    '10000000',                             // 資本金（円）
+    '2000',                                 // 設立年
+    '田中太郎',                             // 代表者名
+    'https://www.sample-company.co.jp',     // ウェブサイト
+    'https://example.com/logo.png',         // ロゴURL
+    '03-1234-5678',                         // 電話番号
+    'IT・サービス',                         // 業界
+    'システム開発;コンサルティング;AI開発',   // 事業種別（セミコロン区切り）
+    '最新技術の積極的な導入',                // 会社特徴1
+    '働きやすい環境づくり',                  // 会社特徴2
+    '社員の成長を重視',                     // 会社特徴3
+    '海外就職・海外独立・経営層',            // キャリアパス
+    '技術力向上と専門性獲得',                // 若手入社理由
+    'true',                                 // 飲食人大学実績（true/false）
+    'true',                                 // 住宅支援（true/false）
+    '20代-40代中心',                        // 正社員年齢層
+    '過去3年で5名が独立',                   // 独立実績
+    'true',                                 // 独立支援（true/false）
+    '2023-04-01',                           // 取引開始日（YYYY-MM-DD）
+    'consultant-001',                       // 担当コンサルタントID
+    '優良な取引先企業。成長意欲の高い人材を求めている。', // メモ
+    'domino-sample-001',                    // DominoID
+    '2024-10-24'                            // インポート日時（YYYY-MM-DD）
   ]
 
-  return headers.join(',') + '\n' + sampleData.join(',')
+  // CSV形式で返す（日本語ヘッダー + サンプルデータ）
+  return jpHeaders.join(',') + '\n' + sampleData.map(value => 
+    value.includes(',') || value.includes('"') ? `"${value.replace(/"/g, '""')}"` : value
+  ).join(',')
 }
