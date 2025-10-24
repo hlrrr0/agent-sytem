@@ -30,7 +30,7 @@ import {
   Trash2,
   RefreshCw
 } from 'lucide-react'
-import { Candidate, candidateStatusLabels } from '@/types/candidate'
+import { Candidate, candidateStatusLabels, campusLabels } from '@/types/candidate'
 import { getCandidates, getCandidateStats, deleteCandidate } from '@/lib/firestore/candidates'
 import { toast } from 'sonner'
 
@@ -94,7 +94,7 @@ export default function CandidatesPage() {
       filtered = filtered.filter(candidate =>
         `${candidate.firstName} ${candidate.lastName}`.toLowerCase().includes(searchLower) ||
         `${candidate.firstNameKana} ${candidate.lastNameKana}`.toLowerCase().includes(searchLower) ||
-        candidate.email.toLowerCase().includes(searchLower) ||
+        candidate.email?.toLowerCase().includes(searchLower) ||
         candidate.phone?.toLowerCase().includes(searchLower)
       )
       console.log('🔍 検索フィルタ後:', filtered.length)
@@ -132,17 +132,6 @@ export default function CandidatesPage() {
         {candidateStatusLabels[status]}
       </Badge>
     )
-  }
-
-  const getExperienceYears = (experience: any[]) => {
-    const totalYears = experience.reduce((total, exp) => {
-      const startDate = new Date(exp.startDate)
-      const endDate = exp.endDate ? new Date(exp.endDate) : new Date()
-      const years = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 365)
-      return total + years
-    }, 0)
-    
-    return Math.floor(totalYears)
   }
 
   if (loading) {
@@ -327,10 +316,9 @@ export default function CandidatesPage() {
                   </TableCell>
                   <TableCell>
                     <div>
-                      <div className="text-sm">{getExperienceYears(candidate.experience)}年</div>
+                      <div className="text-sm">{candidate.cookingExperience || '未登録'}</div>
                       <div className="text-sm text-gray-500">
-                        {candidate.skills.slice(0, 2).join(', ')}
-                        {candidate.skills.length > 2 && '...'}
+                        {candidate.campus ? campusLabels[candidate.campus] : '校舎未登録'}
                       </div>
                     </div>
                   </TableCell>

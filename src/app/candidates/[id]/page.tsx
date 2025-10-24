@@ -11,7 +11,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { doc, getDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
-import { Candidate } from '@/types/candidate'
+import { Candidate, campusLabels } from '@/types/candidate'
 import { Match } from '@/types/matching'
 import { Job } from '@/types/job'
 import { Company } from '@/types/company'
@@ -249,34 +249,120 @@ export default function CandidateDetailPage({ params }: CandidateDetailPageProps
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-500">生年月日</label>
-                <p>{candidate.dateOfBirth instanceof Date ? candidate.dateOfBirth.toLocaleDateString() : candidate.dateOfBirth}</p>
+                <p>{candidate.dateOfBirth || '未登録'}</p>
               </div>
             </CardContent>
           </Card>
           
           <Card className="border-blue-100">
             <CardHeader>
-              <CardTitle className="text-blue-800">スキル・資格</CardTitle>
+              <CardTitle className="text-blue-800">基本情報・経験</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 <div>
-                  <label className="text-sm font-medium text-gray-500">スキル</label>
-                  <div className="flex flex-wrap gap-2 mt-1">
-                    {candidate.skills?.map((skill, index) => (
-                      <span key={index} className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm">
-                        {skill}
-                      </span>
-                    )) || <span className="text-gray-500">未登録</span>}
+                  <label className="text-sm font-medium text-gray-500">調理経験</label>
+                  <p className="mt-1">{candidate.cookingExperience || '未登録'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">最寄り駅</label>
+                  <p className="mt-1">{candidate.nearestStation || '未登録'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">入学校舎</label>
+                  <p className="mt-1">{candidate.campus ? campusLabels[candidate.campus] : '未登録'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">入学年月</label>
+                  <p className="mt-1">{candidate.enrollmentDate || '未登録'}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="border-green-100">
+            <CardHeader>
+              <CardTitle className="text-green-800">希望条件</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-500">就職活動をスタートさせるタイミング</label>
+                  <p className="mt-1">{candidate.jobSearchTiming || '未登録'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">卒業"直後"の希望進路</label>
+                  <p className="mt-1">{candidate.graduationCareerPlan || '未登録'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">就職・開業希望エリア</label>
+                  <p className="mt-1">{candidate.preferredArea || '未登録'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">就職・開業したいお店の雰囲気・条件</label>
+                  <p className="mt-1 whitespace-pre-wrap">{candidate.preferredWorkplace || '未登録'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">将来のキャリア像</label>
+                  <p className="mt-1 whitespace-pre-wrap">{candidate.futureCareerVision || '未登録'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">キャリア担当への質問・要望</label>
+                  <p className="mt-1 whitespace-pre-wrap">{candidate.questions || '未登録'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">在校中のアルバイト希望</label>
+                  <p className="mt-1 whitespace-pre-wrap">{candidate.partTimeHope || '未登録'}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="border-orange-100">
+            <CardHeader>
+              <CardTitle className="text-orange-800">内部管理情報</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">願書URL</label>
+                    <p className="mt-1">
+                      {candidate.applicationFormUrl ? (
+                        <a href={candidate.applicationFormUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                          ファイルを開く
+                        </a>
+                      ) : '未登録'}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">履歴書URL</label>
+                    <p className="mt-1">
+                      {candidate.resumeUrl ? (
+                        <a href={candidate.resumeUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                          ファイルを開く
+                        </a>
+                      ) : '未登録'}
+                    </p>
                   </div>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-500">資格</label>
-                  <div className="space-y-1 mt-1">
-                    {candidate.certifications?.map((cert, index) => (
-                      <p key={index} className="text-sm">{typeof cert === 'string' ? cert : cert.name}</p>
-                    )) || <span className="text-gray-500">未登録</span>}
+                  <label className="text-sm font-medium text-gray-500">先生からのコメント</label>
+                  <p className="mt-1 whitespace-pre-wrap">{candidate.teacherComment || '未登録'}</p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">スコア（人物）</label>
+                    <p className="mt-1">{candidate.personalityScore || '未登録'}</p>
                   </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">スコア（スキル）</label>
+                    <p className="mt-1">{candidate.skillScore || '未登録'}</p>
+                  </div>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">面談メモ</label>
+                  <p className="mt-1 whitespace-pre-wrap">{candidate.interviewMemo || '未登録'}</p>
                 </div>
               </div>
             </CardContent>

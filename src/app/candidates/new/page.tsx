@@ -12,54 +12,90 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ArrowLeft, Users, Save, Loader2 } from 'lucide-react'
 import { createCandidate } from '@/lib/firestore/candidates'
-import { Candidate } from '@/types/candidate'
+import { Candidate, campusLabels } from '@/types/candidate'
 
 export default function NewCandidatePage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
-    firstName: '',
+    // 基本情報（必須）
+    status: 'active' as const,
     lastName: '',
-    firstNameKana: '',
+    firstName: '',
+    
+    // 基本情報（任意）
     lastNameKana: '',
+    firstNameKana: '',
     email: '',
     phone: '',
     dateOfBirth: '',
-    gender: '' as const,
-    skills: '',
-    consultantComment: '',
-    status: 'active' as const
+    enrollmentDate: '',
+    campus: '' as const,
+    nearestStation: '',
+    cookingExperience: '',
+    
+    // 希望
+    jobSearchTiming: '',
+    graduationCareerPlan: '',
+    preferredArea: '',
+    preferredWorkplace: '',
+    futureCareerVision: '',
+    questions: '',
+    partTimeHope: '',
+    
+    // inner情報
+    applicationFormUrl: '',
+    resumeUrl: '',
+    teacherComment: '',
+    personalityScore: '',
+    skillScore: '',
+    interviewMemo: ''
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!formData.firstName || !formData.lastName || !formData.email) {
-      alert('必須項目を入力してください')
+    if (!formData.firstName || !formData.lastName) {
+      alert('名前（姓・名）は必須項目です')
       return
     }
 
     setLoading(true)
 
     try {
-      const skillsArray = formData.skills.split(',').map(skill => skill.trim()).filter(skill => skill)
-
       const newCandidate: Omit<Candidate, 'id' | 'createdAt' | 'updatedAt'> = {
-        firstName: formData.firstName,
+        // 基本情報（必須）
+        status: formData.status,
         lastName: formData.lastName,
-        firstNameKana: formData.firstNameKana,
-        lastNameKana: formData.lastNameKana,
-        email: formData.email,
+        firstName: formData.firstName,
+        
+        // 基本情報（任意）
+        lastNameKana: formData.lastNameKana || undefined,
+        firstNameKana: formData.firstNameKana || undefined,
+        email: formData.email || undefined,
         phone: formData.phone || undefined,
         dateOfBirth: formData.dateOfBirth || undefined,
-        gender: formData.gender as 'male' | 'female' | 'other' | 'prefer_not_to_say' | undefined,
-        experience: [],
-        education: [],
-        skills: skillsArray,
-        certifications: [],
-        preferences: {},
-        consultantComment: formData.consultantComment || undefined,
-        status: formData.status
+        enrollmentDate: formData.enrollmentDate || undefined,
+        campus: formData.campus || undefined,
+        nearestStation: formData.nearestStation || undefined,
+        cookingExperience: formData.cookingExperience || undefined,
+        
+        // 希望
+        jobSearchTiming: formData.jobSearchTiming || undefined,
+        graduationCareerPlan: formData.graduationCareerPlan || undefined,
+        preferredArea: formData.preferredArea || undefined,
+        preferredWorkplace: formData.preferredWorkplace || undefined,
+        futureCareerVision: formData.futureCareerVision || undefined,
+        questions: formData.questions || undefined,
+        partTimeHope: formData.partTimeHope || undefined,
+        
+        // inner情報
+        applicationFormUrl: formData.applicationFormUrl || undefined,
+        resumeUrl: formData.resumeUrl || undefined,
+        teacherComment: formData.teacherComment || undefined,
+        personalityScore: formData.personalityScore || undefined,
+        skillScore: formData.skillScore || undefined,
+        interviewMemo: formData.interviewMemo || undefined
       }
 
       console.log('🆕 新規求職者データ:', newCandidate)
@@ -103,70 +139,84 @@ export default function NewCandidatePage() {
         </div>
       </div>
       
-      <form onSubmit={handleSubmit}>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* 基本情報 */}
-          <Card>
-            <CardHeader>
-              <CardTitle>基本情報</CardTitle>
-              <CardDescription>
-                求職者の基本的な情報を入力してください
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="lastName">姓 *</Label>
-                  <Input
-                    id="lastName"
-                    value={formData.lastName}
-                    onChange={(e) => handleChange('lastName', e.target.value)}
-                    placeholder="田中"
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="firstName">名 *</Label>
-                  <Input
-                    id="firstName"
-                    value={formData.firstName}
-                    onChange={(e) => handleChange('firstName', e.target.value)}
-                    placeholder="太郎"
-                    required
-                  />
-                </div>
-              </div>
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* 基本情報 */}
+        <Card>
+          <CardHeader>
+            <CardTitle>基本情報</CardTitle>
+            <CardDescription>求職者の基本的な情報を入力してください</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="status">ステータス *</Label>
+              <Select value={formData.status} onValueChange={(value) => handleChange('status', value)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">アクティブ</SelectItem>
+                  <SelectItem value="inactive">非アクティブ</SelectItem>
+                  <SelectItem value="placed">就職済み</SelectItem>
+                  <SelectItem value="interviewing">面接中</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="lastNameKana">姓（カナ）</Label>
-                  <Input
-                    id="lastNameKana"
-                    value={formData.lastNameKana}
-                    onChange={(e) => handleChange('lastNameKana', e.target.value)}
-                    placeholder="タナカ"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="firstNameKana">名（カナ）</Label>
-                  <Input
-                    id="firstNameKana"
-                    value={formData.firstNameKana}
-                    onChange={(e) => handleChange('firstNameKana', e.target.value)}
-                    placeholder="タロウ"
-                  />
-                </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="lastName">名前（姓） *</Label>
+                <Input
+                  id="lastName"
+                  value={formData.lastName}
+                  onChange={(e) => handleChange('lastName', e.target.value)}
+                  required
+                  placeholder="山田"
+                />
               </div>
 
               <div>
-                <Label htmlFor="email">メールアドレス *</Label>
+                <Label htmlFor="firstName">名前（名） *</Label>
+                <Input
+                  id="firstName"
+                  value={formData.firstName}
+                  onChange={(e) => handleChange('firstName', e.target.value)}
+                  required
+                  placeholder="太郎"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="lastNameKana">フリガナ（姓）</Label>
+                <Input
+                  id="lastNameKana"
+                  value={formData.lastNameKana}
+                  onChange={(e) => handleChange('lastNameKana', e.target.value)}
+                  placeholder="ヤマダ"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="firstNameKana">フリガナ（名）</Label>
+                <Input
+                  id="firstNameKana"
+                  value={formData.firstNameKana}
+                  onChange={(e) => handleChange('firstNameKana', e.target.value)}
+                  placeholder="タロウ"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="email">メールアドレス</Label>
                 <Input
                   id="email"
                   type="email"
                   value={formData.email}
                   onChange={(e) => handleChange('email', e.target.value)}
                   placeholder="example@email.com"
-                  required
                 />
               </div>
 
@@ -174,13 +224,14 @@ export default function NewCandidatePage() {
                 <Label htmlFor="phone">電話番号</Label>
                 <Input
                   id="phone"
-                  type="tel"
                   value={formData.phone}
                   onChange={(e) => handleChange('phone', e.target.value)}
                   placeholder="090-1234-5678"
                 />
               </div>
+            </div>
 
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <Label htmlFor="dateOfBirth">生年月日</Label>
                 <Input
@@ -192,94 +243,231 @@ export default function NewCandidatePage() {
               </div>
 
               <div>
-                <Label htmlFor="gender">性別</Label>
-                <Select value={formData.gender} onValueChange={(value) => handleChange('gender', value)}>
+                <Label htmlFor="enrollmentDate">入学年月</Label>
+                <Input
+                  id="enrollmentDate"
+                  type="date"
+                  value={formData.enrollmentDate}
+                  onChange={(e) => handleChange('enrollmentDate', e.target.value)}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="campus">入学校舎</Label>
+                <Select value={formData.campus} onValueChange={(value) => handleChange('campus', value)}>
                   <SelectTrigger>
-                    <SelectValue placeholder="性別を選択してください" />
+                    <SelectValue placeholder="校舎を選択してください" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="male">男性</SelectItem>
-                    <SelectItem value="female">女性</SelectItem>
-                    <SelectItem value="other">その他</SelectItem>
-                    <SelectItem value="prefer_not_to_say">回答しない</SelectItem>
+                    <SelectItem value="tokyo">東京校</SelectItem>
+                    <SelectItem value="osaka">大阪校</SelectItem>
+                    <SelectItem value="awaji">淡路校</SelectItem>
+                    <SelectItem value="fukuoka">福岡校</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
+            </div>
 
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="status">ステータス</Label>
-                <Select value={formData.status} onValueChange={(value) => handleChange('status', value)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="active">活動中</SelectItem>
-                    <SelectItem value="inactive">非活動</SelectItem>
-                    <SelectItem value="placed">就職済み</SelectItem>
-                    <SelectItem value="interviewing">面接中</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* スキル・その他情報 */}
-          <Card>
-            <CardHeader>
-              <CardTitle>スキル・その他情報</CardTitle>
-              <CardDescription>
-                求職者のスキルやコメントを入力してください
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="skills">スキル</Label>
-                <Textarea
-                  id="skills"
-                  value={formData.skills}
-                  onChange={(e) => handleChange('skills', e.target.value)}
-                  placeholder="握り, 仕込み, 焼き, 接客, 衛生管理 (カンマ区切り)"
-                  rows={4}
-                />
-                <p className="text-sm text-gray-500 mt-1">
-                  スキルはカンマ(,)で区切って入力してください
-                </p>
-              </div>
-
-              <div>
-                <Label htmlFor="consultantComment">コンサル作成の紹介文</Label>
-                <Textarea
-                  id="consultantComment"
-                  value={formData.consultantComment}
-                  onChange={(e) => handleChange('consultantComment', e.target.value)}
-                  placeholder="求職者の特徴や強みを記載してください"
-                  rows={6}
+                <Label htmlFor="nearestStation">最寄り駅</Label>
+                <Input
+                  id="nearestStation"
+                  value={formData.nearestStation}
+                  onChange={(e) => handleChange('nearestStation', e.target.value)}
+                  placeholder="新宿駅"
                 />
               </div>
-            </CardContent>
-          </Card>
-        </div>
 
-        {/* 保存ボタン */}
-        <div className="flex justify-end gap-4 mt-8">
+              <div>
+                <Label htmlFor="cookingExperience">調理経験</Label>
+                <Input
+                  id="cookingExperience"
+                  value={formData.cookingExperience}
+                  onChange={(e) => handleChange('cookingExperience', e.target.value)}
+                  placeholder="居酒屋で2年間"
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 希望条件 */}
+        <Card>
+          <CardHeader>
+            <CardTitle>希望条件</CardTitle>
+            <CardDescription>求職者の希望について詳しく聞かせてください</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="jobSearchTiming">就職活動をスタートさせるタイミング</Label>
+              <Textarea
+                id="jobSearchTiming"
+                value={formData.jobSearchTiming}
+                onChange={(e) => handleChange('jobSearchTiming', e.target.value)}
+                rows={3}
+                placeholder="卒業の3ヶ月前から本格的に始めたい"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="graduationCareerPlan">卒業"直後"の希望進路</Label>
+              <Textarea
+                id="graduationCareerPlan"
+                value={formData.graduationCareerPlan}
+                onChange={(e) => handleChange('graduationCareerPlan', e.target.value)}
+                rows={3}
+                placeholder="高級寿司店で修行を積みたい"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="preferredArea">就職・開業希望エリア</Label>
+              <Textarea
+                id="preferredArea"
+                value={formData.preferredArea}
+                onChange={(e) => handleChange('preferredArea', e.target.value)}
+                rows={2}
+                placeholder="東京都内、神奈川県"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="preferredWorkplace">就職・開業したいお店の雰囲気・条件</Label>
+              <Textarea
+                id="preferredWorkplace"
+                value={formData.preferredWorkplace}
+                onChange={(e) => handleChange('preferredWorkplace', e.target.value)}
+                rows={4}
+                placeholder="カウンター越しにお客様と会話できる環境で働きたい"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="futureCareerVision">現時点で考えうる将来のキャリア像</Label>
+              <Textarea
+                id="futureCareerVision"
+                value={formData.futureCareerVision}
+                onChange={(e) => handleChange('futureCareerVision', e.target.value)}
+                rows={4}
+                placeholder="10年後には独立して自分の店を持ちたい"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="questions">その他、キャリア担当への質問・面談で聞きたいこと・伝えておきたいことなど</Label>
+              <Textarea
+                id="questions"
+                value={formData.questions}
+                onChange={(e) => handleChange('questions', e.target.value)}
+                rows={4}
+                placeholder="研修制度について詳しく知りたい"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="partTimeHope">在校中のアルバイト希望について</Label>
+              <Textarea
+                id="partTimeHope"
+                value={formData.partTimeHope}
+                onChange={(e) => handleChange('partTimeHope', e.target.value)}
+                rows={3}
+                placeholder="週3日程度で飲食店でのアルバイトを希望"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* inner情報 */}
+        <Card>
+          <CardHeader>
+            <CardTitle>内部管理情報</CardTitle>
+            <CardDescription>内部管理用の情報を入力してください</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="applicationFormUrl">願書URL</Label>
+                <Input
+                  id="applicationFormUrl"
+                  value={formData.applicationFormUrl}
+                  onChange={(e) => handleChange('applicationFormUrl', e.target.value)}
+                  placeholder="https://..."
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="resumeUrl">履歴書URL</Label>
+                <Input
+                  id="resumeUrl"
+                  value={formData.resumeUrl}
+                  onChange={(e) => handleChange('resumeUrl', e.target.value)}
+                  placeholder="https://..."
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="teacherComment">先生からのコメント</Label>
+              <Textarea
+                id="teacherComment"
+                value={formData.teacherComment}
+                onChange={(e) => handleChange('teacherComment', e.target.value)}
+                rows={4}
+                placeholder="真面目で向上心がある学生です"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="personalityScore">スコア（人物）</Label>
+                <Input
+                  id="personalityScore"
+                  value={formData.personalityScore}
+                  onChange={(e) => handleChange('personalityScore', e.target.value)}
+                  placeholder="A、B、C等"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="skillScore">スコア（スキル）</Label>
+                <Input
+                  id="skillScore"
+                  value={formData.skillScore}
+                  onChange={(e) => handleChange('skillScore', e.target.value)}
+                  placeholder="A、B、C等"
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="interviewMemo">面談メモ</Label>
+              <Textarea
+                id="interviewMemo"
+                value={formData.interviewMemo}
+                onChange={(e) => handleChange('interviewMemo', e.target.value)}
+                rows={5}
+                placeholder="面談での印象や特記事項など"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="flex gap-4">
+          <Button 
+            type="submit" 
+            disabled={loading}
+            className="flex items-center gap-2"
+          >
+            <Save className="h-4 w-4" />
+            {loading ? '作成中...' : '求職者を作成'}
+          </Button>
+          
           <Link href="/candidates">
-            <Button variant="outline" type="button">
+            <Button type="button" variant="outline">
               キャンセル
             </Button>
           </Link>
-          <Button type="submit" disabled={loading}>
-            {loading ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                保存中...
-              </>
-            ) : (
-              <>
-                <Save className="h-4 w-4 mr-2" />
-                求職者を追加
-              </>
-            )}
-          </Button>
         </div>
       </form>
       </div>

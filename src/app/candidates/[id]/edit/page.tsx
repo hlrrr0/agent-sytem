@@ -33,14 +33,28 @@ export default function EditCandidatePage({ params }: EditCandidatePageProps) {
     email: '',
     phone: '',
     dateOfBirth: '',
-    gender: 'prefer_not_to_say',
-    enrollmentMonth: '',
-    campus: '',
-    experience: [],
-    education: [],
-    skills: [],
-    certifications: [],
-    preferences: {},
+    enrollmentDate: '',
+    campus: undefined,
+    nearestStation: '',
+    cookingExperience: '',
+    
+    // 希望
+    jobSearchTiming: '',
+    graduationCareerPlan: '',
+    preferredArea: '',
+    preferredWorkplace: '',
+    futureCareerVision: '',
+    questions: '',
+    partTimeHope: '',
+    
+    // inner情報
+    applicationFormUrl: '',
+    resumeUrl: '',
+    teacherComment: '',
+    personalityScore: '',
+    skillScore: '',
+    interviewMemo: '',
+    
     status: 'active'
   })
 
@@ -60,7 +74,34 @@ export default function EditCandidatePage({ params }: EditCandidatePageProps) {
         const candidateDoc = await getDoc(doc(db, 'candidates', candidateId))
         if (candidateDoc.exists()) {
           const candidateData = candidateDoc.data() as Candidate
-          setCandidate(candidateData)
+          // すべてのフィールドが文字列として設定されるようにする
+          setCandidate({
+            ...candidateData,
+            firstName: candidateData.firstName || '',
+            lastName: candidateData.lastName || '',
+            firstNameKana: candidateData.firstNameKana || '',
+            lastNameKana: candidateData.lastNameKana || '',
+            email: candidateData.email || '',
+            phone: candidateData.phone || '',
+            dateOfBirth: candidateData.dateOfBirth || '',
+            enrollmentDate: candidateData.enrollmentDate || '',
+            campus: candidateData.campus || undefined,
+            nearestStation: candidateData.nearestStation || '',
+            cookingExperience: candidateData.cookingExperience || '',
+            jobSearchTiming: candidateData.jobSearchTiming || '',
+            graduationCareerPlan: candidateData.graduationCareerPlan || '',
+            preferredArea: candidateData.preferredArea || '',
+            preferredWorkplace: candidateData.preferredWorkplace || '',
+            futureCareerVision: candidateData.futureCareerVision || '',
+            questions: candidateData.questions || '',
+            partTimeHope: candidateData.partTimeHope || '',
+            applicationFormUrl: candidateData.applicationFormUrl || '',
+            resumeUrl: candidateData.resumeUrl || '',
+            teacherComment: candidateData.teacherComment || '',
+            personalityScore: candidateData.personalityScore || '',
+            skillScore: candidateData.skillScore || '',
+            interviewMemo: candidateData.interviewMemo || ''
+          })
         } else {
           alert('求職者が見つかりません')
           router.push('/candidates')
@@ -150,44 +191,85 @@ export default function EditCandidatePage({ params }: EditCandidatePageProps) {
             <CardDescription>求職者の基本的な情報を入力してください</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="status">ステータス *</Label>
+              <Select value={candidate.status ?? 'active'} onValueChange={(value) => handleChange('status', value)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">アクティブ</SelectItem>
+                  <SelectItem value="inactive">非アクティブ</SelectItem>
+                  <SelectItem value="placed">就職済み</SelectItem>
+                  <SelectItem value="interviewing">面接中</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="lastName">姓 *</Label>
+                <Label htmlFor="lastName">名前（姓） *</Label>
                 <Input
                   id="lastName"
-                  value={candidate.lastName}
+                  value={candidate.lastName ?? ''}
                   onChange={(e) => handleChange('lastName', e.target.value)}
                   required
+                  placeholder="山田"
                 />
               </div>
-              
+
               <div>
-                <Label htmlFor="firstName">名 *</Label>
+                <Label htmlFor="firstName">名前（名） *</Label>
                 <Input
                   id="firstName"
-                  value={candidate.firstName}
+                  value={candidate.firstName ?? ''}
                   onChange={(e) => handleChange('firstName', e.target.value)}
                   required
+                  placeholder="太郎"
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="lastNameKana">セイ</Label>
+                <Label htmlFor="lastNameKana">フリガナ（姓）</Label>
                 <Input
                   id="lastNameKana"
-                  value={candidate.lastNameKana}
+                  value={candidate.lastNameKana ?? ''}
                   onChange={(e) => handleChange('lastNameKana', e.target.value)}
+                  placeholder="ヤマダ"
                 />
               </div>
-              
+
               <div>
-                <Label htmlFor="firstNameKana">メイ</Label>
+                <Label htmlFor="firstNameKana">フリガナ（名）</Label>
                 <Input
                   id="firstNameKana"
-                  value={candidate.firstNameKana}
+                  value={candidate.firstNameKana ?? ''}
                   onChange={(e) => handleChange('firstNameKana', e.target.value)}
+                  placeholder="タロウ"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="dateOfBirth">生年月日</Label>
+                <Input
+                  id="dateOfBirth"
+                  type="date"
+                  value={candidate.dateOfBirth ?? ''}
+                  onChange={(e) => handleChange('dateOfBirth', e.target.value)}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="enrollmentDate">入学年月</Label>
+                <Input
+                  id="enrollmentDate"
+                  type="date"
+                  value={candidate.enrollmentDate ?? ''}
+                  onChange={(e) => handleChange('enrollmentDate', e.target.value)}
                 />
               </div>
             </div>
@@ -198,7 +280,7 @@ export default function EditCandidatePage({ params }: EditCandidatePageProps) {
                 <Input
                   id="email"
                   type="email"
-                  value={candidate.email}
+                  value={candidate.email ?? ''}
                   onChange={(e) => handleChange('email', e.target.value)}
                   required
                 />
@@ -208,8 +290,10 @@ export default function EditCandidatePage({ params }: EditCandidatePageProps) {
                 <Label htmlFor="phone">電話番号</Label>
                 <Input
                   id="phone"
-                  value={candidate.phone}
+                  type="tel"
+                  value={candidate.phone ?? ''}
                   onChange={(e) => handleChange('phone', e.target.value)}
+                  placeholder="090-1234-5678"
                 />
               </div>
             </div>
@@ -224,132 +308,228 @@ export default function EditCandidatePage({ params }: EditCandidatePageProps) {
                   onChange={(e) => handleChange('dateOfBirth', e.target.value)}
                 />
               </div>
-
-              <div>
-                <Label htmlFor="gender">性別</Label>
-                <Select 
-                  value={candidate.gender} 
-                  onValueChange={(value) => handleChange('gender', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="male">男性</SelectItem>
-                    <SelectItem value="female">女性</SelectItem>
-                    <SelectItem value="other">その他</SelectItem>
-                    <SelectItem value="prefer_not_to_say">回答しない</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* 飲食人大学情報 */}
+        {/* 学校・個人情報 */}
         <Card>
           <CardHeader>
-            <CardTitle>飲食人大学情報</CardTitle>
-            <CardDescription>飲食人大学に関する情報</CardDescription>
+            <CardTitle>学校・個人情報</CardTitle>
+            <CardDescription>飲食人大学と個人に関する情報</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="enrollmentMonth">入学月</Label>
+                <Label htmlFor="enrollmentDate">入学年月</Label>
                 <Input
-                  id="enrollmentMonth"
-                  value={candidate.enrollmentMonth}
-                  onChange={(e) => handleChange('enrollmentMonth', e.target.value)}
-                  placeholder="例: 2024年4月"
+                  id="enrollmentDate"
+                  type="date"
+                  value={candidate.enrollmentDate}
+                  onChange={(e) => handleChange('enrollmentDate', e.target.value)}
                 />
               </div>
 
               <div>
                 <Label htmlFor="campus">入学校舎</Label>
+                <Select 
+                  value={candidate.campus ?? ''} 
+                  onValueChange={(value) => handleChange('campus', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="校舎を選択してください" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="tokyo">東京校</SelectItem>
+                    <SelectItem value="osaka">大阪校</SelectItem>
+                    <SelectItem value="awaji">淡路校</SelectItem>
+                    <SelectItem value="fukuoka">福岡校</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="nearestStation">最寄り駅</Label>
                 <Input
-                  id="campus"
-                  value={candidate.campus}
-                  onChange={(e) => handleChange('campus', e.target.value)}
-                  placeholder="例: 東京校"
+                  id="nearestStation"
+                  value={candidate.nearestStation ?? ''}
+                  onChange={(e) => handleChange('nearestStation', e.target.value)}
+                  placeholder="新宿駅"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="cookingExperience">調理経験</Label>
+                <Input
+                  id="cookingExperience"
+                  value={candidate.cookingExperience ?? ''}
+                  onChange={(e) => handleChange('cookingExperience', e.target.value)}
+                  placeholder="居酒屋で2年間"
                 />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* スキル・資格 */}
+        {/* 希望条件 */}
         <Card>
           <CardHeader>
-            <CardTitle>スキル・資格</CardTitle>
-            <CardDescription>保有スキルや資格について</CardDescription>
+            <CardTitle>希望条件</CardTitle>
+            <CardDescription>求職者の希望について</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <Label htmlFor="skills">スキル</Label>
+              <Label htmlFor="jobSearchTiming">就職活動をスタートさせるタイミング</Label>
               <Textarea
-                id="skills"
-                value={candidate.skills?.join(', ') || ''}
-                onChange={(e) => handleSkillsChange(e.target.value)}
+                id="jobSearchTiming"
+                value={candidate.jobSearchTiming ?? ''}
+                onChange={(e) => handleChange('jobSearchTiming', e.target.value)}
                 rows={3}
-                placeholder="スキルをカンマ区切りで入力してください（例: 寿司握り, 接客, 英語会話）"
+                placeholder="卒業の3ヶ月前から本格的に始めたい"
               />
             </div>
 
             <div>
-              <Label htmlFor="consultantComment">コンサル作成の紹介文</Label>
+              <Label htmlFor="graduationCareerPlan">卒業"直後"の希望進路</Label>
               <Textarea
-                id="consultantComment"
-                value={candidate.consultantComment}
-                onChange={(e) => handleChange('consultantComment', e.target.value)}
+                id="graduationCareerPlan"
+                value={candidate.graduationCareerPlan ?? ''}
+                onChange={(e) => handleChange('graduationCareerPlan', e.target.value)}
+                rows={3}
+                placeholder="高級寿司店で修行を積みたい"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="preferredArea">就職・開業希望エリア</Label>
+              <Textarea
+                id="preferredArea"
+                value={candidate.preferredArea ?? ''}
+                onChange={(e) => handleChange('preferredArea', e.target.value)}
+                rows={2}
+                placeholder="東京都内、神奈川県"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="preferredWorkplace">就職・開業したいお店の雰囲気・条件</Label>
+              <Textarea
+                id="preferredWorkplace"
+                value={candidate.preferredWorkplace ?? ''}
+                onChange={(e) => handleChange('preferredWorkplace', e.target.value)}
                 rows={4}
+                placeholder="カウンター越しにお客様と会話できる環境で働きたい"
               />
             </div>
 
             <div>
-              <Label htmlFor="instructorComment">講師コメント</Label>
+              <Label htmlFor="futureCareerVision">現時点で考えうる将来のキャリア像</Label>
               <Textarea
-                id="instructorComment"
-                value={candidate.instructorComment}
-                onChange={(e) => handleChange('instructorComment', e.target.value)}
-                rows={3}
+                id="futureCareerVision"
+                value={candidate.futureCareerVision ?? ''}
+                onChange={(e) => handleChange('futureCareerVision', e.target.value)}
+                rows={4}
+                placeholder="10年後には独立して自分の店を持ちたい"
               />
             </div>
 
             <div>
-              <Label htmlFor="notes">備考</Label>
+              <Label htmlFor="questions">その他、キャリア担当への質問・面談で聞きたいこと・伝えておきたいことなど</Label>
               <Textarea
-                id="notes"
-                value={candidate.notes}
-                onChange={(e) => handleChange('notes', e.target.value)}
+                id="questions"
+                value={candidate.questions ?? ''}
+                onChange={(e) => handleChange('questions', e.target.value)}
+                rows={4}
+                placeholder="研修制度について詳しく知りたい"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="partTimeHope">在校中のアルバイト希望について</Label>
+              <Textarea
+                id="partTimeHope"
+                value={candidate.partTimeHope ?? ''}
+                onChange={(e) => handleChange('partTimeHope', e.target.value)}
                 rows={3}
+                placeholder="週3日程度で飲食店でのアルバイトを希望"
               />
             </div>
           </CardContent>
         </Card>
 
-        {/* ステータス */}
+        {/* 内部管理情報 */}
         <Card>
           <CardHeader>
-            <CardTitle>ステータス</CardTitle>
-            <CardDescription>求職者の現在のステータス</CardDescription>
+            <CardTitle>内部管理情報</CardTitle>
+            <CardDescription>内部管理用の情報</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="applicationFormUrl">願書URL</Label>
+                <Input
+                  id="applicationFormUrl"
+                  value={candidate.applicationFormUrl ?? ''}
+                  onChange={(e) => handleChange('applicationFormUrl', e.target.value)}
+                  placeholder="https://..."
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="resumeUrl">履歴書URL</Label>
+                <Input
+                  id="resumeUrl"
+                  value={candidate.resumeUrl ?? ''}
+                  onChange={(e) => handleChange('resumeUrl', e.target.value)}
+                  placeholder="https://..."
+                />
+              </div>
+            </div>
+
             <div>
-              <Label htmlFor="status">ステータス</Label>
-              <Select 
-                value={candidate.status} 
-                onValueChange={(value) => handleChange('status', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">アクティブ</SelectItem>
-                  <SelectItem value="inactive">非アクティブ</SelectItem>
-                  <SelectItem value="placed">就職済み</SelectItem>
-                  <SelectItem value="interviewing">面接中</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label htmlFor="teacherComment">先生からのコメント</Label>
+              <Textarea
+                id="teacherComment"
+                value={candidate.teacherComment ?? ''}
+                onChange={(e) => handleChange('teacherComment', e.target.value)}
+                rows={4}
+                placeholder="真面目で向上心がある学生です"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="personalityScore">スコア（人物）</Label>
+                <Input
+                  id="personalityScore"
+                  value={candidate.personalityScore ?? ''}
+                  onChange={(e) => handleChange('personalityScore', e.target.value)}
+                  placeholder="A、B、C等"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="skillScore">スコア（スキル）</Label>
+                <Input
+                  id="skillScore"
+                  value={candidate.skillScore ?? ''}
+                  onChange={(e) => handleChange('skillScore', e.target.value)}
+                  placeholder="A、B、C等"
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="interviewMemo">面談メモ</Label>
+              <Textarea
+                id="interviewMemo"
+                value={candidate.interviewMemo ?? ''}
+                onChange={(e) => handleChange('interviewMemo', e.target.value)}
+                rows={5}
+                placeholder="面談での印象や特記事項など"
+              />
             </div>
           </CardContent>
         </Card>
