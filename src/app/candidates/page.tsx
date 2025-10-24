@@ -189,7 +189,7 @@ export default function CandidatesPage() {
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.total}</div>
+              <div className="text-2xl font-bold">{stats?.total || 0}</div>
             </CardContent>
           </Card>
 
@@ -201,7 +201,7 @@ export default function CandidatesPage() {
               <UserCheck className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.byStatus.active}</div>
+              <div className="text-2xl font-bold">{stats?.byStatus?.active || 0}</div>
             </CardContent>
           </Card>
 
@@ -213,7 +213,7 @@ export default function CandidatesPage() {
               <User className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.byStatus.placed}</div>
+              <div className="text-2xl font-bold">{stats?.byStatus?.placed || 0}</div>
             </CardContent>
           </Card>
 
@@ -225,7 +225,7 @@ export default function CandidatesPage() {
               <UserX className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.byStatus.interviewing}</div>
+              <div className="text-2xl font-bold">{stats?.byStatus?.interviewing || 0}</div>
             </CardContent>
           </Card>
         </div>

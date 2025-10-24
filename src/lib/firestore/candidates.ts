@@ -269,10 +269,12 @@ export const getCandidateStats = async () => {
     
     return {
       total: candidates.length,
-      active: candidates.filter(c => c.status === 'active').length,
-      inactive: candidates.filter(c => c.status === 'inactive').length,
-      placed: candidates.filter(c => c.status === 'placed').length,
-      interviewing: candidates.filter(c => c.status === 'interviewing').length,
+      byStatus: {
+        active: candidates.filter(c => c.status === 'active').length,
+        inactive: candidates.filter(c => c.status === 'inactive').length,
+        placed: candidates.filter(c => c.status === 'placed').length,
+        interviewing: candidates.filter(c => c.status === 'interviewing').length
+      },
       // 経験年数別統計は現在の型定義では非サポート
       byExperience: {
         fresh: 0,
