@@ -18,9 +18,9 @@ import {
   AlertCircle
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { importCompaniesFromCSV } from '@/lib/csv/companies'
-import { importStoresFromCSV } from '@/lib/csv/stores'
-import { importJobsFromCSV } from '@/lib/csv/jobs'
+import { importCompaniesFromCSV, generateCompaniesCSVTemplate } from '@/lib/csv/companies'
+import { importStoresFromCSV, generateStoresCSVTemplate } from '@/lib/csv/stores'
+import { importJobsFromCSV, generateJobsCSVTemplate } from '@/lib/csv/jobs'
 
 export default function ImportPage() {
   const [uploading, setUploading] = useState({
@@ -86,19 +86,15 @@ export default function ImportPage() {
 
     switch (type) {
       case 'companies':
-        csvContent = 'name,memo,status\n' +
-                    '株式会社サンプル,サンプル企業です,active\n' +
-                    '有限会社テスト,テスト企業,inactive'
+        csvContent = generateCompaniesCSVTemplate()
         filename = 'companies_template.csv'
         break
       case 'stores':
-        csvContent = 'name,address,phone,email,website,description,businessHours,holiday,access,parking,capacity,features,atmosphere,targetCustomers,averageBudget,popularMenus,images\n' +
-                    'サンプル店舗,東京都渋谷区,03-1234-5678,sample@example.com,https://sample.com,サンプル店舗の説明,11:00-22:00,月曜日,JR渋谷駅徒歩5分,あり,50名,個室あり,カジュアル,20-30代,3000円,パスタ・ピザ,https://example.com/image1.jpg'
+        csvContent = generateStoresCSVTemplate()
         filename = 'stores_template.csv'
         break
       case 'jobs':
-        csvContent = 'title,companyName,storeName,jobType,salaryType,salaryAmount,workLocation,workHours,workDays,requirements,benefits,description,contactInfo,applicationMethod,notes\n' +
-                    'ホールスタッフ募集,株式会社サンプル,サンプル店舗,ホール,時給,1200,東京都渋谷区,11:00-22:00,週3日以上,未経験歓迎,交通費支給,ホールスタッフとして接客業務,03-1234-5678,電話または直接応募,制服貸与あり'
+        csvContent = generateJobsCSVTemplate()
         filename = 'jobs_template.csv'
         break
     }
@@ -193,8 +189,8 @@ export default function ImportPage() {
               </Button>
               
               <div className="text-xs text-gray-500">
-                必須フィールド: name, status<br />
-                オプション: memo
+                必須フィールド: name, address, email, size, isPublic, status<br />
+                オプション: phone, website, industry, memo など
               </div>
             </div>
           </CardContent>
@@ -240,8 +236,8 @@ export default function ImportPage() {
               </Button>
               
               <div className="text-xs text-gray-500">
-                必須フィールド: name<br />
-                オプション: address, phone, email など
+                必須フィールド: name, companyId<br />
+                オプション: address, website, unitPrice など
               </div>
             </div>
           </CardContent>
@@ -287,8 +283,8 @@ export default function ImportPage() {
               </Button>
               
               <div className="text-xs text-gray-500">
-                必須フィールド: title, companyName<br />
-                オプション: storeName, jobType など
+                必須フィールド: title, companyId, status<br />
+                オプション: storeId, businessType, employmentType など
               </div>
             </div>
           </CardContent>

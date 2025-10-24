@@ -122,3 +122,46 @@ function parseCSVLine(line: string): string[] {
   
   return result
 }
+
+// CSVテンプレートを生成する関数
+export const generateStoresCSVTemplate = (): string => {
+  const headers = [
+    'name',                      // 店舗名（必須）
+    'companyId',                 // 企業ID（必須）
+    'address',                   // 店舗住所
+    'website',                   // 店舗URL
+    'unitPrice',                 // 単価
+    'seatCount',                 // 席数
+    'isReservationRequired',     // 予約制（true/false）
+    'instagramUrl',              // Instagram URL
+    'tabelogUrl',                // 食べログURL
+    'reputation',                // 実績・評価
+    'staffReview',               // スタッフレビュー
+    'trainingPeriod',            // 握れるまでの期間
+    'ownerPhoto',                // 大将の写真URL
+    'ownerVideo',                // 大将の動画URL
+    'interiorPhoto',             // 店内写真URL
+    'status'                     // ステータス（active/inactive）
+  ]
+
+  const sampleData = [
+    'サンプル寿司店',
+    'company-123',
+    '東京都渋谷区渋谷1-1-1',
+    'https://www.sample-sushi.com',
+    '5000',
+    '12',
+    'true',
+    'https://instagram.com/sample_sushi',
+    'https://tabelog.com/sample',
+    '食べログ4.2 ミシュラン一つ星',
+    'ネタが新鮮で大将の人柄も良い',
+    '6ヶ月',
+    'https://example.com/owner.jpg',
+    'https://example.com/owner-video.mp4',
+    'https://example.com/interior.jpg',
+    'active'
+  ]
+
+  return headers.join(',') + '\n' + sampleData.join(',')
+}
