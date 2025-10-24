@@ -1,14 +1,16 @@
 import { Company } from '@/types/company'
-import { createCompany } from '@/lib/firestore/companies'
+import { createCompany, updateCompany, findCompanyByNameAndAddress } from '@/lib/firestore/companies'
 
 export interface ImportResult {
   success: number
+  updated: number
   errors: string[]
 }
 
 export const importCompaniesFromCSV = async (csvText: string): Promise<ImportResult> => {
   const result: ImportResult = {
     success: 0,
+    updated: 0,
     errors: []
   }
 
@@ -125,9 +127,23 @@ export const importCompaniesFromCSV = async (csvText: string): Promise<ImportRes
           importedAt: rowData.importedAt?.trim()
         }
 
-        // Firestoreに保存
-        await createCompany(companyData)
-        result.success++
+        // 重複チェック：企業名と住所の組み合わせで既存企業を検索
+        const existingCompany = await findCompanyByNameAndAddress(
+          companyData.name, 
+          companyData.address
+        )
+
+        if (existingCompany) {
+          // 既存企業が見つかった場合は更新
+          await updateCompany(existingCompany.id, companyData)
+          result.updated++
+          console.log(`行${i + 1}: 既存企業「${companyData.name}」を更新しました`)
+        } else {
+          // 新規企業として作成
+          await createCompany(companyData)
+          result.success++
+          console.log(`行${i + 1}: 新規企業「${companyData.name}」を作成しました`)
+        }
 
       } catch (error) {
         console.error(`Error processing row ${i + 1}:`, error)

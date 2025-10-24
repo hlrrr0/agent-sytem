@@ -97,6 +97,35 @@ export async function getCompaniesByStatus(status: Company['status']): Promise<C
 }
 
 /**
+ * 企業名と住所で既存企業を検索（重複チェック用）
+ */
+export async function findCompanyByNameAndAddress(name: string, address: string): Promise<Company | null> {
+  try {
+    const q = query(
+      companiesCollection, 
+      where('name', '==', name.trim()),
+      where('address', '==', address.trim())
+    )
+    const querySnapshot = await getDocs(q)
+    
+    if (querySnapshot.empty) {
+      return null
+    }
+    
+    const doc = querySnapshot.docs[0] // 最初に見つかった企業を返す
+    return {
+      id: doc.id,
+      ...doc.data(),
+      createdAt: doc.data().createdAt?.toDate?.() || doc.data().createdAt,
+      updatedAt: doc.data().updatedAt?.toDate?.() || doc.data().updatedAt,
+    } as Company
+  } catch (error) {
+    console.error('Error finding company by name and address:', error)
+    throw error
+  }
+}
+
+/**
  * 企業をIDで取得
  */
 export async function getCompanyById(id: string): Promise<Company | null> {

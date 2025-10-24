@@ -105,10 +105,15 @@ function CompaniesPageContent() {
       const result = await importCompaniesFromCSV(text)
       
       if (result.errors.length > 0) {
-        toast.error(`インポート完了: ${result.success}件成功、${result.errors.length}件エラー`)
+        toast.error(`インポート完了: 新規${result.success}件、更新${result.updated}件、エラー${result.errors.length}件`)
         console.error('Import errors:', result.errors)
       } else {
-        toast.success(`${result.success}件の企業データをインポートしました`)
+        const totalProcessed = result.success + result.updated
+        if (result.updated > 0) {
+          toast.success(`インポート完了: 新規${result.success}件、更新${result.updated}件（計${totalProcessed}件）`)
+        } else {
+          toast.success(`${result.success}件の企業データをインポートしました`)
+        }
       }
       
       // データを再読み込み
