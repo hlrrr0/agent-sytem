@@ -57,16 +57,12 @@ function removeUndefinedFields(obj: any): any {
   return cleaned
 }
 
-// Firestore用のデータ変換（Date型をTimestamp型に変換）
+// Firestore用のデータ変換（string型の日付をTimestamp型に変換）
 const candidateToFirestore = (candidate: Omit<Candidate, 'id'>) => {
   return {
     ...candidate,
-    createdAt: candidate.createdAt instanceof Date 
-      ? Timestamp.fromDate(candidate.createdAt) 
-      : Timestamp.fromDate(new Date(candidate.createdAt)),
-    updatedAt: candidate.updatedAt instanceof Date 
-      ? Timestamp.fromDate(candidate.updatedAt) 
-      : Timestamp.fromDate(new Date(candidate.updatedAt))
+    createdAt: Timestamp.fromDate(new Date(candidate.createdAt || new Date().toISOString())),
+    updatedAt: Timestamp.fromDate(new Date(candidate.updatedAt || new Date().toISOString()))
   }
 }
 
@@ -107,14 +103,27 @@ const candidateFromFirestore = (doc: QueryDocumentSnapshot<DocumentData>): Candi
       firstNameKana: '',
       lastNameKana: '',
       email: '',
-      status: 'active',
-      experience: [],
-      education: [],
-      skills: [],
-      certifications: [],
-      preferences: {},
-      createdAt: new Date(),
-      updatedAt: new Date()
+      status: 'active' as const,
+      phone: '',
+      dateOfBirth: '',
+      enrollmentDate: '',
+      nearestStation: '',
+      cookingExperience: '',
+      jobSearchTiming: '',
+      graduationCareerPlan: '',
+      preferredArea: '',
+      preferredWorkplace: '',
+      futureCareerVision: '',
+      questions: '',
+      partTimeHope: '',
+      applicationFormUrl: '',
+      resumeUrl: '',
+      teacherComment: '',
+      personalityScore: '',
+      skillScore: '',
+      interviewMemo: '',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     } as Candidate
   }
 }
@@ -177,19 +186,14 @@ export const getCandidateById = async (id: string): Promise<Candidate | null> =>
 }
 
 // 求職者作成
-export const createCandidate = async (candidateData: Omit<Candidate, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> => {
+export const createCandidate = async (candidateData: Omit<Candidate, 'id' | 'createdAt' | 'updatedAt'>) => {
   try {
-    const now = new Date()
-    const candidate = candidateToFirestore({
+    const now = new Date().toISOString()
+    const docRef = await addDoc(collection(db, 'candidates'), candidateToFirestore({
       ...candidateData,
       createdAt: now,
       updatedAt: now
-    })
-    
-    // undefinedフィールドを除去
-    const cleanedCandidate = removeUndefinedFields(candidate)
-    
-    const docRef = await addDoc(collection(db, COLLECTION_NAME), cleanedCandidate)
+    }))
     return docRef.id
   } catch (error) {
     console.error('Error creating candidate:', error)
@@ -200,16 +204,17 @@ export const createCandidate = async (candidateData: Omit<Candidate, 'id' | 'cre
 // 求職者更新
 export const updateCandidate = async (id: string, candidateData: Partial<Omit<Candidate, 'id' | 'createdAt' | 'updatedAt'>>): Promise<void> => {
   try {
-    const docRef = doc(db, COLLECTION_NAME, id)
+    const docRef = doc(db, 'candidates', id)
     const updateData = candidateToFirestore({
       ...candidateData,
-      updatedAt: new Date()
+      createdAt: new Date().toISOString(), // ダミーの値（実際には上書きされない）
+      updatedAt: new Date().toISOString()
     } as Omit<Candidate, 'id'>)
     
-    // undefinedフィールドを除去
-    const cleanedUpdateData = removeUndefinedFields(updateData)
+    // createdAtフィールドを削除（更新時は不要）
+    const { createdAt, ...updateDataWithoutCreatedAt } = updateData
     
-    await updateDoc(docRef, cleanedUpdateData)
+    await updateDoc(docRef, updateDataWithoutCreatedAt)
   } catch (error) {
     console.error('Error updating candidate:', error)
     throw error
@@ -227,21 +232,13 @@ export const deleteCandidate = async (id: string): Promise<void> => {
   }
 }
 
-// 経験年数別求職者取得（職歴から算出）
+// 経験年数別求職者取得（職歴から算出） - 現在の型定義では非サポート
 export const getCandidatesByExperienceYears = async (minYears: number): Promise<Candidate[]> => {
   try {
     const candidates = await getCandidates()
     
-    return candidates.filter(candidate => {
-      const totalYears = candidate.experience.reduce((total, exp) => {
-        const startDate = new Date(exp.startDate)
-        const endDate = exp.endDate ? new Date(exp.endDate) : new Date()
-        const years = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 365)
-        return total + years
-      }, 0)
-      
-      return totalYears >= minYears
-    })
+    // 現在の型定義では経験年数フィールドがないため、すべての候補者を返す
+    return candidates
   } catch (error) {
     console.error('Error getting candidates by experience years:', error)
     throw error
@@ -270,55 +267,20 @@ export const getCandidateStats = async () => {
   try {
     const candidates = await getCandidates()
     
-    const stats = {
+    return {
       total: candidates.length,
-      byStatus: {
-        active: candidates.filter(c => c.status === 'active').length,
-        inactive: candidates.filter(c => c.status === 'inactive').length,
-        placed: candidates.filter(c => c.status === 'placed').length,
-        interviewing: candidates.filter(c => c.status === 'interviewing').length
-      },
-      byExperienceYears: {
-        novice: candidates.filter(c => {
-          const totalYears = c.experience.reduce((total, exp) => {
-            const startDate = new Date(exp.startDate)
-            const endDate = exp.endDate ? new Date(exp.endDate) : new Date()
-            const years = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 365)
-            return total + years
-          }, 0)
-          return totalYears < 1
-        }).length,
-        junior: candidates.filter(c => {
-          const totalYears = c.experience.reduce((total, exp) => {
-            const startDate = new Date(exp.startDate)
-            const endDate = exp.endDate ? new Date(exp.endDate) : new Date()
-            const years = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 365)
-            return total + years
-          }, 0)
-          return totalYears >= 1 && totalYears < 3
-        }).length,
-        mid: candidates.filter(c => {
-          const totalYears = c.experience.reduce((total, exp) => {
-            const startDate = new Date(exp.startDate)
-            const endDate = exp.endDate ? new Date(exp.endDate) : new Date()
-            const years = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 365)
-            return total + years
-          }, 0)
-          return totalYears >= 3 && totalYears < 5
-        }).length,
-        senior: candidates.filter(c => {
-          const totalYears = c.experience.reduce((total, exp) => {
-            const startDate = new Date(exp.startDate)
-            const endDate = exp.endDate ? new Date(exp.endDate) : new Date()
-            const years = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 365)
-            return total + years
-          }, 0)
-          return totalYears >= 5
-        }).length
+      active: candidates.filter(c => c.status === 'active').length,
+      inactive: candidates.filter(c => c.status === 'inactive').length,
+      placed: candidates.filter(c => c.status === 'placed').length,
+      interviewing: candidates.filter(c => c.status === 'interviewing').length,
+      // 経験年数別統計は現在の型定義では非サポート
+      byExperience: {
+        fresh: 0,
+        junior: 0,
+        mid: 0,
+        senior: 0
       }
     }
-    
-    return stats
   } catch (error) {
     console.error('Error getting candidate stats:', error)
     throw error
@@ -328,7 +290,7 @@ export const getCandidateStats = async () => {
 // 個別の候補者取得
 export const getCandidate = async (id: string): Promise<Candidate | null> => {
   try {
-    const docRef = doc(db, COLLECTION_NAME, id)
+    const docRef = doc(db, 'candidates', id)
     const docSnap = await getDoc(docRef)
     
     if (docSnap.exists()) {
