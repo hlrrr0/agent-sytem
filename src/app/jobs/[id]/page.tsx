@@ -135,6 +135,14 @@ function JobDetailContent({ params }: JobDetailPageProps) {
   }
 
   const getEmploymentTypeBadge = (type: Job['employmentType']) => {
+    if (!type) {
+      return (
+        <Badge className="bg-gray-100 text-gray-800">
+          未設定
+        </Badge>
+      )
+    }
+
     const colors = {
       'full-time': 'bg-blue-100 text-blue-800',
       'part-time': 'bg-purple-100 text-purple-800',
@@ -150,23 +158,25 @@ function JobDetailContent({ params }: JobDetailPageProps) {
       'temporary': '派遣社員',
       'intern': 'インターン',
     }
+
+    // 定義されていない雇用形態の場合は、文字列をそのまま表示
+    const displayColor = colors[type as keyof typeof colors] || 'bg-gray-100 text-gray-800'
+    const displayLabel = labels[type as keyof typeof labels] || type
     
     return (
-      <Badge className={colors[type]}>
-        {labels[type]}
+      <Badge className={displayColor}>
+        {displayLabel}
       </Badge>
     )
   }
 
   const formatSalary = (job: Job) => {
-    if (job.salary?.type === 'hourly') {
-      return `時給 ${job.salary?.min?.toLocaleString()}円${job.salary?.max ? ` ～ ${job.salary.max.toLocaleString()}円` : ''}`
-    } else if (job.salary?.type === 'monthly') {
-      return `月給 ${job.salary?.min?.toLocaleString()}円${job.salary?.max ? ` ～ ${job.salary.max.toLocaleString()}円` : ''}`
-    } else if (job.salary?.type === 'annual') {
-      return `年収 ${job.salary?.min?.toLocaleString()}万円${job.salary?.max ? ` ～ ${job.salary.max.toLocaleString()}万円` : ''}`
+    if (job.salaryExperienced) {
+      return `給与（経験者）: ${job.salaryExperienced}`
+    } else if (job.salaryInexperienced) {
+      return `給与（未経験）: ${job.salaryInexperienced}`
     }
-    return '要相談'
+    return '給与: 要相談'
   }
 
   if (loading) {
@@ -204,12 +214,6 @@ function JobDetailContent({ params }: JobDetailPageProps) {
             <div className="flex items-center gap-2 mt-2">
               {getStatusBadge(job.status)}
               {getEmploymentTypeBadge(job.employmentType)}
-              {job.isUrgent && (
-                <Badge variant="destructive">急募</Badge>
-              )}
-              {job.isRemoteOk && (
-                <Badge variant="outline">リモートOK</Badge>
-              )}
             </div>
           </div>
         </div>
@@ -252,7 +256,7 @@ function JobDetailContent({ params }: JobDetailPageProps) {
                   <MapPin className="h-4 w-4" />
                   勤務地
                 </h3>
-                <p className="mt-1">{job.location}</p>
+                <p className="mt-1">{store?.name || '本社勤務'}</p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -275,38 +279,28 @@ function JobDetailContent({ params }: JobDetailPageProps) {
           </Card>
 
           {/* 仕事内容 */}
-          {job.description && (
+          {job.jobDescription && (
             <Card>
               <CardHeader>
-                <CardTitle>仕事内容</CardTitle>
+                <CardTitle>職務内容</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="whitespace-pre-wrap">{job.description}</div>
+                <div className="whitespace-pre-wrap">{job.jobDescription}</div>
               </CardContent>
             </Card>
           )}
 
           {/* 応募要件 */}
-          {(job.requirements || job.preferredSkills) && (
+                    {job.requiredSkills && (
             <Card>
               <CardHeader>
-                <CardTitle>応募要件・歓迎スキル</CardTitle>
+                <CardTitle>求めるスキル・資格</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {job.requirements && (
-                  <div>
-                    <h3 className="font-medium text-gray-700 mb-2">必要なスキル・経験</h3>
-                    <div className="whitespace-pre-wrap">
-                      {typeof job.requirements === 'string' ? job.requirements : JSON.stringify(job.requirements)}
-                    </div>
-                  </div>
-                )}
-                {job.preferredSkills && (
-                  <div>
-                    <h3 className="font-medium text-gray-700 mb-2">歓迎するスキル・経験</h3>
-                    <div className="whitespace-pre-wrap">{job.preferredSkills}</div>
-                  </div>
-                )}
+                <div>
+                  <h3 className="font-medium text-gray-700 mb-2">必要なスキル</h3>
+                  <div className="whitespace-pre-wrap">{job.requiredSkills}</div>
+                </div>
               </CardContent>
             </Card>
           )}
@@ -331,27 +325,6 @@ function JobDetailContent({ params }: JobDetailPageProps) {
               <CardTitle>応募情報</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {job.applicationDeadline && (
-                  <div>
-                    <h3 className="font-medium text-gray-700">応募締切</h3>
-                    <p className="mt-1">
-                      {new Date(job.applicationDeadline).toLocaleDateString('ja-JP')}
-                    </p>
-                  </div>
-                )}
-                {job.startDate && (
-                  <div>
-                    <h3 className="font-medium text-gray-700">勤務開始日</h3>
-                    <p className="mt-1">
-                      {new Date(job.startDate).toLocaleDateString('ja-JP')}
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              <Separator />
-
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
                 <div>
                   <h3 className="font-medium">作成日時</h3>
@@ -515,18 +488,6 @@ function JobDetailContent({ params }: JobDetailPageProps) {
                   <span className="text-gray-600">雇用形態</span>
                   <span>{getEmploymentTypeBadge(job.employmentType)}</span>
                 </div>
-                {job.isUrgent && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">急募</span>
-                    <Badge variant="destructive" className="text-xs">はい</Badge>
-                  </div>
-                )}
-                {job.isRemoteOk && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">リモート</span>
-                    <Badge variant="outline" className="text-xs">対応</Badge>
-                  </div>
-                )}
               </div>
             </CardContent>
           </Card>
