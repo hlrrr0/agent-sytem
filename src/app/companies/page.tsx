@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import ProtectedRoute from '@/components/ProtectedRoute'
+import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -58,10 +59,10 @@ const sizeLabels = {
   enterprise: '大企業',
 }
 
-export default function CompaniesPage() {
+function CompaniesPageContent() {
+  const { isAdmin } = useAuth()
   const [companies, setCompanies] = useState<Company[]>([])
   const [loading, setLoading] = useState(true)
-  const [isImporting, setIsImporting] = useState(false)
   const [csvImporting, setCsvImporting] = useState(false)
   
   // フィルター・検索状態
@@ -87,23 +88,6 @@ export default function CompaniesPage() {
       toast.error('企業データの読み込みに失敗しました')
     } finally {
       setLoading(false)
-    }
-  }
-
-  const handleImportFromDomino = async () => {
-    try {
-      setIsImporting(true)
-      
-      // Dominoから企業データを取得（簡易版）
-      await new Promise(resolve => setTimeout(resolve, 2000)) // シミュレーション
-      
-      toast.success('Dominoからのデータ取得が完了しました')
-      await loadCompanies() // リロード
-    } catch (error) {
-      console.error('Error importing from Domino:', error)
-      toast.error('Dominoからのインポートに失敗しました')
-    } finally {
-      setIsImporting(false)
     }
   }
 
@@ -223,28 +207,17 @@ export default function CompaniesPage() {
           
           {/* ヘッダーアクション */}
           <div className="flex flex-col sm:flex-row gap-2">
-            <Button
-              onClick={handleImportFromDomino}
-              disabled={isImporting}
-              variant="outline"
-              className="bg-white text-green-600 hover:bg-green-50 border-white flex items-center gap-2"
-            >
-              {isImporting ? (
-                <RefreshCw className="h-4 w-4 animate-spin" />
-              ) : (
-                <Download className="h-4 w-4" />
-              )}
-              Dominoから取得
-            </Button>
-            <Link href="/domino/import">
-              <Button 
-                variant="outline"
-                className="bg-white text-green-600 hover:bg-green-50 border-white flex items-center gap-2"
-              >
-                <Download className="h-4 w-4" />
-                詳細インポート
-              </Button>
-            </Link>
+            {isAdmin && (
+              <Link href="/domino/import">
+                <Button 
+                  variant="outline"
+                  className="bg-white text-green-600 hover:bg-green-50 border-white flex items-center gap-2"
+                >
+                  <Download className="h-4 w-4" />
+                  詳細インポート
+                </Button>
+              </Link>
+            )}
             <Button
               onClick={downloadCSVTemplate}
               variant="outline"
@@ -514,4 +487,8 @@ export default function CompaniesPage() {
       </div>
     </ProtectedRoute>
   )
+}
+
+export default function CompaniesPage() {
+  return <CompaniesPageContent />
 }
