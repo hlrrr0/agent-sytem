@@ -19,10 +19,13 @@ import {
   Edit,
   Trash2,
   Eye,
-  RefreshCw
+  RefreshCw,
+  Upload,
+  FileText
 } from 'lucide-react'
 import { Company } from '@/types/company'
 import { getCompanies, deleteCompany } from '@/lib/firestore/companies'
+import { importCompaniesFromCSV, generateCompaniesCSVTemplate } from '@/lib/csv/companies'
 import { toast } from 'sonner'
 
 const statusLabels = {
@@ -59,6 +62,7 @@ export default function CompaniesPage() {
   const [companies, setCompanies] = useState<Company[]>([])
   const [loading, setLoading] = useState(true)
   const [isImporting, setIsImporting] = useState(false)
+  const [csvImporting, setCsvImporting] = useState(false)
   
   // フィルター・検索状態
   const [searchTerm, setSearchTerm] = useState('')
@@ -101,6 +105,49 @@ export default function CompaniesPage() {
     } finally {
       setIsImporting(false)
     }
+  }
+
+  const handleCSVImport = async (file: File) => {
+    if (!file) return
+
+    if (!file.name.endsWith('.csv')) {
+      toast.error('CSVファイルを選択してください')
+      return
+    }
+
+    setCsvImporting(true)
+    try {
+      const text = await file.text()
+      const result = await importCompaniesFromCSV(text)
+      
+      if (result.errors.length > 0) {
+        toast.error(`インポート完了: ${result.success}件成功、${result.errors.length}件エラー`)
+        console.error('Import errors:', result.errors)
+      } else {
+        toast.success(`${result.success}件の企業データをインポートしました`)
+      }
+      
+      // データを再読み込み
+      await loadCompanies()
+    } catch (error) {
+      console.error('Error importing CSV:', error)
+      toast.error('CSVインポートに失敗しました')
+    } finally {
+      setCsvImporting(false)
+    }
+  }
+
+  const downloadCSVTemplate = () => {
+    const csvContent = generateCompaniesCSVTemplate()
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    link.setAttribute('href', url)
+    link.setAttribute('download', 'companies_template.csv')
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
   }
 
   const handleDeleteCompany = async () => {
@@ -198,6 +245,43 @@ export default function CompaniesPage() {
                 詳細インポート
               </Button>
             </Link>
+            <Button
+              onClick={downloadCSVTemplate}
+              variant="outline"
+              className="bg-white text-green-600 hover:bg-green-50 border-white flex items-center gap-2"
+            >
+              <FileText className="h-4 w-4" />
+              CSVテンプレート
+            </Button>
+            <div className="relative">
+              <input
+                type="file"
+                id="csv-upload"
+                accept=".csv"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (file) {
+                    handleCSVImport(file)
+                    // ファイル選択をリセット
+                    e.target.value = ''
+                  }
+                }}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                disabled={csvImporting}
+              />
+              <Button
+                variant="outline"
+                className="bg-white text-green-600 hover:bg-green-50 border-white flex items-center gap-2"
+                disabled={csvImporting}
+              >
+                {csvImporting ? (
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Upload className="h-4 w-4" />
+                )}
+                CSVインポート
+              </Button>
+            </div>
             <Link href="/companies/new">
               <Button variant="outline" className="bg-white text-green-600 hover:bg-green-50 border-white">
                 <Plus className="h-4 w-4 mr-2" />
