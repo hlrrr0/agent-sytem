@@ -35,7 +35,7 @@ function DominoImportPageContent() {
   } | null>(null)
   const [settings, setSettings] = useState({
     status: 'active',
-    sizeCategory: '',
+    sizeCategory: 'all',
     prefecture: '',
     limit: 100,
     since: ''
@@ -250,12 +250,12 @@ function DominoImportPageContent() {
 
               <div className="space-y-2">
                 <Label htmlFor="sizeCategory">企業規模でフィルタ</Label>
-                <Select value={settings.sizeCategory} onValueChange={(value) => setSettings(prev => ({ ...prev, sizeCategory: value }))}>
+                <Select value={settings.sizeCategory || 'all'} onValueChange={(value) => setSettings(prev => ({ ...prev, sizeCategory: value === 'all' ? '' : value }))}>
                   <SelectTrigger>
                     <SelectValue placeholder="企業規模を選択（全て）" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">全ての企業規模</SelectItem>
+                    <SelectItem value="all">全ての企業規模</SelectItem>
                     <SelectItem value="startup">スタートアップ</SelectItem>
                     <SelectItem value="small">小企業</SelectItem>
                     <SelectItem value="medium">中企業</SelectItem>
