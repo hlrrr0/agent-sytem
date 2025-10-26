@@ -97,6 +97,38 @@ export async function getCompaniesByStatus(status: Company['status']): Promise<C
 }
 
 /**
+ * Domino IDで既存企業を検索
+ */
+export async function findCompanyByDominoId(dominoId: string): Promise<Company | null> {
+  try {
+    if (!dominoId || !dominoId.trim()) {
+      return null
+    }
+    
+    const q = query(
+      companiesCollection, 
+      where('dominoId', '==', dominoId.trim())
+    )
+    const querySnapshot = await getDocs(q)
+    
+    if (querySnapshot.empty) {
+      return null
+    }
+    
+    const doc = querySnapshot.docs[0] // 最初に見つかった企業を返す
+    return {
+      id: doc.id,
+      ...doc.data(),
+      createdAt: doc.data().createdAt?.toDate?.() || doc.data().createdAt,
+      updatedAt: doc.data().updatedAt?.toDate?.() || doc.data().updatedAt,
+    } as Company
+  } catch (error) {
+    console.error('Error finding company by Domino ID:', error)
+    throw error
+  }
+}
+
+/**
  * 企業名と住所で既存企業を検索（重複チェック用）
  */
 export async function findCompanyByNameAndAddress(name: string, address: string): Promise<Company | null> {

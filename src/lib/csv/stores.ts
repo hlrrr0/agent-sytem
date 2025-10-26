@@ -1,14 +1,16 @@
 import { Store } from '@/types/store'
-import { createStore } from '@/lib/firestore/stores'
+import { createStore, updateStore, findStoreByNameAndCompany } from '@/lib/firestore/stores'
 
 export interface ImportResult {
   success: number
+  updated: number
   errors: string[]
 }
 
 export const importStoresFromCSV = async (csvText: string): Promise<ImportResult> => {
   const result: ImportResult = {
     success: 0,
+    updated: 0,
     errors: []
   }
 
@@ -45,7 +47,7 @@ export const importStoresFromCSV = async (csvText: string): Promise<ImportResult
     const headers = originalHeaders.map(header => headerMapping[header] || header)
     
     // 必須フィールドの確認（英語フィールド名で）
-    const requiredFields = ['name']
+    const requiredFields = ['name', 'companyId']
     const missingFields = requiredFields.filter(field => !headers.includes(field))
     if (missingFields.length > 0) {
       // 日本語フィールド名で逆マッピングしてエラーメッセージを表示
@@ -76,6 +78,11 @@ export const importStoresFromCSV = async (csvText: string): Promise<ImportResult
           continue
         }
 
+        if (!rowData.companyId?.trim()) {
+          result.errors.push(`行${i + 1}: 企業IDは必須です`)
+          continue
+        }
+
         // 店舗データを作成
         const storeData: Omit<Store, 'id' | 'createdAt' | 'updatedAt'> = {
           name: rowData.name.trim(),
@@ -96,9 +103,23 @@ export const importStoresFromCSV = async (csvText: string): Promise<ImportResult
           status: (rowData.status as 'active' | 'inactive') || 'active'
         }
 
-        // Firestoreに保存
-        await createStore(storeData)
-        result.success++
+        // 重複チェック：店舗名と企業IDの組み合わせで既存店舗を検索
+        const existingStore = await findStoreByNameAndCompany(
+          storeData.name, 
+          storeData.companyId
+        )
+
+        if (existingStore) {
+          // 既存店舗が見つかった場合は更新
+          await updateStore(existingStore.id, storeData)
+          result.updated++
+          console.log(`行${i + 1}: 既存店舗「${storeData.name}」を更新しました`)
+        } else {
+          // 新規店舗として作成
+          await createStore(storeData)
+          result.success++
+          console.log(`行${i + 1}: 新規店舗「${storeData.name}」を作成しました`)
+        }
 
       } catch (error) {
         console.error(`Error processing row ${i + 1}:`, error)
@@ -175,7 +196,7 @@ export const generateStoresCSVTemplate = (): string => {
   // サンプルデータ（日本語ヘッダーに対応）
   const sampleData = [
     '鮨さくら',                                          // 店舗名
-    'company-sample-001',                               // 企業ID
+    'comp_abc123def456',                                // 企業ID（実際の企業IDを入力）
     '東京都中央区銀座3-4-5 銀座ビル1F',                  // 店舗住所
     'https://www.sushi-sakura.co.jp',                   // 店舗URL
     '15000',                                            // 単価（円）

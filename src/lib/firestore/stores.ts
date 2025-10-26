@@ -93,6 +93,35 @@ export async function getStores(): Promise<Store[]> {
   }
 }
 
+/**
+ * 店舗名と企業IDで既存店舗を検索（重複チェック用）
+ */
+export async function findStoreByNameAndCompany(name: string, companyId: string): Promise<Store | null> {
+  try {
+    const q = query(
+      storesCollection, 
+      where('name', '==', name.trim()),
+      where('companyId', '==', companyId.trim())
+    )
+    const querySnapshot = await getDocs(q)
+    
+    if (querySnapshot.empty) {
+      return null
+    }
+    
+    const doc = querySnapshot.docs[0] // 最初に見つかった店舗を返す
+    return {
+      id: doc.id,
+      ...doc.data(),
+      createdAt: safeToDate(doc.data().createdAt),
+      updatedAt: safeToDate(doc.data().updatedAt),
+    } as Store
+  } catch (error) {
+    console.error('Error finding store by name and company:', error)
+    throw error
+  }
+}
+
 // 企業の店舗一覧を取得
 export async function getStoresByCompany(companyId: string): Promise<Store[]> {
   try {

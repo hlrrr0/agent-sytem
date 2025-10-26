@@ -1,14 +1,16 @@
 import { Job } from '@/types/job'
-import { createJob } from '@/lib/firestore/jobs'
+import { createJob, updateJob, findJobByTitleAndCompany } from '@/lib/firestore/jobs'
 
 export interface ImportResult {
   success: number
+  updated: number
   errors: string[]
 }
 
 export const importJobsFromCSV = async (csvText: string): Promise<ImportResult> => {
   const result: ImportResult = {
     success: 0,
+    updated: 0,
     errors: []
   }
 
@@ -115,9 +117,24 @@ export const importJobsFromCSV = async (csvText: string): Promise<ImportResult> 
           createdBy: rowData.createdBy?.trim()
         }
 
-        // Firestore に保存
-        await createJob(jobData)
-        result.success++
+        // 重複チェック：求人タイトル、企業ID、店舗ID（任意）の組み合わせで既存求人を検索
+        const existingJob = await findJobByTitleAndCompany(
+          jobData.title, 
+          jobData.companyId,
+          jobData.storeId
+        )
+
+        if (existingJob) {
+          // 既存求人が見つかった場合は更新
+          await updateJob(existingJob.id, jobData)
+          result.updated++
+          console.log(`行${i + 1}: 既存求人「${jobData.title}」を更新しました`)
+        } else {
+          // 新規求人として作成
+          await createJob(jobData)
+          result.success++
+          console.log(`行${i + 1}: 新規求人「${jobData.title}」を作成しました`)
+        }
 
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : '不明なエラー'
@@ -198,9 +215,9 @@ export const generateJobsCSVTemplate = (): string => {
   // サンプルデータ（日本語ヘッダーに対応）
   const sampleData = [
     'ホールスタッフ・ウェイター',                          // 求人タイトル
-    'company-sample-001',                               // 企業ID
+    'comp_abc123def456',                                // 企業ID（実際の企業IDを入力）
     'active',                                           // ステータス（draft/published/active/paused/closed）
-    'store-sample-001',                                 // 店舗ID
+    'store_xyz789abc012',                               // 店舗ID（任意、店舗がある場合）
     'イタリアンレストラン',                             // 業態
     'full-time',                                        // 雇用形態
     '3ヶ月間',                                          // 試用期間

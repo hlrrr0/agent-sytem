@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import ProtectedRoute from '@/components/ProtectedRoute'
+import { useAuth } from '@/contexts/AuthContext'
 import { 
   Store as StoreIcon, 
   Plus, 
@@ -18,12 +19,17 @@ import {
   Trash2,
   Eye,
   RefreshCw,
-  Building2
+  Building2,
+  Download,
+  Upload,
+  FileText
 } from 'lucide-react'
 import { Store, statusLabels } from '@/types/store'
 import { getStores, deleteStore } from '@/lib/firestore/stores'
 import { getCompanies } from '@/lib/firestore/companies'
 import { Company } from '@/types/company'
+import { importStoresFromCSV, generateStoresCSVTemplate } from '@/lib/csv/stores'
+import { toast } from 'sonner'
 
 const statusColors = {
   active: 'bg-green-100 text-green-800',
@@ -39,9 +45,11 @@ export default function StoresPage() {
 }
 
 function StoresPageContent() {
+  const { isAdmin } = useAuth()
   const [stores, setStores] = useState<Store[]>([])
   const [companies, setCompanies] = useState<Company[]>([])
   const [loading, setLoading] = useState(true)
+  const [csvImporting, setCsvImporting] = useState(false)
   
   // フィルター・検索状態
   const [searchTerm, setSearchTerm] = useState('')
@@ -65,6 +73,54 @@ function StoresPageContent() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleCSVImport = async (file: File) => {
+    if (!file) return
+
+    if (!file.name.endsWith('.csv')) {
+      toast.error('CSVファイルを選択してください')
+      return
+    }
+
+    setCsvImporting(true)
+    try {
+      const text = await file.text()
+      const result = await importStoresFromCSV(text)
+      
+      if (result.errors.length > 0) {
+        toast.error(`インポート完了: 新規${result.success}件、更新${result.updated}件、エラー${result.errors.length}件`)
+        console.error('Import errors:', result.errors)
+      } else {
+        const totalProcessed = result.success + result.updated
+        if (result.updated > 0) {
+          toast.success(`インポート完了: 新規${result.success}件、更新${result.updated}件（計${totalProcessed}件）`)
+        } else {
+          toast.success(`${result.success}件の店舗データをインポートしました`)
+        }
+      }
+      
+      // データを再読み込み
+      await loadData()
+    } catch (error) {
+      console.error('Error importing CSV:', error)
+      toast.error('CSVインポートに失敗しました')
+    } finally {
+      setCsvImporting(false)
+    }
+  }
+
+  const downloadCSVTemplate = () => {
+    const csvContent = generateStoresCSVTemplate()
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    link.setAttribute('href', url)
+    link.setAttribute('download', 'stores_template.csv')
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
   }
 
   const handleDeleteStore = async (store: Store) => {
@@ -138,6 +194,49 @@ function StoresPageContent() {
           
           {/* ヘッダーアクション */}
           <div className="flex flex-col sm:flex-row gap-2">
+            <Button
+              onClick={downloadCSVTemplate}
+              variant="outline"
+              className="bg-white text-orange-600 hover:bg-orange-50 border-white flex items-center gap-2"
+            >
+              <FileText className="h-4 w-4" />
+              CSVテンプレート
+            </Button>
+            <label htmlFor="csv-upload" className="cursor-pointer">
+              <Button
+                variant="outline"
+                className="bg-white text-orange-600 hover:bg-orange-50 border-white flex items-center gap-2"
+                disabled={csvImporting}
+                asChild
+              >
+                <span>
+                  {csvImporting ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                      インポート中...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-4 w-4" />
+                      CSVインポート
+                    </>
+                  )}
+                </span>
+              </Button>
+            </label>
+            <input
+              id="csv-upload"
+              type="file"
+              accept=".csv"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (file) {
+                  handleCSVImport(file)
+                  e.target.value = '' // リセット
+                }
+              }}
+            />
             <Link href="/companies">
               <Button 
                 variant="outline"

@@ -93,6 +93,46 @@ export const createJob = async (jobData: Omit<Job, 'id' | 'createdAt' | 'updated
   }
 }
 
+/**
+ * 求人タイトルと企業IDで既存求人を検索（重複チェック用）
+ * 店舗IDがある場合はそれも含めてチェック
+ */
+export async function findJobByTitleAndCompany(
+  title: string, 
+  companyId: string, 
+  storeId?: string
+): Promise<Job | null> {
+  try {
+    let q = query(
+      collection(db, COLLECTION_NAME),
+      where('title', '==', title.trim()),
+      where('companyId', '==', companyId.trim())
+    )
+
+    // 店舗IDがある場合は追加条件として含める
+    if (storeId && storeId.trim()) {
+      q = query(
+        collection(db, COLLECTION_NAME),
+        where('title', '==', title.trim()),
+        where('companyId', '==', companyId.trim()),
+        where('storeId', '==', storeId.trim())
+      )
+    }
+    
+    const querySnapshot = await getDocs(q)
+    
+    if (querySnapshot.empty) {
+      return null
+    }
+    
+    const doc = querySnapshot.docs[0] // 最初に見つかった求人を返す
+    return firestoreToJob(doc)
+  } catch (error) {
+    console.error('Error finding job by title and company:', error)
+    throw error
+  }
+}
+
 // 求人更新
 export const updateJob = async (id: string, jobData: Partial<Omit<Job, 'id' | 'createdAt' | 'updatedAt'>>): Promise<void> => {
   try {

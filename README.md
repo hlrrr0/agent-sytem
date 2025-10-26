@@ -50,7 +50,49 @@ src/- マッチング理由の詳細表示
 
 │   ├── companies/          # 企業管理
 
-│   │   ├── page.tsx        # 企業一覧## 🛠️ 技術スタック
+│   │   ├── page.tsx        # 企業一覧## � Domino システム連携
+
+### 設定手順
+
+1. **環境変数の設定**
+   
+   `.env.local` ファイルにDomino API の接続情報を追加：
+   
+   ```bash
+   # Domino System Integration
+   NEXT_PUBLIC_DOMINO_API_URL=https://your-domino-system.com
+   NEXT_PUBLIC_DOMINO_API_KEY=your_api_key_here
+   ```
+
+2. **接続テスト**
+   
+   管理者権限でログイン後、`/domino/import` にアクセスし「接続テスト」を実行
+
+3. **データインポート**
+   
+   設定を調整して「Dominoから取得」ボタンでデータをインポート
+
+### 利用可能な機能
+
+- **企業データ自動取得**: Dominoシステムから企業情報を取得
+- **増分同期**: 指定日時以降の更新データのみを取得
+- **重複チェック**: Domino IDによる既存企業の自動更新
+- **詳細設定**: ステータス・関連データ・件数制限の設定
+
+### API エンドポイント
+
+```typescript
+// 企業データ取得
+GET /api/external/companies?status=active&limit=100
+
+// 増分同期
+GET /api/external/sync?since=2024-01-01T00:00:00Z&type=companies
+
+// 接続確認
+GET /api/external/health
+```
+
+## �🛠️ 技術スタック
 
 │   │   ├── new/            # 新規企業追加
 
