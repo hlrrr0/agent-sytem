@@ -65,6 +65,8 @@ function CompaniesPageContent() {
   const [loading, setLoading] = useState(true)
   const [csvImporting, setCsvImporting] = useState(false)
   
+  console.log('👤 現在のユーザー権限:', { isAdmin })
+  
   // フィルター・検索状態
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<Company['status'] | 'all'>('all')
@@ -81,10 +83,13 @@ function CompaniesPageContent() {
   const loadCompanies = async () => {
     try {
       setLoading(true)
+      console.log('📋 企業一覧を読み込み中...')
       const data = await getCompanies()
+      console.log(`📊 取得した企業数: ${data.length}`)
+      console.log('📝 取得した企業一覧:', data.map(c => ({ id: c.id, name: c.name })))
       setCompanies(data)
     } catch (error) {
-      console.error('Error loading companies:', error)
+      console.error('❌ 企業データの読み込みエラー:', error)
       toast.error('企業データの読み込みに失敗しました')
     } finally {
       setLoading(false)
@@ -140,17 +145,38 @@ function CompaniesPageContent() {
   }
 
   const handleDeleteCompany = async () => {
-    if (!companyToDelete) return
+    if (!companyToDelete) {
+      console.error('❌ 削除対象の企業が設定されていません')
+      toast.error('削除対象の企業が選択されていません')
+      return
+    }
+
+    console.log('🗑️ 企業削除を開始:', {
+      id: companyToDelete.id,
+      name: companyToDelete.name
+    })
 
     try {
       await deleteCompany(companyToDelete.id)
-      toast.success('企業を削除しました')
-      await loadCompanies()
+      console.log('✅ 企業削除成功:', companyToDelete.name)
+      toast.success(`「${companyToDelete.name}」を削除しました`)
+      
+    } catch (error) {
+      console.error('❌ 企業削除エラー:', error)
+      toast.error(`「${companyToDelete.name}」の削除に失敗しました: ${error}`)
+    } finally {
+      // 成功・失敗に関わらず一覧を更新（データ整合性確保）
+      console.log('🔄 企業一覧を再読み込み中...')
+      try {
+        await loadCompanies()
+        console.log('🎯 一覧更新完了')
+      } catch (reloadError) {
+        console.error('❌ 一覧再読み込みエラー:', reloadError)
+        toast.error('一覧の更新に失敗しました。ページを再読み込みしてください。')
+      }
+      
       setDeleteDialogOpen(false)
       setCompanyToDelete(null)
-    } catch (error) {
-      console.error('Error deleting company:', error)
-      toast.error('企業の削除に失敗しました')
     }
   }
 
@@ -212,6 +238,15 @@ function CompaniesPageContent() {
           
           {/* ヘッダーアクション */}
           <div className="flex flex-col sm:flex-row gap-2">
+            <Button 
+              onClick={loadCompanies}
+              disabled={loading}
+              variant="outline"
+              className="bg-white text-green-600 hover:bg-green-50 border-white flex items-center gap-2"
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              更新
+            </Button>
             {isAdmin && (
               <Link href="/domino/import">
                 <Button 
@@ -423,22 +458,30 @@ function CompaniesPageContent() {
                             <Eye className="h-4 w-4" />
                           </Button>
                         </Link>
-                        <Link href={`/companies/${company.id}/edit`}>
-                          <Button variant="outline" size="sm">
-                            <Edit className="h-4 w-4" />
+                        {isAdmin && (
+                          <Link href={`/companies/${company.id}/edit`}>
+                            <Button variant="outline" size="sm">
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          </Link>
+                        )}
+                        {isAdmin && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              console.log('🗑️ 削除ボタンクリック:', {
+                                companyId: company.id,
+                                companyName: company.name
+                              })
+                              setCompanyToDelete(company)
+                              setDeleteDialogOpen(true)
+                            }}
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            <Trash2 className="h-4 w-4" />
                           </Button>
-                        </Link>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setCompanyToDelete(company)
-                            setDeleteDialogOpen(true)
-                          }}
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        )}
                         {company.website && (
                           <Link href={company.website} target="_blank">
                             <Button variant="outline" size="sm">

@@ -141,6 +141,28 @@ function CompanyDetailContent({ params }: CompanyDetailPageProps) {
     )
   }
 
+  // 日時フォーマット関数
+  const formatDateTime = (dateValue: string | Date | undefined) => {
+    if (!dateValue) return '未設定'
+    
+    try {
+      const date = dateValue instanceof Date ? dateValue : new Date(dateValue)
+      if (isNaN(date.getTime())) return '無効な日時'
+      
+      return date.toLocaleString('ja-JP', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      })
+    } catch (error) {
+      console.error('日時フォーマットエラー:', error)
+      return '日時エラー'
+    }
+  }
+
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -319,14 +341,55 @@ function CompanyDetailContent({ params }: CompanyDetailPageProps) {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
                 <div>
-                  <h3 className="font-medium">作成日時</h3>
-                  <p>{new Date(company.createdAt).toLocaleString('ja-JP')}</p>
+                  <h3 className="font-medium text-gray-700 flex items-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    作成日時
+                  </h3>
+                  <p className="mt-1">{formatDateTime(company.createdAt)}</p>
                 </div>
                 <div>
-                  <h3 className="font-medium">更新日時</h3>
-                  <p>{new Date(company.updatedAt).toLocaleString('ja-JP')}</p>
+                  <h3 className="font-medium text-gray-700 flex items-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    更新日時
+                  </h3>
+                  <p className="mt-1">{formatDateTime(company.updatedAt)}</p>
                 </div>
               </div>
+
+              {/* メモ・特記事項 */}
+              {company.memo && (
+                <>
+                  <Separator />
+                  <div>
+                    <h3 className="font-medium text-gray-700 mb-2">メモ・特記事項</h3>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-sm whitespace-pre-wrap">{company.memo}</p>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Dominoシステム連携情報 */}
+              {company.dominoId && (
+                <>
+                  <Separator />
+                  <div className="bg-blue-50 p-4 rounded-lg">
+                    <h3 className="font-medium text-blue-800 mb-2">Dominoシステム連携</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="font-medium text-blue-700">Domino ID:</span>
+                        <span className="ml-2 font-mono">{company.dominoId}</span>
+                      </div>
+                      {company.importedAt && (
+                        <div>
+                          <span className="font-medium text-blue-700">インポート日時:</span>
+                          <span className="ml-2">{formatDateTime(company.importedAt)}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
 
@@ -460,14 +523,14 @@ function CompanyDetailContent({ params }: CompanyDetailPageProps) {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">従業員数</span>
-                  <span className="font-medium">{company.employeeCount || 0}名</span>
+                  <span className="font-medium">{company?.employeeCount || 0}名</span>
                 </div>
               </div>
             </CardContent>
           </Card>
 
           {/* 企業ロゴ */}
-          {company.logo && (
+          {company?.logo && (
             <Card>
               <CardHeader>
                 <CardTitle>企業ロゴ</CardTitle>
@@ -475,8 +538,8 @@ function CompanyDetailContent({ params }: CompanyDetailPageProps) {
               <CardContent>
                 <div className="flex justify-center">
                   <img 
-                    src={company.logo} 
-                    alt={`${company.name}のロゴ`}
+                    src={company?.logo} 
+                    alt={`${company?.name}のロゴ`}
                     className="max-w-full h-auto max-h-32 object-contain"
                     onError={(e) => {
                       e.currentTarget.style.display = 'none'

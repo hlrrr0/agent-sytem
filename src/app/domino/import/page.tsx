@@ -10,10 +10,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch'
 import { Separator } from '@/components/ui/separator'
 import ProtectedRoute from '@/components/ProtectedRoute'
-import { ArrowLeft, Download, RefreshCw, Settings, Database, CheckCircle, AlertCircle } from 'lucide-react'
+import { 
+  Download, 
+  Settings, 
+  CheckCircle, 
+  AlertCircle, 
+  RefreshCw, 
+  ArrowLeft,
+  Database
+} from 'lucide-react'
 import { toast } from 'sonner'
-import { dominoClient, convertDominoCompanyToCompany } from '@/lib/domino-client'
+import { dominoClient, convertDominoCompanyToCompany, convertDominoStoreToStore, DominoAPIClient } from '@/lib/domino-client'
 import { createCompany, updateCompany, findCompanyByDominoId } from '@/lib/firestore/companies'
+import { createStore } from '@/lib/firestore/stores'
 import { Company } from '@/types/company'
 
 export default function DominoImportPage() {
@@ -32,31 +41,312 @@ function DominoImportPageContent() {
     updated: number
     errors: string[]
     timestamp: string
+    storesCreated?: number
   } | null>(null)
+  
+  // インポートログの型定義と状態
+  interface ImportLog {
+    id: string
+    timestamp: string
+    status: 'success' | 'partial' | 'error'
+    settings: {
+      status: string
+      sizeCategory: string
+      prefecture: string
+      limit: number
+      since: string
+      sinceUntil: string
+    }
+    result: {
+      success: number
+      updated: number
+      errors: string[]
+      totalRequested: number
+      actualReceived: number
+      storesCreated: number
+    }
+    duration: number // 実行時間（秒）
+  }
+  
+  const [importLogs, setImportLogs] = useState<ImportLog[]>([])
+  
   const [settings, setSettings] = useState({
-    status: 'active',
+    status: 'active', // アクティブ企業のみに固定
     sizeCategory: 'all',
     prefecture: '',
     limit: 100,
-    since: ''
+    since: '',
+    sinceUntil: '', // 追加：終了日時
+    useActualAPI: false, // デフォルトはfalse、ユーザーが明示的に切り替える
+    useProxy: true // デフォルトでプロキシを使用（CORS回避）
   })
+
+  // 設定に基づいてDominoクライアントを取得
+  const getDominoClient = () => {
+    console.log('🔧 getDominoClient: useActualAPI =', settings.useActualAPI)
+    
+    if (settings.useActualAPI) {
+      // 実際のAPIを強制使用
+      const apiUrl = process.env.NEXT_PUBLIC_DOMINO_API_URL || 'https://sushi-domino.vercel.app/api/hr-export'
+      const apiKey = process.env.NEXT_PUBLIC_DOMINO_API_KEY || 'your-hr-api-secret-key'
+      console.log('🌐 実際のAPIクライアントを作成:', { apiUrl, hasApiKey: !!apiKey, useProxy: settings.useProxy })
+      return new DominoAPIClient(apiUrl, apiKey, settings.useProxy)
+    } else {
+      // モックデータを使用
+      console.log('🔧 モックデータクライアントを作成')
+      return new DominoAPIClient('', '', false) // 空文字でモックモードを強制
+    }
+  }
 
   // コンポーネントマウント時のデバッグ情報
   useEffect(() => {
     console.log('🚀 DominoImportPageContent がマウントされました')
     console.log('🔧 環境変数確認:', {
       NODE_ENV: process.env.NODE_ENV,
-      DOMINO_API_URL: process.env.NEXT_PUBLIC_DOMINO_API_URL,
-      HAS_API_KEY: !!process.env.NEXT_PUBLIC_DOMINO_API_KEY
+      DOMINO_API_URL: process.env.DOMINO_API_URL,
+      HAS_API_KEY: !!process.env.DOMINO_API_KEY,
+      NEXT_PUBLIC_DOMINO_API_URL: process.env.NEXT_PUBLIC_DOMINO_API_URL,
+      HAS_NEXT_PUBLIC_API_KEY: !!process.env.NEXT_PUBLIC_DOMINO_API_KEY,
+      FORCE_PRODUCTION_API: process.env.FORCE_PRODUCTION_API,
+      ACTUAL_API_URL: process.env.DOMINO_API_URL,
+      ACTUAL_API_KEY: process.env.DOMINO_API_KEY ? '***設定済み***' : '未設定'
     })
+    
+    // DominoClientの状態も確認
+    console.log('🔧 DominoClient設定確認:', dominoClient.getDebugInfo())
+    
+    // 初期設定値も確認
+    console.log('🔧 初期設定値:', settings)
+    
+    // インポートログをローカルストレージから読み込み
+    try {
+      const savedLogs = localStorage.getItem('domino-import-logs')
+      if (savedLogs) {
+        const logs = JSON.parse(savedLogs) as ImportLog[]
+        setImportLogs(logs.slice(-10)) // 最新10件のみ保持
+        console.log('📚 保存されたインポートログを読み込み:', logs.length + '件')
+      }
+    } catch (error) {
+      console.error('❌ インポートログの読み込みエラー:', error)
+    }
   }, [])
+
+  // インポートログを保存する関数
+  const saveImportLog = (log: ImportLog) => {
+    try {
+      const updatedLogs = [log, ...importLogs].slice(0, 10) // 最新10件のみ保持
+      setImportLogs(updatedLogs)
+      localStorage.setItem('domino-import-logs', JSON.stringify(updatedLogs))
+      console.log('💾 インポートログを保存:', log.id)
+    } catch (error) {
+      console.error('❌ インポートログの保存エラー:', error)
+    }
+  }
+
+  // ログをクリアする関数
+  const clearImportLogs = () => {
+    setImportLogs([])
+    localStorage.removeItem('domino-import-logs')
+    console.log('🗑️ インポートログをクリア')
+  }
+
+  // 設定変更を監視
+  useEffect(() => {
+    console.log('⚙️ 設定が更新されました:', settings)
+  }, [settings])
+
+  // 基本APIテスト（最小パラメータ）
+  const testBasicAPI = async () => {
+    console.log('🧪 基本APIテストを開始（最小パラメータ）')
+    
+    try {
+      const response = await fetch('/api/domino-proxy?limit=3')
+      const result = await response.json()
+      
+      console.log('🧪 基本APIテスト結果:', {
+        status: response.status,
+        ok: response.ok,
+        result
+      })
+      
+      if (response.ok) {
+        toast.success(`✅ 基本API成功！${result.data?.length || 0}件取得`)
+      } else {
+        toast.error(`❌ 基本API失敗: ${result.error || result.message}`)
+      }
+      
+    } catch (error) {
+      console.error('❌ 基本APIテストエラー:', error)
+      toast.error(`基本APIテストエラー: ${error}`)
+    }
+  }
+
+  // 環境変数確認
+  const checkEnvironmentVariables = async () => {
+    console.log('🔍 環境変数確認を開始')
+    
+    try {
+      const response = await fetch('/api/env-check')
+      const envData = await response.json()
+      
+      console.log('🔍 環境変数確認結果:', envData)
+      
+      // クライアントサイド環境変数も確認
+      console.log('🔍 クライアントサイド環境変数:', {
+        NEXT_PUBLIC_DOMINO_API_URL: process.env.NEXT_PUBLIC_DOMINO_API_URL,
+        NEXT_PUBLIC_DOMINO_API_KEY: process.env.NEXT_PUBLIC_DOMINO_API_KEY ? process.env.NEXT_PUBLIC_DOMINO_API_KEY.substring(0, 8) + '...' : '未設定'
+      })
+      
+      // 整合性をチェック
+      const serverKey = envData.server.DOMINO_API_KEY
+      const clientKey = process.env.NEXT_PUBLIC_DOMINO_API_KEY?.substring(0, 8) + '...'
+      
+      if (serverKey === clientKey) {
+        toast.success('✅ サーバー・クライアント環境変数が一致')
+      } else {
+        toast.error('❌ サーバー・クライアント環境変数が不一致')
+        console.error('環境変数不一致:', { serverKey, clientKey })
+      }
+      
+    } catch (error) {
+      console.error('❌ 環境変数確認エラー:', error)
+      toast.error(`環境変数確認エラー: ${error}`)
+    }
+  }
+
+  // 詳細認証テスト
+  const testDetailedAuth = async () => {
+    console.log('🔍 詳細認証テストを開始')
+    
+    try {
+      const response = await fetch('/api/domino-auth-test')
+      const result = await response.json()
+      
+      console.log('🔍 詳細認証テスト結果:', result)
+      
+      if (result.success) {
+        toast.success(`✅ 認証成功！使用方式: ${result.workingMethod}`)
+        console.log('✅ 動作する認証方式:', result.workingMethod)
+        console.log('📊 取得データサンプル:', result.data)
+      } else {
+        toast.error('❌ すべての認証方式が失敗')
+        console.log('❌ 認証テスト詳細:', result.allTests)
+        
+        // 各テスト結果を詳細表示
+        result.allTests?.forEach((test: any, index: number) => {
+          console.log(`テスト${index + 1} (${test.method}):`, test)
+        })
+      }
+      
+    } catch (error) {
+      console.error('❌ 詳細認証テストエラー:', error)
+      toast.error(`認証テストエラー: ${error}`)
+    }
+  }
+
+  // API認証テスト
+  const testApiAuth = async () => {
+    console.log('🔐 API認証テストを開始')
+    
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_DOMINO_API_URL || 'https://sushi-domino.vercel.app/api/hr-export'
+      const apiKey = process.env.NEXT_PUBLIC_DOMINO_API_KEY || 'your-hr-api-secret-key'
+      
+      console.log('🔐 認証情報確認:', {
+        apiUrl,
+        apiKeyLength: apiKey?.length,
+        apiKeyPrefix: apiKey?.substring(0, 12) + '...',
+        apiKeyFull: apiKey === 'your-hr-api-secret-key' ? '⚠️ デフォルト値のまま' : '✅ カスタム値設定済み',
+        isDefaultKey: apiKey === 'your-hr-api-secret-key'
+      })
+      
+      // プロキシ経由で認証テスト
+      const testUrl = '/api/domino-proxy?limit=1'
+      console.log('🔐 認証テスト URL:', testUrl)
+      
+      const response = await fetch(testUrl)
+      
+      console.log('🔐 レスポンス基本情報:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries())
+      })
+      
+      let data
+      try {
+        data = await response.json()
+      } catch (parseError) {
+        console.error('❌ JSONパースエラー:', parseError)
+        const textData = await response.text()
+        console.log('📄 レスポンステキスト:', textData)
+        data = { rawResponse: textData }
+      }
+      
+      console.log('🔐 認証テスト結果詳細:', {
+        status: response.status,
+        ok: response.ok,
+        data: data,
+        dataType: typeof data,
+        hasSuccess: data?.success,
+        hasError: data?.error,
+        hasData: data?.data
+      })
+      
+      if (response.ok && data?.success) {
+        const dataCount = data?.data?.length || 0
+        toast.success(`✅ API認証成功！${dataCount}件のデータを取得しました`)
+        console.log('✅ 認証成功 - 取得データサンプル:', data.data?.[0])
+      } else {
+        const errorMsg = data?.error || data?.message || '不明なエラー'
+        toast.error(`❌ API認証失敗: ${errorMsg}`)
+        console.error('❌ 認証失敗の詳細:', data)
+      }
+      
+    } catch (error) {
+      console.error('❌ 認証テストエラー (catch):', {
+        error,
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      })
+      toast.error(`認証テストエラー: ${error instanceof Error ? error.message : String(error)}`)
+    }
+  }
+
+  // 基本的なネットワークテスト
+  const testBasicNetwork = async () => {
+    console.log('🌐 基本ネットワークテストを開始')
+    
+    try {
+      // 1. 基本的なHTTPSアクセステスト
+      const testUrl = 'https://httpbin.org/get'
+      console.log('🔗 テストURL:', testUrl)
+      const response = await fetch(testUrl)
+      console.log('✅ 基本ネットワーク:', response.ok ? '正常' : 'エラー')
+      
+      // 2. sushi-domino サーバーの基本接続テスト
+      const baseUrl = process.env.NEXT_PUBLIC_DOMINO_API_URL || 'https://sushi-domino.vercel.app/api/hr-export'
+      console.log('🔗 sushi-domino基本接続テスト:', baseUrl)
+      
+      const dominoResponse = await fetch(baseUrl, { method: 'HEAD' })
+      console.log('📡 sushi-domino接続:', {
+        status: dominoResponse.status,
+        ok: dominoResponse.ok,
+        headers: Object.fromEntries(dominoResponse.headers.entries())
+      })
+      
+    } catch (error) {
+      console.error('❌ ネットワークテストエラー:', error)
+    }
+  }
 
   const testConnection = async () => {
     console.log('🔌 接続テストボタンがクリックされました')
     setTestingConnection(true)
     try {
       console.log('🔌 dominoClient.testConnection() を呼び出し中...')
-      const result = await dominoClient.testConnection()
+      const client = getDominoClient()
+      const result = await client.testConnection()
       console.log('✅ 接続テスト結果:', result)
       
       if (result.success) {
@@ -74,19 +364,66 @@ function DominoImportPageContent() {
   }
 
   const handleImport = async () => {
-    console.log('📥 Dominoインポートを開始します', settings)
+    const startTime = Date.now()
+    const logId = `import-${Date.now()}`
+    
+    console.log('📥 Dominoインポートを開始します')
+    console.log('🔧 詳細設定:', {
+      ...settings,
+      useActualAPI_boolean: !!settings.useActualAPI,
+      useActualAPI_type: typeof settings.useActualAPI
+    })
+    
     setImporting(true)
+    
+    let importResult = {
+      success: 0,
+      updated: 0,
+      errors: [] as string[],
+      totalRequested: settings.limit,
+      actualReceived: 0,
+      storesCreated: 0 // 店舗作成数を追加
+    }
+    
     try {
       // Dominoから企業データを取得
       console.log('📡 Dominoクライアントからデータを取得中...')
-      const dominoResponse = await dominoClient.getCompanies({
-        status: settings.status,
-        sizeCategory: settings.sizeCategory,
+      const client = getDominoClient()
+      
+      // Firestoreインデックスエラー回避のため、最小限のパラメータで開始
+      const requestParams: any = {
         limit: settings.limit,
-        since: settings.since || undefined
-      })
+        status: 'active' // 必ずアクティブ企業のみを要求
+      }
+      
+      // パラメータを段階的に追加（デフォルト値は送信しない）
+      if (settings.sizeCategory && settings.sizeCategory !== 'all' && settings.sizeCategory !== '') {
+        requestParams.sizeCategory = settings.sizeCategory
+      }
+      
+      if (settings.since) {
+        requestParams.since = settings.since
+      }
+      
+      if (settings.sinceUntil) {
+        requestParams.until = settings.sinceUntil
+      }
+      
+      console.log('📤 送信パラメータ:', requestParams)
+      
+      const dominoResponse = await client.getCompanies(requestParams)
 
       console.log('📊 Dominoから取得したデータ:', dominoResponse)
+      console.log('📋 各企業の詳細データ:')
+      dominoResponse.data.forEach((company, index) => {
+        console.log(`🏢 企業${index + 1}:`, {
+          id: company.id,
+          name: company.name,
+          status: company.status,
+          size: company.size,
+          allFields: company // 全フィールドを表示
+        })
+      })
 
       let successCount = 0
       let updatedCount = 0
@@ -95,24 +432,85 @@ function DominoImportPageContent() {
       // 取得したデータをFirestoreに保存
       for (const dominoCompany of dominoResponse.data) {
         try {
-          console.log(`🏢 企業「${dominoCompany.name}」を処理中...`)
+          console.log(`🏢 企業「${dominoCompany.name}」（ステータス: ${dominoCompany.status}）を処理中...`)
+          
+          // アクティブ企業のみインポート
+          if (dominoCompany.status !== 'active') {
+            console.log(`⏭️ 企業「${dominoCompany.name}」はステータス「${dominoCompany.status}」のためスキップします`)
+            continue
+          }
+          
+          // モックデータの場合はFirestore操作をスキップ
+          if (dominoCompany.id.startsWith('mock-')) {
+            console.log(`⚠️ モックデータ「${dominoCompany.name}」はFirestore保存をスキップします`)
+            continue // カウントも増やさない
+          }
           
           // DominoCompanyをCompanyに変換
           const companyData = convertDominoCompanyToCompany(dominoCompany)
 
           // Domino IDで既存企業をチェック
+          console.log(`🔍 Domino ID「${dominoCompany.id}」で既存企業をチェック中...`)
           const existingCompany = await findCompanyByDominoId(dominoCompany.id)
           
           if (existingCompany) {
-            // 既存企業を更新
-            await updateCompany(existingCompany.id, companyData)
-            updatedCount++
-            console.log(`✅ 企業「${dominoCompany.name}」を更新しました`)
+            // 見つかった企業IDが実際に存在するか再確認
+            console.log(`🔄 既存企業「${dominoCompany.name}」(Firestore ID: ${existingCompany.id})を確認中...`)
+            
+            try {
+              // 実際に企業が存在するかチェック
+              const { getCompanyById } = await import('@/lib/firestore/companies')
+              const verifyCompany = await getCompanyById(existingCompany.id)
+              
+              if (verifyCompany) {
+                console.log(`📝 更新データ:`, companyData)
+                await updateCompany(existingCompany.id, companyData)
+                updatedCount++
+                console.log(`✅ 企業「${dominoCompany.name}」を更新しました`)
+              } else {
+                // IDは検索で見つかったが実際には存在しない場合は新規作成
+                console.log(`⚠️ 企業ID「${existingCompany.id}」は存在しないため、新規作成します`)
+                console.log(`📝 作成データ:`, companyData)
+                const newCompanyId = await createCompany(companyData)
+                successCount++
+                console.log(`✅ 企業「${dominoCompany.name}」を新規作成しました (Firestore ID: ${newCompanyId})`)
+              }
+            } catch (updateError) {
+              console.error(`❌ 企業「${dominoCompany.name}」の更新に失敗。新規作成を試行します:`, updateError)
+              // 更新に失敗した場合は新規作成
+              console.log(`📝 作成データ:`, companyData)
+              const newCompanyId = await createCompany(companyData)
+              successCount++
+              console.log(`✅ 企業「${dominoCompany.name}」を新規作成しました (Firestore ID: ${newCompanyId})`)
+            }
           } else {
             // 新規企業として作成
-            await createCompany(companyData)
+            console.log(`🆕 新規企業「${dominoCompany.name}」を作成します`)
+            console.log(`📝 作成データ:`, companyData)
+            const newCompanyId = await createCompany(companyData)
             successCount++
-            console.log(`🆕 企業「${dominoCompany.name}」を新規作成しました`)
+            console.log(`✅ 企業「${dominoCompany.name}」を新規作成しました (Firestore ID: ${newCompanyId})`)
+            
+            // 新規作成の場合は店舗データも処理
+            if (dominoCompany.stores && dominoCompany.stores.length > 0) {
+              console.log(`🏪 企業「${dominoCompany.name}」の店舗データ（${dominoCompany.stores.length}件）を処理中...`)
+              
+              for (const dominoStore of dominoCompany.stores) {
+                try {
+                  if (dominoStore.status === 'active') {
+                    const storeData = convertDominoStoreToStore(dominoStore, newCompanyId)
+                    const storeId = await createStore(storeData)
+                    importResult.storesCreated++
+                    console.log(`✅ 店舗「${dominoStore.name}」を作成しました (ID: ${storeId})`)
+                  } else {
+                    console.log(`⏭️ 店舗「${dominoStore.name}」はステータス「${dominoStore.status}」のためスキップします`)
+                  }
+                } catch (storeError) {
+                  console.error(`❌ 店舗「${dominoStore.name}」の作成エラー:`, storeError)
+                  errors.push(`店舗「${dominoStore.name}」の作成に失敗: ${storeError}`)
+                }
+              }
+            }
           }
         } catch (error) {
           console.error(`Error processing company ${dominoCompany.name}:`, error)
@@ -120,13 +518,39 @@ function DominoImportPageContent() {
         }
       }
 
+      // 実際に受信したデータ数を記録
+      importResult.actualReceived = dominoResponse.data.length
+      importResult.success = successCount
+      importResult.updated = updatedCount
+      importResult.errors = errors
+
       const result = {
         success: successCount,
         updated: updatedCount,
         errors,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        storesCreated: importResult.storesCreated
       }
       setLastImportResult(result)
+
+      // ログを保存
+      const duration = Math.round((Date.now() - startTime) / 1000)
+      const importLog: ImportLog = {
+        id: logId,
+        timestamp: new Date().toISOString(),
+        status: errors.length > 0 ? (successCount + updatedCount > 0 ? 'partial' : 'error') : 'success',
+        settings: {
+          status: 'active', // 常にアクティブ固定
+          sizeCategory: settings.sizeCategory,
+          prefecture: settings.prefecture,
+          limit: settings.limit,
+          since: settings.since,
+          sinceUntil: settings.sinceUntil
+        },
+        result: importResult,
+        duration
+      }
+      saveImportLog(importLog)
 
       if (errors.length > 0) {
         toast.error(`インポート完了: 新規${successCount}件、更新${updatedCount}件、エラー${errors.length}件`)
@@ -138,6 +562,28 @@ function DominoImportPageContent() {
     } catch (error) {
       console.error('Error importing from Domino:', error)
       toast.error(`Dominoからのインポートに失敗しました: ${error}`)
+      
+      // エラー時もログを保存
+      const duration = Math.round((Date.now() - startTime) / 1000)
+      const errorLog: ImportLog = {
+        id: logId,
+        timestamp: new Date().toISOString(),
+        status: 'error',
+        settings: {
+          status: 'active', // 常にアクティブ固定
+          sizeCategory: settings.sizeCategory,
+          prefecture: settings.prefecture,
+          limit: settings.limit,
+          since: settings.since,
+          sinceUntil: settings.sinceUntil
+        },
+        result: {
+          ...importResult,
+          errors: [String(error)]
+        },
+        duration
+      }
+      saveImportLog(errorLog)
     } finally {
       setImporting(false)
     }
@@ -177,24 +623,52 @@ function DominoImportPageContent() {
               <p className="text-sm text-muted-foreground">
                 Dominoシステムとの接続状況を確認します。開発環境ではモックテストが実行されます。
               </p>
-              <Button 
-                onClick={testConnection} 
-                disabled={testingConnection}
-                variant="outline"
-                className="min-w-[140px] hover:bg-blue-50 hover:border-blue-300"
-              >
-                {testingConnection ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                    接続確認中...
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle className="w-4 h-4 mr-2" />
-                    接続テスト
-                  </>
-                )}
-              </Button>
+              <div className="flex gap-3 flex-wrap">
+                <Button 
+                  onClick={testBasicAPI}
+                  variant="outline"
+                  className="min-w-[140px] hover:bg-green-50 hover:border-green-300"
+                >
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  🧪 基本APIテスト
+                </Button>
+                
+                <Button 
+                  onClick={checkEnvironmentVariables}
+                  variant="outline"
+                  className="min-w-[140px] hover:bg-orange-50 hover:border-orange-300"
+                >
+                  <Database className="w-4 h-4 mr-2" />
+                  環境変数確認
+                </Button>
+                
+                <Button 
+                  onClick={() => {
+                    const url = `${process.env.NEXT_PUBLIC_DOMINO_API_URL || 'https://sushi-domino.vercel.app/api/hr-export'}/companies?limit=1`
+                    console.log('🔗 ブラウザで直接アクセス:', url)
+                    window.open(url, '_blank')
+                  }}
+                  variant="outline"
+                  className="min-w-[140px] hover:bg-green-50 hover:border-green-300"
+                >
+                  <Database className="w-4 h-4 mr-2" />
+                  APIを直接確認
+                </Button>
+              </div>
+              
+              {settings.useActualAPI && (
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="text-sm">
+                    <strong>接続先:</strong> {process.env.NEXT_PUBLIC_DOMINO_API_URL || 'https://sushi-domino.vercel.app/api/hr-export'}/companies
+                  </div>
+                  <div className="text-xs text-blue-600 mt-1">
+                    💡 「APIを直接確認」ボタンでブラウザから直接アクセスして、データが取得できるか確認できます
+                  </div>
+                  <div className="text-xs text-orange-600 mt-2">
+                    ⚠️ 認証エラーが発生する場合は、正しいAPIキーが設定されているか確認してください
+                  </div>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -207,7 +681,7 @@ function DominoImportPageContent() {
               インポート設定
             </CardTitle>
             <CardDescription>
-              Dominoシステムからのデータ取得条件を設定してください
+              Dominoシステムからアクティブ企業のデータ取得条件を設定してください
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -215,19 +689,13 @@ function DominoImportPageContent() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="status">企業ステータス</Label>
-                  <Select 
-                    value={settings.status} 
-                    onValueChange={(value) => setSettings(prev => ({ ...prev, status: value }))}
-                  >
-                    <SelectTrigger id="status">
-                      <SelectValue placeholder="ステータスを選択" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="active">アクティブのみ</SelectItem>
-                      <SelectItem value="inactive">非アクティブのみ</SelectItem>
-                      <SelectItem value="all">すべて</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <div className="flex items-center space-x-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+                    <CheckCircle className="w-4 h-4 text-green-600" />
+                    <span className="text-sm font-medium text-green-800">アクティブ企業のみ</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    ⚠️ セキュリティ上の理由により、アクティブステータスの企業のみインポートされます
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="limit">取得件数上限</Label>
@@ -275,14 +743,98 @@ function DominoImportPageContent() {
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="since">更新日時（以降）</Label>
-                <Input
-                  id="since"
-                  type="datetime-local"
-                  value={settings.since}
-                  onChange={(e) => setSettings(prev => ({ ...prev, since: e.target.value }))}
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="since">更新日時（開始）</Label>
+                  <Input
+                    id="since"
+                    type="datetime-local"
+                    value={settings.since}
+                    onChange={(e) => setSettings(prev => ({ ...prev, since: e.target.value }))}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    この日時以降に更新された企業を取得
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="sinceUntil">更新日時（終了）</Label>
+                  <Input
+                    id="sinceUntil"
+                    type="datetime-local"
+                    value={settings.sinceUntil}
+                    onChange={(e) => setSettings(prev => ({ ...prev, sinceUntil: e.target.value }))}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    この日時以前に更新された企業を取得（省略可）
+                  </p>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-4">
+                <h4 className="font-medium">開発者設定</h4>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="useActualAPI">実際のAPIを使用</Label>
+                      <p className="text-sm text-muted-foreground">
+                        オフ：モックデータを使用（開発用）/ オン：実際のsushi-domino APIを呼び出し
+                      </p>
+                      <p className="text-xs text-blue-600 font-mono">
+                        現在の値: {settings.useActualAPI ? 'true (API使用)' : 'false (モック使用)'}
+                      </p>
+                    </div>
+                    <Switch
+                      id="useActualAPI"
+                      checked={settings.useActualAPI}
+                      onCheckedChange={(checked) => {
+                        console.log('🔄 useActualAPI設定変更:', checked)
+                        setSettings(prev => {
+                          const newSettings = { ...prev, useActualAPI: checked }
+                          console.log('🔧 新しい設定:', newSettings)
+                          return newSettings
+                        })
+                      }}
+                    />
+                  </div>
+                  {settings.useActualAPI && (
+                    <div className="p-3 bg-blue-50 rounded-lg">
+                      <div className="text-sm text-blue-800">
+                        🌐 実際のAPI使用中: https://sushi-domino.vercel.app/api/hr-export/companies
+                      </div>
+                    </div>
+                  )}
+                  {!settings.useActualAPI && (
+                    <div className="p-3 bg-gray-50 rounded-lg">
+                      <div className="text-sm text-gray-600">
+                        🔧 モックデータ使用中: テスト用のサンプルデータが表示されます
+                      </div>
+                    </div>
+                  )}
+                  
+                  {settings.useActualAPI && (
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <Label htmlFor="useProxy">プロキシ経由でアクセス</Label>
+                        <p className="text-sm text-muted-foreground">
+                          CORS問題を回避するため、サーバー側プロキシ経由でAPIにアクセス
+                        </p>
+                        <p className="text-xs text-green-600 font-mono">
+                          推奨: {settings.useProxy ? 'ON (プロキシ使用)' : 'OFF (直接アクセス)'}
+                        </p>
+                      </div>
+                      <Switch
+                        id="useProxy"
+                        checked={settings.useProxy}
+                        onCheckedChange={(checked) => {
+                          console.log('🔄 useProxy設定変更:', checked)
+                          setSettings(prev => ({ ...prev, useProxy: checked }))
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
 
               <Separator />
@@ -368,14 +920,18 @@ function DominoImportPageContent() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-3 gap-4 mb-4">
+              <div className="grid grid-cols-4 gap-4 mb-4">
                 <div className="text-center p-4 bg-green-50 rounded-lg">
                   <div className="text-2xl font-bold text-green-600">{lastImportResult.success}</div>
-                  <div className="text-sm text-green-700">新規作成</div>
+                  <div className="text-sm text-green-700">企業新規</div>
                 </div>
                 <div className="text-center p-4 bg-blue-50 rounded-lg">
                   <div className="text-2xl font-bold text-blue-600">{lastImportResult.updated}</div>
-                  <div className="text-sm text-blue-700">更新</div>
+                  <div className="text-sm text-blue-700">企業更新</div>
+                </div>
+                <div className="text-center p-4 bg-purple-50 rounded-lg">
+                  <div className="text-2xl font-bold text-purple-600">{lastImportResult.storesCreated || 0}</div>
+                  <div className="text-sm text-purple-700">店舗作成</div>
                 </div>
                 <div className="text-center p-4 bg-red-50 rounded-lg">
                   <div className="text-2xl font-bold text-red-600">{lastImportResult.errors.length}</div>
@@ -395,6 +951,102 @@ function DominoImportPageContent() {
                   </div>
                 </div>
               )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* インポートログ */}
+        {importLogs.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Database className="w-5 h-5" />
+                  インポート履歴
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={clearImportLogs}
+                  className="text-red-600 hover:text-red-700"
+                >
+                  ログをクリア
+                </Button>
+              </CardTitle>
+              <CardDescription>
+                直近{importLogs.length}件のインポート実行ログ
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {importLogs.map((log) => (
+                  <div key={log.id} className="border rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-3 h-3 rounded-full ${
+                          log.status === 'success' ? 'bg-green-500' :
+                          log.status === 'partial' ? 'bg-yellow-500' : 'bg-red-500'
+                        }`} />
+                        <span className="font-medium">
+                          {new Date(log.timestamp).toLocaleString('ja-JP')}
+                        </span>
+                        <span className="text-sm text-gray-500">
+                          ({log.duration}秒)
+                        </span>
+                      </div>
+                      <div className="text-sm text-gray-600">
+                        {log.result.actualReceived}/{log.settings.limit}件取得
+                        {log.result.storesCreated > 0 && ` (店舗${log.result.storesCreated}件)`}
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-4 gap-3 mb-3">
+                      <div className="text-center p-2 bg-green-50 rounded">
+                        <div className="text-lg font-semibold text-green-600">{log.result.success}</div>
+                        <div className="text-xs text-green-700">企業新規</div>
+                      </div>
+                      <div className="text-center p-2 bg-blue-50 rounded">
+                        <div className="text-lg font-semibold text-blue-600">{log.result.updated}</div>
+                        <div className="text-xs text-blue-700">企業更新</div>
+                      </div>
+                      <div className="text-center p-2 bg-purple-50 rounded">
+                        <div className="text-lg font-semibold text-purple-600">{log.result.storesCreated || 0}</div>
+                        <div className="text-xs text-purple-700">店舗作成</div>
+                      </div>
+                      <div className="text-center p-2 bg-red-50 rounded">
+                        <div className="text-lg font-semibold text-red-600">{log.result.errors.length}</div>
+                        <div className="text-xs text-red-700">エラー</div>
+                      </div>
+                    </div>
+                    
+                    <div className="text-xs text-gray-600 space-y-1">
+                      <div>
+                        <strong>設定:</strong> {log.settings.status}, {log.settings.sizeCategory || '全て'}, 
+                        {log.settings.prefecture || '全地域'}
+                      </div>
+                      {log.settings.since && (
+                        <div>
+                          <strong>期間:</strong> {new Date(log.settings.since).toLocaleDateString('ja-JP')}
+                          {log.settings.sinceUntil && ` 〜 ${new Date(log.settings.sinceUntil).toLocaleDateString('ja-JP')}`}
+                        </div>
+                      )}
+                      {log.result.errors.length > 0 && (
+                        <div className="mt-2">
+                          <strong>エラー:</strong>
+                          <div className="max-h-20 overflow-y-auto bg-red-50 p-2 rounded mt-1">
+                            {log.result.errors.slice(0, 3).map((error, idx) => (
+                              <div key={idx} className="text-xs text-red-700">{error}</div>
+                            ))}
+                            {log.result.errors.length > 3 && (
+                              <div className="text-xs text-red-600">...他{log.result.errors.length - 3}件</div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </CardContent>
           </Card>
         )}

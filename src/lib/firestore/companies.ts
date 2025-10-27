@@ -102,8 +102,11 @@ export async function getCompaniesByStatus(status: Company['status']): Promise<C
 export async function findCompanyByDominoId(dominoId: string): Promise<Company | null> {
   try {
     if (!dominoId || !dominoId.trim()) {
+      console.log('⚠️ Domino IDが空です')
       return null
     }
+    
+    console.log(`🔍 Domino ID「${dominoId}」で企業を検索中...`)
     
     const q = query(
       companiesCollection, 
@@ -112,10 +115,22 @@ export async function findCompanyByDominoId(dominoId: string): Promise<Company |
     const querySnapshot = await getDocs(q)
     
     if (querySnapshot.empty) {
+      console.log(`📭 Domino ID「${dominoId}」に一致する企業が見つかりませんでした`)
       return null
     }
     
     const doc = querySnapshot.docs[0] // 最初に見つかった企業を返す
+    console.log(`🎯 Domino ID「${dominoId}」に一致する企業を発見: Firestore ID「${doc.id}」`)
+    
+    // 見つかった企業が実際に存在するか検証
+    const docRef = doc.ref
+    const docSnap = await getDoc(docRef)
+    
+    if (!docSnap.exists()) {
+      console.log(`⚠️ 検索で見つかった企業ID「${doc.id}」が実際には存在しません`)
+      return null
+    }
+    
     return {
       id: doc.id,
       ...doc.data(),
@@ -123,7 +138,7 @@ export async function findCompanyByDominoId(dominoId: string): Promise<Company |
       updatedAt: doc.data().updatedAt?.toDate?.() || doc.data().updatedAt,
     } as Company
   } catch (error) {
-    console.error('Error finding company by Domino ID:', error)
+    console.error(`❌ Domino ID「${dominoId}」での企業検索エラー:`, error)
     throw error
   }
 }
@@ -208,16 +223,30 @@ export async function createCompany(companyData: Omit<Company, 'id' | 'createdAt
  */
 export async function updateCompany(id: string, companyData: Partial<Omit<Company, 'id' | 'createdAt'>>): Promise<void> {
   try {
+    console.log(`🔄 企業ID「${id}」の更新を開始...`)
+    
+    // 企業が存在するかチェック
+    const docRef = doc(companiesCollection, id)
+    const docSnap = await getDoc(docRef)
+    
+    if (!docSnap.exists()) {
+      const error = `企業ID「${id}」が見つかりません`
+      console.error('❌ ' + error)
+      throw new Error(error)
+    }
+    
     // undefinedフィールドを除去
     const cleanedData = removeUndefinedFields(companyData)
+    console.log(`📝 更新データ（クリーンアップ後）:`, cleanedData)
     
-    const docRef = doc(companiesCollection, id)
     await updateDoc(docRef, {
       ...cleanedData,
       updatedAt: serverTimestamp(),
     })
+    
+    console.log(`✅ 企業ID「${id}」の更新が完了`)
   } catch (error) {
-    console.error('Error updating company:', error)
+    console.error(`❌ 企業ID「${id}」の更新エラー:`, error)
     throw error
   }
 }
@@ -227,10 +256,26 @@ export async function updateCompany(id: string, companyData: Partial<Omit<Compan
  */
 export async function deleteCompany(id: string): Promise<void> {
   try {
+    console.log(`🗑️ Firestore企業削除開始: ID「${id}」`)
+    
+    // 削除前に企業が存在するかチェック
     const docRef = doc(companiesCollection, id)
+    const docSnap = await getDoc(docRef)
+    
+    if (!docSnap.exists()) {
+      const error = `削除対象の企業ID「${id}」が見つかりません。データの不整合が発生している可能性があります。`
+      console.error('❌ ' + error)
+      // エラーを投げる代わりに警告として処理（既に削除済みの可能性）
+      console.warn('⚠️ 企業が既に削除されている可能性があります。処理を続行します。')
+      return // エラーを投げずに正常終了
+    }
+    
+    console.log(`📋 削除対象企業:`, docSnap.data()?.name || 'Unknown')
+    
     await deleteDoc(docRef)
+    console.log(`✅ 企業ID「${id}」の削除完了`)
   } catch (error) {
-    console.error('Error deleting company:', error)
+    console.error(`❌ 企業ID「${id}」の削除エラー:`, error)
     throw error
   }
 }
