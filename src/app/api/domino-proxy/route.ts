@@ -17,11 +17,24 @@ export async function GET(request: NextRequest) {
     const dominoApiUrl = process.env.DOMINO_API_URL || 'https://sushi-domino.vercel.app/api/hr-export'
     const dominoApiKey = process.env.DOMINO_API_KEY || 'your-hr-api-secret-key'
     
+    // 環境変数の検証
+    if (!process.env.DOMINO_API_URL) {
+      console.error('❌ DOMINO_API_URL が設定されていません')
+    }
+    if (!process.env.DOMINO_API_KEY) {
+      console.error('❌ DOMINO_API_KEY が設定されていません')
+    }
+    if (dominoApiKey === 'your-hr-api-secret-key') {
+      console.error('❌ DOMINO_API_KEY がデフォルト値のままです')
+    }
+    
     console.log('🔧 サーバーサイド環境変数確認:', {
       DOMINO_API_URL: process.env.DOMINO_API_URL,
       DOMINO_API_KEY: process.env.DOMINO_API_KEY ? process.env.DOMINO_API_KEY.substring(0, 8) + '...' : '未設定',
       dominoApiUrl,
-      dominoApiKey: dominoApiKey ? dominoApiKey.substring(0, 8) + '...' : '未設定'
+      dominoApiKey: dominoApiKey ? dominoApiKey.substring(0, 8) + '...' : '未設定',
+      envFileExists: process.env.NODE_ENV,
+      allEnvKeys: Object.keys(process.env).filter(key => key.includes('DOMINO'))
     })
     
     // クエリパラメータを構築（api_keyも追加）
@@ -93,10 +106,38 @@ export async function GET(request: NextRequest) {
     })
     
     if (!response.ok) {
-      const errorText = await response.text()
-      console.error('❌ Domino APIエラー:', errorText)
+      let errorText = ''
+      let errorData: any = null
+      
+      try {
+        errorText = await response.text()
+        if (errorText) {
+          try {
+            errorData = JSON.parse(errorText)
+          } catch (parseError) {
+            console.warn('⚠️ Domino APIレスポンスがJSONではありません')
+          }
+        }
+      } catch (textError) {
+        console.error('❌ Domino APIレスポンステキスト取得エラー:', textError)
+        errorText = 'レスポンステキストを取得できませんでした'
+      }
+      
+      console.error('❌ Domino APIエラー詳細:', {
+        status: response.status,
+        statusText: response.statusText,
+        errorText,
+        errorData,
+        headers: Object.fromEntries(response.headers.entries()),
+        url: targetUrl.replace(dominoApiKey, '***API_KEY***')
+      })
+      
       return NextResponse.json(
-        { error: `Domino API Error: ${response.status} ${response.statusText}`, details: errorText },
+        { 
+          error: `Domino API Error: ${response.status} ${response.statusText}`, 
+          details: errorText,
+          data: errorData 
+        },
         { status: response.status }
       )
     }
@@ -114,9 +155,19 @@ export async function GET(request: NextRequest) {
     })
     
   } catch (error) {
-    console.error('❌ プロキシエラー:', error)
+    console.error('❌ プロキシエラー詳細:', {
+      error,
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      type: typeof error,
+      name: error instanceof Error ? error.name : undefined
+    })
     return NextResponse.json(
-      { error: 'Proxy Error', message: error instanceof Error ? error.message : String(error) },
+      { 
+        error: 'Proxy Error', 
+        message: error instanceof Error ? error.message : String(error),
+        type: error instanceof Error ? error.name : typeof error
+      },
       { status: 500 }
     )
   }

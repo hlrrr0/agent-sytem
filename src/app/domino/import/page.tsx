@@ -244,6 +244,30 @@ function DominoImportPageContent() {
     }
   }
 
+  // 直接接続テスト
+  const testDirectConnection = async () => {
+    console.log('🔌 直接接続テストを開始')
+    
+    try {
+      const response = await fetch('/api/domino-test')
+      const result = await response.json()
+      
+      console.log('🔌 直接接続テスト結果:', result)
+      
+      if (result.success) {
+        toast.success(`✅ 直接接続成功！ステータス: ${result.status}`)
+        console.log('📊 接続テストデータ:', result.responseData)
+      } else {
+        toast.error(`❌ 直接接続失敗: ${result.error}`)
+        console.error('❌ 接続失敗詳細:', result)
+      }
+      
+    } catch (error) {
+      console.error('❌ 直接接続テストエラー:', error)
+      toast.error(`直接接続テストエラー: ${error}`)
+    }
+  }
+
   // API認証テスト
   const testApiAuth = async () => {
     console.log('🔐 API認証テストを開始')
@@ -640,6 +664,15 @@ function DominoImportPageContent() {
                 >
                   <Database className="w-4 h-4 mr-2" />
                   環境変数確認
+                </Button>
+                
+                <Button 
+                  onClick={testDirectConnection}
+                  variant="outline"
+                  className="min-w-[140px] hover:bg-blue-50 hover:border-blue-300"
+                >
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  🔌 直接接続テスト
                 </Button>
                 
                 <Button 

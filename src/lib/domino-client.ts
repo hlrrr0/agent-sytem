@@ -309,9 +309,33 @@ export class DominoAPIClient {
         })
         
         if (!response.ok) {
-          const errorData = await response.json()
-          console.error('❌ プロキシエラー:', errorData)
-          throw new Error(`Proxy Error: ${response.status} ${response.statusText} - ${errorData.error || errorData.message}`)
+          let errorData: any = {}
+          let errorText = ''
+          try {
+            const responseText = await response.text()
+            errorText = responseText
+            if (responseText) {
+              try {
+                errorData = JSON.parse(responseText)
+              } catch (parseError) {
+                console.warn('⚠️ レスポンスがJSONではありません:', responseText)
+                errorData = { message: responseText }
+              }
+            }
+          } catch (textError) {
+            console.error('❌ レスポンステキスト取得エラー:', textError)
+          }
+          
+          console.error('❌ プロキシエラー詳細:', {
+            status: response.status,
+            statusText: response.statusText,
+            errorData,
+            errorText,
+            headers: Object.fromEntries(response.headers.entries())
+          })
+          
+          const errorMessage = errorData.error || errorData.message || errorText || `HTTP ${response.status}`
+          throw new Error(`Proxy Error: ${response.status} ${response.statusText} - ${errorMessage}`)
         }
         
         const data = await response.json()
