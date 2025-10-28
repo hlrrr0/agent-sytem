@@ -22,7 +22,8 @@ import {
 import { toast } from 'sonner'
 import { dominoClient, convertDominoCompanyToCompany, convertDominoStoreToStore, DominoAPIClient } from '@/lib/domino-client'
 import { createCompany, updateCompany, findCompanyByDominoId } from '@/lib/firestore/companies'
-import { createStore } from '@/lib/firestore/stores'
+import { createStore, checkStoreByTabelogUrl } from '@/lib/firestore/stores'
+import { getActiveUsers, createUserDisplayNameMap } from '@/lib/firestore/users'
 import { Company } from '@/types/company'
 
 export default function DominoImportPage() {
@@ -503,19 +504,26 @@ function DominoImportPageContent() {
       
       for (const dominoStore of dominoCompany.stores) {
         try {
-          console.log(`🏪 店舗処理中: "${dominoStore.name}" (ステータス: ${dominoStore.status})`)
+          console.log(`🏪 店舗処理中: "${dominoStore.name}"`)
           
-          if (dominoStore.status === 'active') {
-            console.log(`✅ アクティブ店舗「${dominoStore.name}」を作成します`)
-            const storeData = convertDominoStoreToStore(dominoStore, companyId)
-            console.log(`📋 変換後の店舗データ:`, storeData)
+          // tabelogURLでの重複チェック
+          if (dominoStore.tabelogUrl && dominoStore.tabelogUrl.trim() !== '') {
+            console.log(`🔍 tabelogURL重複チェック: ${dominoStore.tabelogUrl}`)
             
-            const storeId = await createStore(storeData)
-            storesCreated++
-            console.log(`✅ 店舗「${dominoStore.name}」を作成しました (ID: ${storeId})`)
-          } else {
-            console.log(`⏭️ 店舗「${dominoStore.name}」はステータス「${dominoStore.status}」のためスキップします`)
+            const existingStore = await checkStoreByTabelogUrl(dominoStore.tabelogUrl)
+            if (existingStore) {
+              console.log(`⏭️ 店舗「${dominoStore.name}」は既に登録済み (tabelogURL重複: ${existingStore.name})`)
+              continue
+            }
           }
+          
+          console.log(`✅ 店舗「${dominoStore.name}」を作成します`)
+          const storeData = convertDominoStoreToStore(dominoStore, companyId)
+          console.log(`📋 変換後の店舗データ:`, storeData)
+          
+          const storeId = await createStore(storeData)
+          storesCreated++
+          console.log(`✅ 店舗「${dominoStore.name}」を作成しました (ID: ${storeId})`)
         } catch (storeError) {
           console.error(`❌ 店舗「${dominoStore.name}」の作成エラー:`, storeError)
           errors.push(`店舗「${dominoStore.name}」の作成に失敗: ${storeError}`)
@@ -528,6 +536,93 @@ function DominoImportPageContent() {
     
     console.log(`📊 企業「${dominoCompany.name}」の店舗処理結果: ${storesCreated}件作成`)
     return storesCreated
+  }
+
+  // ページネーション対応でDominoからすべてのデータを取得
+  const getAllCompaniesWithPagination = async (requestSettings: any) => {
+    let allCompanies: any[] = []
+    let offset = 0
+    let hasMore = true
+    const batchSize = 50 // API制限に合わせて
+    let pageCount = 0
+    const client = getDominoClient()
+
+    console.log(`🔄 ページネーション開始: 目標 ${requestSettings.limit} 件の企業データを取得`)
+
+    while (hasMore && allCompanies.length < requestSettings.limit) {
+      pageCount++
+      const remainingLimit = requestSettings.limit - allCompanies.length
+      const currentLimit = Math.min(batchSize, remainingLimit)
+      
+      console.log(`📖 ページ ${pageCount} を取得中... (オフセット: ${offset}, 要求: ${currentLimit} 件)`)
+      
+      try {
+        const dominoResponse = await client.getCompanies({
+          status: requestSettings.status === 'all' ? undefined : requestSettings.status,
+          sizeCategory: requestSettings.sizeCategory === 'all' ? undefined : requestSettings.sizeCategory,
+          since: requestSettings.dateRange?.enabled ? requestSettings.dateRange.start : undefined,
+          until: requestSettings.dateRange?.enabled ? requestSettings.dateRange.end : undefined,
+          includeEmpty: requestSettings.includeEmpty,
+          limit: currentLimit,
+          offset: offset
+        })
+
+        if (!dominoResponse.success) {
+          throw new Error(`ページ ${pageCount} の取得に失敗: API エラー`)
+        }
+
+        console.log(`📊 ページ ${pageCount} レスポンス:`, {
+          companiesCount: dominoResponse.metadata?.companiesCount,
+          hasMoreCompanies: dominoResponse.metadata?.pagination?.hasMoreCompanies,
+          receivedCount: Array.isArray(dominoResponse.data) ? dominoResponse.data.length : 0
+        })
+
+        // データ変換
+        let pageCompanies: any[] = []
+        const responseData = dominoResponse.data
+
+        if (Array.isArray(responseData)) {
+          if (responseData.length > 0 && responseData[0].company) {
+            // /integrated 形式: { company: {...}, shops: [...] }
+            pageCompanies = responseData.map((item: any) => {
+              const company = { ...item.company }
+              if (item.shops && Array.isArray(item.shops)) {
+                company.stores = item.shops
+              }
+              return company
+            })
+          } else {
+            // 従来形式
+            pageCompanies = responseData
+          }
+        }
+
+        console.log(`✅ ページ ${pageCount} で ${pageCompanies.length} 件の企業を取得`)
+        allCompanies.push(...pageCompanies)
+
+        // ページネーション継続判定
+        hasMore = dominoResponse.metadata?.pagination?.hasMoreCompanies === true && 
+                  allCompanies.length < requestSettings.limit && 
+                  pageCompanies.length > 0
+
+        offset += currentLimit
+
+        console.log(`📈 進捗: ${allCompanies.length}/${requestSettings.limit} 件取得完了`)
+
+        // レート制限対策で待機
+        if (hasMore) {
+          console.log('⏱️ レート制限回避のため1秒待機...')
+          await new Promise(resolve => setTimeout(resolve, 1000))
+        }
+
+      } catch (error) {
+        console.error(`❌ ページ ${pageCount} の取得でエラー:`, error)
+        throw error
+      }
+    }
+
+    console.log(`🎯 ページネーション完了! 合計 ${allCompanies.length} 件の企業を取得 (${pageCount} ページ)`)
+    return allCompanies
   }
 
   const handleImport = async () => {
@@ -554,87 +649,57 @@ function DominoImportPageContent() {
     }
     
     try {
-      // Dominoから企業データを取得
-      console.log('📡 Dominoクライアントからデータを取得中...')
-      const client = getDominoClient()
+      // ページネーション対応でDominoから企業データを取得
+      console.log('📡 ページネーション対応でDominoクライアントからデータを取得中...')
       
-      // Firestoreインデックスエラー回避のため、最小限のパラメータで開始
-      const requestParams: any = {
+      // リクエストパラメータを構築
+      const requestParams = {
         limit: settings.limit,
-        status: 'active' // 必ずアクティブ企業のみを要求
-      }
-      
-      // パラメータを段階的に追加（デフォルト値は送信しない）
-      if (settings.sizeCategory && settings.sizeCategory !== 'all' && settings.sizeCategory !== '') {
-        requestParams.sizeCategory = settings.sizeCategory
-      }
-      
-      if (settings.since) {
-        requestParams.since = settings.since
-      }
-      
-      if (settings.sinceUntil) {
-        requestParams.until = settings.sinceUntil
-      }
-      
-      // 更新日時が空白の企業も含むかどうか
-      if (settings.includeEmpty) {
-        requestParams.includeEmpty = true
+        status: 'active', // 必ずアクティブ企業のみを要求
+        sizeCategory: settings.sizeCategory,
+        dateRange: {
+          enabled: !!(settings.since || settings.sinceUntil),
+          start: settings.since,
+          end: settings.sinceUntil
+        },
+        includeEmpty: settings.includeEmpty
       }
       
       console.log('📤 送信パラメータ:', requestParams)
       
-      const dominoResponse = await client.getCompanies(requestParams)
+      // ページネーション対応でデータを取得
+      const companies = await getAllCompaniesWithPagination(requestParams)
 
-      console.log('📊 Dominoから取得したデータ:', dominoResponse)
-      console.log('📊 データ構造詳細:', {
-        type: typeof dominoResponse.data,
-        isArray: Array.isArray(dominoResponse.data),
-        keys: dominoResponse.data ? Object.keys(dominoResponse.data as any) : 'null/undefined',
-        structure: dominoResponse.data
+      console.log('� ページネーション完了:', {
+        totalCompanies: companies.length,
+        requested: settings.limit,
+        achieved: companies.length >= settings.limit ? '目標達成' : `不足 (${settings.limit - companies.length}件)`
       })
-      
-      // 生のレスポンスデータを詳細にログ出力
-      console.log('🔍 生のレスポンスデータ (JSON文字列):', JSON.stringify(dominoResponse, null, 2))
-      
-      // レスポンス構造に応じてデータを取得
-      let companies: any[] = []
-      const responseData = dominoResponse.data as any
-      
-      if (Array.isArray(responseData)) {
-        // 新しい /integrated 形式: [{ company: {...}, shops: [...] }]
-        if (responseData.length > 0 && responseData[0].company) {
-          console.log('🔄 /integrated 形式のデータを変換中...')
-          companies = responseData.map((item: any) => {
-            const company = { ...item.company }
-            // shops を stores として追加
-            if (item.shops && Array.isArray(item.shops)) {
-              company.stores = item.shops
-            }
-            return company
-          })
-          console.log('✅ /integrated 形式のデータ変換完了')
-        } else {
-          // 従来の形式: 直接企業配列
-          companies = responseData
+
+      // 実際に取得されたデータ数を更新
+      importResult.actualReceived = companies.length
+      importResult.activeReceived = companies.filter(c => c.status === 'active').length
+
+      // 担当者マッチング用のユーザー一覧を取得
+      console.log('👥 担当者マッチング用のユーザー一覧を取得中...')
+      const activeUsers = await getActiveUsers()
+      const userDisplayNameMap = createUserDisplayNameMap(activeUsers)
+      console.log('👥 ユーザーマッピング作成完了:', {
+        totalUsers: activeUsers.length,
+        displayNames: Object.keys(userDisplayNameMap)
+      })
+
+      console.log(`📊 取得した企業データ: ${companies.length}件`)
+
+      // 詳細ログ
+      companies.forEach((company, index) => {
+        console.log(`企業${index + 1}: ${company.name} (ID: ${company.id}, ステータス: ${company.status})`)
+        if (company.stores && Array.isArray(company.stores) && company.stores.length > 0) {
+          console.log(`  -> ${company.stores.length}件の店舗データを含む`)
         }
-      } else if (responseData && responseData.companies && Array.isArray(responseData.companies)) {
-        companies = responseData.companies
-      } else if (responseData && responseData.data && Array.isArray(responseData.data)) {
-        companies = responseData.data
-      } else {
-        console.error('❌ 予期しないデータ構造:', dominoResponse.data)
-        throw new Error('取得したデータが予期した形式ではありません')
-      }
-      
-      console.log('📊 抽出した企業データ:', {
-        type: typeof companies,
-        isArray: Array.isArray(companies),
-        length: companies?.length || 0,
-        firstItem: companies?.[0] || 'なし',
-        hasStoresInFirstItem: !!(companies?.[0]?.stores),
-        firstItemStoreCount: companies?.[0]?.stores?.length || 0
       })
+
+      // 取得したデータをFirestoreに保存
       
       // アクティブ企業の数を事前にカウント
       const activeCompanies = companies.filter((company: any) => company.status === 'active')
@@ -680,6 +745,7 @@ function DominoImportPageContent() {
         }
       })
 
+      // カウンター変数を初期化
       let successCount = 0
       let updatedCount = 0
       const errors: string[] = []
@@ -707,8 +773,8 @@ function DominoImportPageContent() {
             continue // Firestoreの企業保存は行わない
           }
           
-          // DominoCompanyをCompanyに変換
-          const companyData = convertDominoCompanyToCompany(dominoCompany)
+          // DominoCompanyをCompanyに変換（担当者マッピングを含む）
+          const companyData = convertDominoCompanyToCompany(dominoCompany, userDisplayNameMap)
 
           // Domino IDで既存企業をチェック
           console.log(`🔍 Domino ID「${dominoCompany.id}」で既存企業をチェック中...`)

@@ -35,7 +35,7 @@ export interface Company {
   
   // 取引情報
   contractStartDate?: string | Date       // 取引開始日
-  status: 'active' | 'inactive' | 'prospect' | 'prospect_contacted' | 'appointment' | 'no_approach' | 'suspended' | 'paused'  // 取引状況
+  status: 'active' | 'inactive'  // 取引状況
   isPublic: boolean                       // 公開状況（公開／非公開）
   consultantId?: string                   // 担当コンサルタントID
   memo?: string                           // メモ・特記事項
@@ -52,12 +52,6 @@ export interface Company {
 export const companyStatusLabels = {
   active: 'アクティブ',
   inactive: '非アクティブ',
-  prospect: '見込み客',
-  prospect_contacted: '見込み客/接触あり',
-  appointment: 'アポ',
-  no_approach: 'アプローチ不可',
-  suspended: '停止',
-  paused: '休止'
 }
 
 export const companySizeLabels = {

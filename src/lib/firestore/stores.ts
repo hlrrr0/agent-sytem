@@ -241,3 +241,32 @@ export async function searchStoresByName(searchTerm: string): Promise<Store[]> {
     throw error
   }
 }
+
+// tabelogURLで既存店舗をチェック
+export async function checkStoreByTabelogUrl(tabelogUrl: string): Promise<Store | null> {
+  try {
+    console.log(`🔍 tabelogURL「${tabelogUrl}」で既存店舗をチェック中...`)
+    
+    const q = query(storesCollection, where('tabelogUrl', '==', tabelogUrl))
+    const querySnapshot = await getDocs(q)
+    
+    if (!querySnapshot.empty) {
+      const doc = querySnapshot.docs[0]
+      const store = {
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate() || new Date(),
+        updatedAt: doc.data().updatedAt?.toDate() || new Date(),
+      } as Store
+      
+      console.log(`🎯 tabelogURL「${tabelogUrl}」に一致する既存店舗を発見: 「${store.name}」(ID: ${store.id})`)
+      return store
+    }
+    
+    console.log(`✅ tabelogURL「${tabelogUrl}」は未登録です`)
+    return null
+  } catch (error) {
+    console.error('tabelogURLチェック中にエラー:', error)
+    throw error
+  }
+}

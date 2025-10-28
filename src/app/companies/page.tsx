@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import { useAuth } from '@/contexts/AuthContext'
@@ -25,41 +25,37 @@ import {
   FileText,
   ArrowUpDown,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  ChevronDown,
+  ChevronUp,
+  Store,
+  User
 } from 'lucide-react'
 import { Company } from '@/types/company'
+import { Store as StoreType } from '@/types/store'
+import { User as UserType } from '@/types/user'
 import { getCompanies, deleteCompany } from '@/lib/firestore/companies'
+import { getStoresByCompany } from '@/lib/firestore/stores'
+import { getActiveUsers } from '@/lib/firestore/users'
 import { importCompaniesFromCSV, generateCompaniesCSVTemplate } from '@/lib/csv/companies'
 import { toast } from 'sonner'
 
 const statusLabels = {
   active: 'アクティブ',
   inactive: '非アクティブ',
-  prospect: '見込み客',
-  prospect_contacted: '見込み客/接触あり',
-  appointment: 'アポ',
-  no_approach: 'アプローチ不可',
-  suspended: '停止',
-  paused: '休止',
 }
 
 const statusColors = {
   active: 'bg-green-100 text-green-800',
   inactive: 'bg-gray-100 text-gray-800',
-  prospect: 'bg-blue-100 text-blue-800',
-  prospect_contacted: 'bg-yellow-100 text-yellow-800',
-  appointment: 'bg-purple-100 text-purple-800',
-  no_approach: 'bg-red-100 text-red-800',
-  suspended: 'bg-red-100 text-red-800',
-  paused: 'bg-orange-100 text-orange-800',
 }
 
 const sizeLabels = {
-  startup: 'スタートアップ',
-  small: '小企業',
-  medium: '中企業',
-  large: '大企業',
-  enterprise: '大企業',
+  startup: '個人店',
+  small: '2~3店舗',
+  medium: '4~20店舗',
+  large: '21~99店舗',
+  enterprise: '100店舗以上',
 }
 
 function CompaniesPageContent() {
@@ -67,6 +63,10 @@ function CompaniesPageContent() {
   const [companies, setCompanies] = useState<Company[]>([])
   const [loading, setLoading] = useState(true)
   const [csvImporting, setCsvImporting] = useState(false)
+  
+  // ユーザー一覧
+  const [users, setUsers] = useState<UserType[]>([])
+  const [userDisplayNameMap, setUserDisplayNameMap] = useState<Record<string, string>>({})
   
   console.log('👤 現在のユーザー権限:', { isAdmin })
   
@@ -76,16 +76,46 @@ function CompaniesPageContent() {
   const [sizeFilter, setSizeFilter] = useState<Company['size'] | 'all'>('all')
   
   // ソート状態
-  const [sortBy, setSortBy] = useState<'name' | 'createdAt' | 'updatedAt' | 'status'>('name')
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
+  const [sortBy, setSortBy] = useState<'name' | 'createdAt' | 'updatedAt' | 'status'>('updatedAt')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   
   // 削除ダイアログ
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [companyToDelete, setCompanyToDelete] = useState<Company | null>(null)
+  
+  // アコーディオンの展開状態と店舗データ
+  const [expandedCompanies, setExpandedCompanies] = useState<Set<string>>(new Set())
+  const [companyStores, setCompanyStores] = useState<Record<string, StoreType[]>>({})
+  const [loadingStores, setLoadingStores] = useState<Set<string>>(new Set())
+  
+  // 店舗数キャッシュ
+  const [storeCounts, setStoreCounts] = useState<Record<string, number>>({})
 
   useEffect(() => {
     loadCompanies()
+    loadUsers()
   }, [])
+
+  const loadUsers = async () => {
+    try {
+      console.log('👥 ユーザー一覧を読み込み中...')
+      const userData = await getActiveUsers()
+      console.log(`📊 取得したユーザー数: ${userData.length}`)
+      setUsers(userData)
+      
+      // ユーザーIDから表示名へのマップを作成
+      const displayNameMap = userData.reduce((acc, user) => {
+        acc[user.id] = user.displayName
+        return acc
+      }, {} as Record<string, string>)
+      setUserDisplayNameMap(displayNameMap)
+      
+      console.log('✅ ユーザー表示名マップ作成完了:', displayNameMap)
+    } catch (error) {
+      console.error('❌ ユーザーデータの読み込みエラー:', error)
+      // ユーザーデータの読み込みは必須ではないため、エラートーストは表示しない
+    }
+  }
 
   const loadCompanies = async () => {
     try {
@@ -95,6 +125,28 @@ function CompaniesPageContent() {
       console.log(`📊 取得した企業数: ${data.length}`)
       console.log('📝 取得した企業一覧:', data.map(c => ({ id: c.id, name: c.name })))
       setCompanies(data)
+      
+      // 各企業の店舗数を事前に読み込み
+      console.log('🏪 店舗数を事前読み込み中...')
+      const storeCountPromises = data.map(async (company) => {
+        try {
+          const stores = await getStoresByCompany(company.id)
+          return { companyId: company.id, count: stores.length }
+        } catch (error) {
+          console.error(`❌ 企業「${company.name}」の店舗数取得エラー:`, error)
+          return { companyId: company.id, count: 0 }
+        }
+      })
+      
+      const storeCountResults = await Promise.all(storeCountPromises)
+      const storeCountsMap = storeCountResults.reduce((acc, { companyId, count }) => {
+        acc[companyId] = count
+        return acc
+      }, {} as Record<string, number>)
+      
+      setStoreCounts(storeCountsMap)
+      console.log('✅ 店舗数キャッシュ完了:', storeCountsMap)
+      
     } catch (error) {
       console.error('❌ 企業データの読み込みエラー:', error)
       toast.error('企業データの読み込みに失敗しました')
@@ -149,6 +201,70 @@ function CompaniesPageContent() {
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
+  }
+
+  // 店舗数を取得して表示するための関数（キャッシュから）
+  const getStoreCount = (companyId: string): number => {
+    return storeCounts[companyId] ?? 0
+  }
+
+  // 担当者の表示名を取得する関数
+  const getAssignedToDisplayName = (company: Company): string => {
+    // まずassignedToフィールドをチェック（Dominoから来るデータ）
+    const assignedTo = (company as any).assignedTo
+    if (assignedTo && userDisplayNameMap[assignedTo]) {
+      return userDisplayNameMap[assignedTo]
+    }
+    if (assignedTo && typeof assignedTo === 'string') {
+      // ユーザーマップにない場合、assignedToの値をそのまま表示
+      return assignedTo
+    }
+    
+    // 次にconsultantIdをチェック
+    if (company.consultantId && userDisplayNameMap[company.consultantId]) {
+      return userDisplayNameMap[company.consultantId]
+    }
+    
+    return '-'
+  }
+
+  // アコーディオンの切り替えと店舗データの読み込み
+  const toggleStoreAccordion = async (companyId: string) => {
+    const isExpanded = expandedCompanies.has(companyId)
+    
+    if (isExpanded) {
+      // 閉じる
+      const newExpanded = new Set(expandedCompanies)
+      newExpanded.delete(companyId)
+      setExpandedCompanies(newExpanded)
+    } else {
+      // 展開する
+      const newExpanded = new Set(expandedCompanies)
+      newExpanded.add(companyId)
+      setExpandedCompanies(newExpanded)
+      
+      // 店舗データがまだ読み込まれていない場合は読み込む
+      if (!companyStores[companyId]) {
+        setLoadingStores(prev => new Set([...prev, companyId]))
+        
+        try {
+          const stores = await getStoresByCompany(companyId)
+          setCompanyStores(prev => ({
+            ...prev,
+            [companyId]: stores
+          }))
+        } catch (error) {
+          console.error(`店舗データの読み込みに失敗しました (企業ID: ${companyId}):`, error)
+          toast.error('店舗データの読み込みに失敗しました')
+        } finally {
+          setLoadingStores(prev => {
+            const newLoading = new Set(prev)
+            newLoading.delete(companyId)
+            return newLoading
+          })
+        }
+      }
+    }
   }
 
   const handleDeleteCompany = async () => {
@@ -279,14 +395,6 @@ function CompaniesPageContent() {
     </TableHead>
   )
 
-  // 統計データ
-  const stats = {
-    total: companies.length,
-    active: companies.filter(c => c.status === 'active').length,
-    prospects: companies.filter(c => c.status === 'prospect' || c.status === 'prospect_contacted').length,
-    appointments: companies.filter(c => c.status === 'appointment').length,
-  }
-
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -385,45 +493,6 @@ function CompaniesPageContent() {
         </div>
       </div>
 
-      {/* 統計カード */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">総企業数</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{stats.total}</div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">アクティブ</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">{stats.active}</div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">見込み客</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">{stats.prospects}</div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">アポ</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-purple-600">{stats.appointments}</div>
-          </CardContent>
-        </Card>
-      </div>
-
       {/* 検索・フィルター */}
       <Card className="mb-6">
         <CardHeader>
@@ -518,84 +587,134 @@ function CompaniesPageContent() {
               <TableHeader>
                 <TableRow>
                   <SortableHeader field="name">企業名</SortableHeader>
-                  <TableHead>規模</TableHead>
                   <SortableHeader field="status">ステータス</SortableHeader>
-                  <TableHead>連絡先</TableHead>
-                  <TableHead>Domino</TableHead>
+                  <TableHead>担当者</TableHead>
+                  <TableHead>店舗数</TableHead>
                   <TableHead className="text-right">アクション</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredAndSortedCompanies.map((company) => (
-                  <TableRow key={company.id}>
-                    <TableCell className="font-medium">
-                      <div>
-                        <div className="font-semibold">{company.name}</div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{sizeLabels[company.size as keyof typeof sizeLabels]}</Badge>
-                    </TableCell>
-                    <TableCell>{getStatusBadge(company.status)}</TableCell>
-                    <TableCell>
-                      <div className="text-sm">
-                        <div>{company.email}</div>
-                        <div className="text-gray-500">{company.phone}</div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {company.dominoId ? (
-                        <Badge variant="outline" className="text-green-600 border-green-600">
-                          連携済み
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="text-gray-600">
-                          未連携
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Link href={`/companies/${company.id}`}>
-                          <Button variant="outline" size="sm">
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                        </Link>
-                        {isAdmin && (
-                          <Link href={`/companies/${company.id}/edit`}>
-                            <Button variant="outline" size="sm">
-                              <Edit className="h-4 w-4" />
-                            </Button>
+                {filteredAndSortedCompanies.map((company) => {
+                  const isInactive = company.status === 'inactive'
+                  const isExpanded = expandedCompanies.has(company.id)
+                  const storeCount = getStoreCount(company.id)
+                  const stores = companyStores[company.id] || []
+                  const isLoadingStores = loadingStores.has(company.id)
+                  
+                  return (
+                    <React.Fragment key={company.id}>
+                      <TableRow 
+                        className={isInactive ? 'bg-gray-50' : ''}
+                      >
+                        <TableCell className="font-medium">
+                          <Link href={`/companies/${company.id}`} className="hover:text-blue-600 hover:underline">
+                            <div className="font-semibold">{company.name}</div>
                           </Link>
-                        )}
-                        {isAdmin && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              console.log('🗑️ 削除ボタンクリック:', {
-                                companyId: company.id,
-                                companyName: company.name
-                              })
-                              setCompanyToDelete(company)
-                              setDeleteDialogOpen(true)
-                            }}
-                            className="text-red-600 hover:text-red-700"
+                        </TableCell>
+                        <TableCell>{getStatusBadge(company.status)}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <User className="h-4 w-4 text-gray-400" />
+                            <span className="text-sm text-gray-700">
+                              {getAssignedToDisplayName(company)}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <button
+                            onClick={() => toggleStoreAccordion(company.id)}
+                            className="flex items-center gap-1 text-blue-600 hover:text-blue-800 transition-colors"
                           >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
-                        {company.website && (
-                          <Link href={company.website} target="_blank">
-                            <Button variant="outline" size="sm">
-                              <ExternalLink className="h-4 w-4" />
-                            </Button>
-                          </Link>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                            <Store className="h-4 w-4" />
+                            <span>{storeCount}件</span>
+                            {storeCount > 0 && (
+                              isExpanded ? 
+                                <ChevronUp className="h-4 w-4" /> : 
+                                <ChevronDown className="h-4 w-4" />
+                            )}
+                            {isLoadingStores && (
+                              <RefreshCw className="h-4 w-4 animate-spin" />
+                            )}
+                          </button>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Link href={`/companies/${company.id}`}>
+                              <Button variant="outline" size="sm">
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            </Link>
+                            {isAdmin && (
+                              <Link href={`/companies/${company.id}/edit`}>
+                                <Button variant="outline" size="sm">
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              </Link>
+                            )}
+                            {isAdmin && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  console.log('🗑️ 削除ボタンクリック:', {
+                                    companyId: company.id,
+                                    companyName: company.name
+                                  })
+                                  setCompanyToDelete(company)
+                                  setDeleteDialogOpen(true)
+                                }}
+                                className="text-red-600 hover:text-red-700"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                      
+                      {/* 店舗一覧のアコーディオン */}
+                      {isExpanded && storeCount > 0 && (
+                        <TableRow>
+                          <TableCell colSpan={5} className="bg-gray-50 p-0">
+                            <div className="p-4">
+                              <h4 className="font-medium mb-3 text-gray-700">店舗一覧 ({storeCount}件)</h4>
+                              <div className="grid gap-2">
+                                {stores.map((store) => (
+                                  <div
+                                    key={store.id}
+                                    className="bg-white p-3 rounded border border-gray-200 flex justify-between items-start"
+                                  >
+                                    <div>
+                                      <div className="font-medium">{store.name}</div>
+                                      <div className="text-sm text-gray-600">
+                                        {store.address && <div>📍 {store.address}</div>}
+                                        {store.website && <div>🌐 <a href={store.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{store.website}</a></div>}
+                                      </div>
+                                    </div>
+                                    <div className="flex gap-1">
+                                      <Link href={`/stores/${store.id}`}>
+                                        <Button variant="outline" size="sm">
+                                          <Eye className="h-3 w-3" />
+                                        </Button>
+                                      </Link>
+                                      {isAdmin && (
+                                        <Link href={`/stores/${store.id}/edit`}>
+                                          <Button variant="outline" size="sm">
+                                            <Edit className="h-3 w-3" />
+                                          </Button>
+                                        </Link>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </React.Fragment>
+                  )
+                })}
               </TableBody>
             </Table>
           )}

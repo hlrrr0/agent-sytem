@@ -1,23 +1,32 @@
 import { Company } from '@/types/company'
 import { Store } from '@/types/store'
 
-// Domino APIのレスポンス型
+// Domino APIのレスポンス型（/integratedエンドポイント用）
 export interface DominoAPIResponse {
   success: boolean
-  data: DominoCompany[]
-  pagination: {
-    limit: number
-    offset: number
-    count: number
-    hasMore: boolean
+  data: DominoIntegratedData[]
+  metadata: {
+    companiesCount: number
+    totalShopsCount: number
+    exportedAt: string
+    filters: {
+      status: string | null
+      updatedAfter: string | null
+      includeInactiveShops: boolean
+    }
+    pagination: {
+      limit: number
+      offset: number
+      hasMoreCompanies: boolean
+      hasMoreShops: boolean
+    }
   }
-  filters: {
-    status: string | null
-    prefecture: string | null
-    sizeCategory: string | null
-    updatedAfter: string | null
-  }
-  exportedAt: string
+}
+
+// /integratedエンドポイントの統合データ型
+export interface DominoIntegratedData {
+  company: DominoCompany
+  shops: DominoStore[]
 }
 
 // Domino APIから返される企業データの型
@@ -77,7 +86,10 @@ export interface DominoStore {
 /**
  * DominoCompanyをCompanyに変換する
  */
-export function convertDominoCompanyToCompany(dominoCompany: DominoCompany): Omit<Company, 'id' | 'createdAt' | 'updatedAt'> {
+export function convertDominoCompanyToCompany(
+  dominoCompany: DominoCompany, 
+  userDisplayNameMap?: Record<string, string>
+): Omit<Company, 'id' | 'createdAt' | 'updatedAt'> {
   console.log('🔄 Domino企業データを変換中:', dominoCompany.name)
   console.log('📋 変換前の全フィールド:', dominoCompany)
   
@@ -99,6 +111,23 @@ export function convertDominoCompanyToCompany(dominoCompany: DominoCompany): Omi
   
   // 従業員数の取得
   const employeeCount = dominoCompany.employeeCount || undefined
+  
+  // 担当者の紐づけ処理
+  let consultantId: string | undefined = undefined
+  const assignedTo = dominoCompany.assignedTo
+  
+  if (assignedTo && userDisplayNameMap) {
+    // ユーザー表示名から逆引きでIDを取得
+    const foundUserId = Object.keys(userDisplayNameMap).find(
+      userId => userDisplayNameMap[userId] === assignedTo
+    )
+    if (foundUserId) {
+      consultantId = foundUserId
+      console.log(`✅ 担当者「${assignedTo}」をユーザーID「${foundUserId}」に紐づけました`)
+    } else {
+      console.log(`⚠️ 担当者「${assignedTo}」に一致するユーザーが見つかりませんでした`)
+    }
+  }
   
   // 説明文の生成（複数の情報を統合）
   const memoComponents = [
@@ -139,6 +168,7 @@ export function convertDominoCompanyToCompany(dominoCompany: DominoCompany): Omi
     status: (dominoCompany.status === 'inactive' ? 'inactive' : 
             dominoCompany.status === 'prospect' ? 'prospect' : 'active') as Company['status'],
     isPublic: true, // デフォルトで公開
+    consultantId: consultantId, // 担当者IDを設定
     dominoId: dominoCompany.id,
     importedAt: new Date().toISOString(),
     memo: memoComponents.join('\n'),
@@ -163,8 +193,10 @@ export function convertDominoStoreToStore(dominoStore: DominoStore, companyId: s
     companyId: companyId,
     name: dominoStore.name,
     address: dominoStore.address,
+    tabelogUrl: dominoStore.tabelogUrl,
+    instagramUrl: dominoStore.instagramUrl,
     seatCount: dominoStore.capacity,
-    status: dominoStore.status === 'active' ? 'active' : 'inactive'
+    status: dominoStore.isActive ? 'active' : 'inactive'
   }
 }
 
@@ -212,17 +244,19 @@ export class DominoAPIClient {
       success: true,
       data: [
         {
-          id: 'mock-company-1',
-          name: 'サンプル寿司店',
-          status: 'active',
-          size: 'startup',
-          sizeCategory: 'startup',
-          totalJobs: 2,
-          totalApproaches: 5,
-          tags: ['寿司', '和食', '個人店'],
-          createdAt: '2025-10-26T14:44:20.691Z',
-          updatedAt: '2025-10-26T14:44:20.691Z',
-          stores: [
+          company: {
+            id: 'mock-company-1',
+            name: 'サンプル寿司店',
+            status: 'active',
+            size: 'startup',
+            sizeCategory: 'startup',
+            totalJobs: 2,
+            totalApproaches: 5,
+            tags: ['寿司', '和食', '個人店'],
+            createdAt: '2025-10-26T14:44:20.691Z',
+            updatedAt: '2025-10-26T14:44:20.691Z'
+          },
+          shops: [
             {
               id: 'mock-store-1',
               name: 'サンプル寿司店 本店',
@@ -254,17 +288,19 @@ export class DominoAPIClient {
           ]
         },
         {
-          id: 'mock-company-2',
-          name: 'テスト居酒屋',
-          status: 'active', // activeに変更
-          size: 'small',
-          sizeCategory: 'small',
-          totalJobs: 1,
-          totalApproaches: 3,
-          tags: ['居酒屋', '和食'],
-          createdAt: '2025-10-26T14:44:20.691Z',
-          updatedAt: '2025-10-26T14:44:20.691Z',
-          stores: [
+          company: {
+            id: 'mock-company-2',
+            name: 'テスト居酒屋',
+            status: 'active',
+            size: 'small',
+            sizeCategory: 'small',
+            totalJobs: 1,
+            totalApproaches: 3,
+            tags: ['居酒屋', '和食'],
+            createdAt: '2025-10-26T14:44:20.691Z',
+            updatedAt: '2025-10-26T14:44:20.691Z'
+          },
+          shops: [
             {
               id: 'mock-store-3',
               name: 'テスト居酒屋 池袋店',
@@ -272,7 +308,7 @@ export class DominoAPIClient {
               prefecture: '東京都',
               city: '豊島区',
               phone: '03-3456-7890',
-              status: 'active', // activeに変更
+              status: 'active',
               type: '店舗',
               capacity: 30,
               openingHours: '17:00-02:00',
@@ -282,19 +318,22 @@ export class DominoAPIClient {
           ]
         }
       ],
-      pagination: {
-        limit: 10,
-        offset: 0,
-        count: 2,
-        hasMore: false
-      },
-      filters: {
-        status: null,
-        prefecture: null,
-        sizeCategory: null,
-        updatedAfter: null
-      },
-      exportedAt: '2025-10-26T14:44:20.691Z'
+      metadata: {
+        companiesCount: 2,
+        totalShopsCount: 3,
+        exportedAt: '2025-10-26T14:44:20.691Z',
+        filters: {
+          status: null,
+          updatedAfter: null,
+          includeInactiveShops: false
+        },
+        pagination: {
+          limit: 10,
+          offset: 0,
+          hasMoreCompanies: false,
+          hasMoreShops: false
+        }
+      }
     }
   }
 
@@ -319,11 +358,10 @@ export class DominoAPIClient {
       await new Promise(resolve => setTimeout(resolve, 1000))
       
       const mockResponse = this.getMockResponse()
-      mockResponse.filters = {
+      mockResponse.metadata.filters = {
         status: options?.status || null,
-        prefecture: null,
-        sizeCategory: options?.sizeCategory || null,
-        updatedAfter: options?.since || null
+        updatedAfter: options?.since || null,
+        includeInactiveShops: false
       }
       return mockResponse
     }
