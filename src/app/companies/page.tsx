@@ -410,7 +410,7 @@ function CompaniesPageContent() {
     <ProtectedRoute>
       <div className="container mx-auto px-4 py-8">
         {/* ページヘッダー - 緑系テーマ */}
-        <div className="mb-8 p-6 bg-gradient-to-r from-green-500 to-green-600 rounded-lg text-white">
+        <div className="mb-8 p-6 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg text-white">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-white/20 rounded-full">
@@ -430,7 +430,7 @@ function CompaniesPageContent() {
               onClick={loadCompanies}
               disabled={loading}
               variant="outline"
-              className="bg-white text-green-600 hover:bg-green-50 border-white flex items-center gap-2"
+              className="bg-white text-blue-600 hover:bg-blue-50 border-white flex items-center gap-2"
             >
               <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
               更新
@@ -439,7 +439,7 @@ function CompaniesPageContent() {
               <Link href="/domino/import">
                 <Button 
                   variant="outline"
-                  className="bg-white text-green-600 hover:bg-green-50 border-white flex items-center gap-2"
+                  className="bg-white text-blue-600 hover:bg-blue-50 border-white flex items-center gap-2"
                 >
                   <Download className="h-4 w-4" />
                   詳細インポート
@@ -449,7 +449,7 @@ function CompaniesPageContent() {
             <Button
               onClick={downloadCSVTemplate}
               variant="outline"
-              className="bg-white text-green-600 hover:bg-green-50 border-white flex items-center gap-2"
+              className="bg-white text-blue-600 hover:bg-blue-50 border-white flex items-center gap-2"
             >
               <FileText className="h-4 w-4" />
               CSVテンプレート
@@ -472,7 +472,7 @@ function CompaniesPageContent() {
               />
               <Button
                 variant="outline"
-                className="bg-white text-green-600 hover:bg-green-50 border-white flex items-center gap-2"
+                className="bg-white text-blue-600 hover:bg-blue-50 border-white flex items-center gap-2"
                 disabled={csvImporting}
               >
                 {csvImporting ? (
@@ -484,7 +484,7 @@ function CompaniesPageContent() {
               </Button>
             </div>
             <Link href="/companies/new">
-              <Button variant="outline" className="bg-white text-green-600 hover:bg-green-50 border-white">
+              <Button variant="outline" className="bg-white text-blue-600 hover:bg-blue-50 border-white">
                 <Plus className="h-4 w-4 mr-2" />
                 新規企業追加
               </Button>

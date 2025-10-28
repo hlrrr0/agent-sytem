@@ -185,16 +185,17 @@ export default function CandidateDetailPage({ params }: CandidateDetailPageProps
 
   return (
     <ProtectedRoute>
-      <div className="container mx-auto px-4 py-8">
+      <div className="min-h-screen bg-gradient-to-br from-red-50 to-rose-100">
+        <div className="container mx-auto px-4 py-8">
         <div className="flex items-center gap-4 mb-8">
         <Link href="/candidates">
-          <Button variant="outline" size="sm" className="text-blue-600 border-blue-200 hover:bg-blue-50">
+          <Button variant="outline" size="sm" className="text-red-600 border-red-200 hover:bg-red-50">
             <ArrowLeft className="h-4 w-4 mr-2" />
             戻る
           </Button>
         </Link>
         <div className="flex-1">
-          <h1 className="text-3xl font-bold flex items-center gap-2 text-blue-800">
+          <h1 className="text-3xl font-bold flex items-center gap-2 text-red-800">
             <Users className="h-8 w-8" />
             求職者詳細
           </h1>
@@ -487,6 +488,7 @@ export default function CandidateDetailPage({ params }: CandidateDetailPageProps
             )}
           </CardContent>
         </Card>
+      </div>
       </div>
       </div>
     </ProtectedRoute>

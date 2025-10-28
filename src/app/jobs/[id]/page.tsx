@@ -194,7 +194,7 @@ function JobDetailContent({ params }: JobDetailPageProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-100">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-violet-100">
       <div className="container mx-auto px-4 py-8">
       {/* ヘッダー */}
       <div className="flex items-center justify-between mb-8">

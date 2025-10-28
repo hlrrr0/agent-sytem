@@ -146,7 +146,7 @@ export default function CandidatesPage() {
     <ProtectedRoute>
       <div className="container mx-auto px-4 py-8">
         {/* ページヘッダー - 青系テーマ */}
-        <div className="mb-8 p-6 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg text-white">
+        <div className="mb-8 p-6 bg-gradient-to-r from-red-500 to-red-600 rounded-lg text-white">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-white/20 rounded-full">
@@ -163,13 +163,13 @@ export default function CandidatesPage() {
             <Button
               onClick={loadData}
               variant="outline"
-              className="bg-white text-blue-600 hover:bg-blue-50 border-white flex items-center gap-2"
+              className="bg-white text-red-600 hover:bg-red-50 border-white flex items-center gap-2"
             >
               <RefreshCw className="h-4 w-4" />
               更新
             </Button>
             <Link href="/candidates/new">
-              <Button variant="outline" className="bg-white text-blue-600 hover:bg-blue-50 border-white">
+              <Button variant="outline" className="bg-white text-red-600 hover:bg-red-50 border-white">
                 <Plus className="h-4 w-4 mr-2" />
                 新規登録
               </Button>

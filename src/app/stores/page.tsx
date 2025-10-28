@@ -257,7 +257,7 @@ function StoresPageContent() {
   return (
     <div className="container mx-auto px-4 py-8">
       {/* ページヘッダー - オレンジ系テーマ */}
-      <div className="mb-8 p-6 bg-gradient-to-r from-orange-500 to-orange-600 rounded-lg text-white">
+      <div className="mb-8 p-6 bg-gradient-to-r from-green-500 to-green-600 rounded-lg text-white">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-white/20 rounded-full">
@@ -276,7 +276,7 @@ function StoresPageContent() {
             <Button
               onClick={downloadCSVTemplate}
               variant="outline"
-              className="bg-white text-orange-600 hover:bg-orange-50 border-white flex items-center gap-2"
+              className="bg-white text-green-600 hover:bg-green-50 border-white flex items-center gap-2"
             >
               <FileText className="h-4 w-4" />
               CSVテンプレート
@@ -284,7 +284,7 @@ function StoresPageContent() {
             <label htmlFor="csv-upload" className="cursor-pointer">
               <Button
                 variant="outline"
-                className="bg-white text-orange-600 hover:bg-orange-50 border-white flex items-center gap-2"
+                className="bg-white text-green-600 hover:bg-green-50 border-white flex items-center gap-2"
                 disabled={csvImporting}
                 asChild
               >
@@ -319,14 +319,14 @@ function StoresPageContent() {
             <Link href="/companies">
               <Button 
                 variant="outline"
-                className="bg-white text-orange-600 hover:bg-orange-50 border-white flex items-center gap-2"
+                className="bg-white text-green-600 hover:bg-green-50 border-white flex items-center gap-2"
               >
                 <Building2 className="h-4 w-4" />
                 企業管理へ
               </Button>
             </Link>
             <Link href="/stores/new">
-              <Button variant="outline" className="bg-white text-orange-600 hover:bg-orange-50 border-white">
+              <Button variant="outline" className="bg-white text-green-600 hover:bg-green-50 border-white">
                 <Plus className="h-4 w-4 mr-2" />
                 新規店舗追加
               </Button>
