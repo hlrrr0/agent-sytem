@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Checkbox } from '@/components/ui/checkbox'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import { useAuth } from '@/contexts/AuthContext'
 import { 
@@ -54,6 +55,14 @@ function StoresPageContent() {
   // フィルター・検索状態
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<Store['status'] | 'all'>('all')
+  
+  // ソート状態
+  const [sortBy, setSortBy] = useState<'name' | 'companyName' | 'createdAt' | 'updatedAt' | 'status'>('updatedAt')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
+  
+  // 複数選択・削除状態
+  const [selectedStores, setSelectedStores] = useState<string[]>([])
+  const [bulkDeleting, setBulkDeleting] = useState(false)
 
   useEffect(() => {
     loadData()
@@ -129,9 +138,53 @@ function StoresPageContent() {
         await deleteStore(store.id)
         await loadData()
       } catch (error) {
-        console.error('Error deleting store:', error)
-        alert('店舗の削除に失敗しました')
+        console.error('店舗の削除に失敗しました:', error)
+        alert('店舗の削除に失敗しました。')
       }
+    }
+  }
+
+  // 複数選択機能
+  const handleSelectStore = (storeId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedStores(prev => [...prev, storeId])
+    } else {
+      setSelectedStores(prev => prev.filter(id => id !== storeId))
+    }
+  }
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedStores(filteredAndSortedStores.map(store => store.id))
+    } else {
+      setSelectedStores([])
+    }
+  }
+
+  const handleBulkDelete = async () => {
+    if (selectedStores.length === 0) {
+      alert('削除する店舗を選択してください。')
+      return
+    }
+
+    const confirmMessage = `選択した${selectedStores.length}件の店舗を削除しますか？この操作は取り消せません。`
+    if (!confirm(confirmMessage)) {
+      return
+    }
+
+    setBulkDeleting(true)
+    try {
+      const deletePromises = selectedStores.map(storeId => deleteStore(storeId))
+      await Promise.all(deletePromises)
+      
+      setSelectedStores([])
+      await loadData()
+      alert(`${selectedStores.length}件の店舗を削除しました。`)
+    } catch (error) {
+      console.error('一括削除中にエラー:', error)
+      alert('一部の店舗の削除に失敗しました。')
+    } finally {
+      setBulkDeleting(false)
     }
   }
 
@@ -140,20 +193,46 @@ function StoresPageContent() {
     return company?.name || '不明な企業'
   }
 
-  const filteredStores = stores.filter(store => {
+  const filteredAndSortedStores = stores.filter(store => {
     const matchesSearch = store.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          getCompanyName(store.companyId).toLowerCase().includes(searchTerm.toLowerCase())
     
     const matchesStatus = statusFilter === 'all' || store.status === statusFilter
 
     return matchesSearch && matchesStatus
+  }).sort((a, b) => {
+    let aValue: any
+    let bValue: any
+    
+    switch (sortBy) {
+      case 'name':
+        aValue = a.name.toLowerCase()
+        bValue = b.name.toLowerCase()
+        break
+      case 'companyName':
+        aValue = getCompanyName(a.companyId).toLowerCase()
+        bValue = getCompanyName(b.companyId).toLowerCase()
+        break
+      case 'status':
+        aValue = a.status
+        bValue = b.status
+        break
+      case 'createdAt':
+        aValue = new Date(a.createdAt).getTime()
+        bValue = new Date(b.createdAt).getTime()
+        break
+      case 'updatedAt':
+        aValue = new Date(a.updatedAt).getTime()
+        bValue = new Date(b.updatedAt).getTime()
+        break
+      default:
+        return 0
+    }
+    
+    if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1
+    if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1
+    return 0
   })
-
-  const stats = {
-    total: stores.length,
-    active: stores.filter(s => s.status === 'active').length,
-    inactive: stores.filter(s => s.status === 'inactive').length,
-  }
 
   const getStatusBadge = (status: Store['status']) => {
     const color = statusColors[status] || 'bg-gray-100 text-gray-800'
@@ -252,38 +331,28 @@ function StoresPageContent() {
                 新規店舗追加
               </Button>
             </Link>
+            {isAdmin && selectedStores.length > 0 && (
+              <Button 
+                variant="destructive" 
+                onClick={handleBulkDelete}
+                disabled={bulkDeleting}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                {bulkDeleting ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 animate-spin mr-2" />
+                    削除中...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    選択した{selectedStores.length}件を削除
+                  </>
+                )}
+              </Button>
+            )}
           </div>
         </div>
-      </div>
-
-      {/* 統計カード */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">総店舗数</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{stats.total}</div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">アクティブ</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">{stats.active}</div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">非アクティブ</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">{stats.inactive}</div>
-          </CardContent>
-        </Card>
       </div>
 
       {/* 検索・フィルター */}
@@ -291,11 +360,11 @@ function StoresPageContent() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Search className="h-5 w-5" />
-            検索・フィルター
+            検索・フィルター・ソート
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             {/* 検索 */}
             <div>
               <Input
@@ -320,6 +389,31 @@ function StoresPageContent() {
                 </SelectContent>
               </Select>
             </div>
+            
+            {/* ソート選択 */}
+            <div>
+              <Select value={`${sortBy}-${sortOrder}`} onValueChange={(value) => {
+                const [field, order] = value.split('-') as [typeof sortBy, typeof sortOrder]
+                setSortBy(field)
+                setSortOrder(order)
+              }}>
+                <SelectTrigger>
+                  <SelectValue placeholder="並び順" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="name-asc">店舗名（昇順）</SelectItem>
+                  <SelectItem value="name-desc">店舗名（降順）</SelectItem>
+                  <SelectItem value="companyName-asc">企業名（昇順）</SelectItem>
+                  <SelectItem value="companyName-desc">企業名（降順）</SelectItem>
+                  <SelectItem value="status-asc">ステータス（昇順）</SelectItem>
+                  <SelectItem value="status-desc">ステータス（降順）</SelectItem>
+                  <SelectItem value="createdAt-desc">登録日（新しい順）</SelectItem>
+                  <SelectItem value="createdAt-asc">登録日（古い順）</SelectItem>
+                  <SelectItem value="updatedAt-desc">更新日（新しい順）</SelectItem>
+                  <SelectItem value="updatedAt-asc">更新日（古い順）</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -327,13 +421,13 @@ function StoresPageContent() {
       {/* 店舗リスト */}
       <Card>
         <CardHeader>
-          <CardTitle>店舗リスト ({filteredStores.length}件)</CardTitle>
+          <CardTitle>店舗リスト ({filteredAndSortedStores.length}件)</CardTitle>
           <CardDescription>
             登録店舗の一覧と管理
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {filteredStores.length === 0 ? (
+          {filteredAndSortedStores.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               {stores.length === 0 ? '店舗が登録されていません' : '検索条件に一致する店舗がありません'}
             </div>
@@ -341,6 +435,14 @@ function StoresPageContent() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  {isAdmin && (
+                    <TableHead className="w-12">
+                      <Checkbox
+                        checked={selectedStores.length === filteredAndSortedStores.length && filteredAndSortedStores.length > 0}
+                        onCheckedChange={handleSelectAll}
+                      />
+                    </TableHead>
+                  )}
                   <TableHead>店舗名</TableHead>
                   <TableHead>企業名</TableHead>
                   <TableHead>所在地</TableHead>
@@ -350,12 +452,29 @@ function StoresPageContent() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredStores.map((store) => (
+                {filteredAndSortedStores.map((store: Store) => (
                   <TableRow key={store.id}>
+                    {isAdmin && (
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedStores.includes(store.id)}
+                          onCheckedChange={(checked) => handleSelectStore(store.id, checked as boolean)}
+                        />
+                      </TableCell>
+                    )}
                     <TableCell className="font-medium">
                       <div className="font-semibold">{store.name}</div>
                     </TableCell>
-                    <TableCell>{getCompanyName(store.companyId)}</TableCell>
+                    <TableCell>{getCompanyName(store.companyId) ? (
+                      <Link 
+                        href={`/companies/${store.companyId}`}
+                        className="text-blue-600 hover:text-blue-800 hover:underline"
+                      >
+                        {getCompanyName(store.companyId)}
+                      </Link>
+                    ) : (
+                      <span className="text-gray-500">企業情報なし</span>
+                    )}</TableCell>
                     <TableCell className="max-w-xs truncate">{store.address}</TableCell>
                     <TableCell>{getStatusBadge(store.status)}</TableCell>
                     <TableCell>

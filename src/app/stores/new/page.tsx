@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ArrowLeft, Store, Save, Loader2 } from 'lucide-react'
-import { createStore } from '@/lib/firestore/stores'
+import { createStore, checkStoreByNameAndCompany, checkStoreByTabelogUrl } from '@/lib/firestore/stores'
 import { getCompanies } from '@/lib/firestore/companies'
 import { Store as StoreType } from '@/types/store'
 import { Company } from '@/types/company'
@@ -53,6 +53,21 @@ export default function NewStorePage() {
     setLoading(true)
 
     try {
+            // 重複チェック
+      if (formData.tabelogUrl) {
+        const existingStoreByTabelog = await checkStoreByTabelogUrl(formData.tabelogUrl)
+        if (existingStoreByTabelog) {
+          alert(`この食べログURLは既に登録されています: ${existingStoreByTabelog.name}`)
+          return
+        }
+      }
+
+      const existingStoreByName = await checkStoreByNameAndCompany(formData.name, formData.companyId)
+      if (existingStoreByName) {
+        alert(`この企業内に同じ店舗名「${formData.name}」が既に登録されています`)
+        return
+      }
+
       const newStore: Omit<StoreType, 'id'> = {
         companyId: formData.companyId,
         name: formData.name,

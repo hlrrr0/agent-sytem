@@ -102,7 +102,7 @@ export const importCompaniesFromCSV = async (csvText: string): Promise<ImportRes
           email: rowData.email?.trim() || '',
           size: (rowData.size as 'startup' | 'small' | 'medium' | 'large' | 'enterprise') || 'small',
           isPublic: rowData.isPublic === 'true' || rowData.isPublic === '1',
-          status: rowData.status as 'active' | 'inactive' | 'prospect' | 'prospect_contacted' | 'appointment' | 'no_approach' | 'suspended' | 'paused',
+          status: (rowData.status === 'active' || rowData.status === 'inactive') ? rowData.status : 'active',
           // オプションフィールド
           employeeCount: rowData.employeeCount ? parseInt(rowData.employeeCount) : undefined,
           capital: rowData.capital ? parseInt(rowData.capital) : undefined,

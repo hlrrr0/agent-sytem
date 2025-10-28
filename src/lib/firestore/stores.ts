@@ -270,3 +270,36 @@ export async function checkStoreByTabelogUrl(tabelogUrl: string): Promise<Store 
     throw error
   }
 }
+
+// 企業内での店舗名重複チェック
+export async function checkStoreByNameAndCompany(storeName: string, companyId: string): Promise<Store | null> {
+  try {
+    console.log(`🔍 企業「${companyId}」内で店舗名「${storeName}」の重複をチェック中...`)
+    
+    const q = query(
+      storesCollection, 
+      where('name', '==', storeName),
+      where('companyId', '==', companyId)
+    )
+    const querySnapshot = await getDocs(q)
+    
+    if (!querySnapshot.empty) {
+      const doc = querySnapshot.docs[0]
+      const store = {
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate() || new Date(),
+        updatedAt: doc.data().updatedAt?.toDate() || new Date(),
+      } as Store
+      
+      console.log(`🎯 企業「${companyId}」内で店舗名「${storeName}」に一致する既存店舗を発見: ID「${store.id}」`)
+      return store
+    }
+    
+    console.log(`✅ 企業「${companyId}」内で店舗名「${storeName}」は未登録です`)
+    return null
+  } catch (error) {
+    console.error('店舗名重複チェック中にエラー:', error)
+    throw error
+  }
+}
