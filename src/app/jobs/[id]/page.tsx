@@ -194,7 +194,8 @@ function JobDetailContent({ params }: JobDetailPageProps) {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-100">
+      <div className="container mx-auto px-4 py-8">
       {/* ヘッダー */}
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-4">
@@ -491,6 +492,7 @@ function JobDetailContent({ params }: JobDetailPageProps) {
           </Card>
         </div>
       </div>
+    </div>
     </div>
   )
 }

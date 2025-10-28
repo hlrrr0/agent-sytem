@@ -39,13 +39,29 @@ export async function getUsers(): Promise<User[]> {
     const q = query(usersCollection, orderBy('displayName', 'asc'))
     const querySnapshot = await getDocs(q)
     
-    return querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: safeToDate(doc.data().createdAt),
-      updatedAt: safeToDate(doc.data().updatedAt),
-      lastLoginAt: doc.data().lastLoginAt ? safeToDate(doc.data().lastLoginAt) : undefined,
-    } as User))
+    return querySnapshot.docs.map(doc => {
+      const data = doc.data()
+      return {
+        id: doc.id,
+        email: data.email,
+        displayName: data.displayName,
+        photoURL: data.photoURL,
+        role: data.role,
+        status: data.status,
+        permissions: data.permissions || [],
+        approvedBy: data.approvedBy,
+        approvedAt: data.approvedAt,
+        createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt,
+        updatedAt: data.updatedAt?.toDate?.()?.toISOString() || data.updatedAt,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        phone: data.phone,
+        avatar: data.avatar,
+        assignedCandidates: data.assignedCandidates,
+        assignedCompanies: data.assignedCompanies,
+        lastLoginAt: data.lastLoginAt ? (data.lastLoginAt?.toDate?.()?.toISOString() || data.lastLoginAt) : undefined,
+      } as User
+    })
   } catch (error) {
     console.error('Error getting users:', error)
     throw error
@@ -62,13 +78,29 @@ export async function getActiveUsers(): Promise<User[]> {
     )
     const querySnapshot = await getDocs(q)
     
-    return querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: safeToDate(doc.data().createdAt),
-      updatedAt: safeToDate(doc.data().updatedAt),
-      lastLoginAt: doc.data().lastLoginAt ? safeToDate(doc.data().lastLoginAt) : undefined,
-    } as User))
+    return querySnapshot.docs.map(doc => {
+      const data = doc.data()
+      return {
+        id: doc.id,
+        email: data.email,
+        displayName: data.displayName,
+        photoURL: data.photoURL,
+        role: data.role,
+        status: data.status,
+        permissions: data.permissions || [],
+        approvedBy: data.approvedBy,
+        approvedAt: data.approvedAt,
+        createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt,
+        updatedAt: data.updatedAt?.toDate?.()?.toISOString() || data.updatedAt,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        phone: data.phone,
+        avatar: data.avatar,
+        assignedCandidates: data.assignedCandidates,
+        assignedCompanies: data.assignedCompanies,
+        lastLoginAt: data.lastLoginAt ? (data.lastLoginAt?.toDate?.()?.toISOString() || data.lastLoginAt) : undefined,
+      } as User
+    })
   } catch (error) {
     console.error('Error getting active users:', error)
     throw error
