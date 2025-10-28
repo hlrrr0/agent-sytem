@@ -99,7 +99,24 @@ export default function CompanyForm({
     }
 
     try {
-      await onSubmit(formData)
+      // undefined値を除去してFirestore用にクリーンアップ
+      const cleanFormData = { ...formData }
+      
+      // undefined値を持つフィールドを除去
+      Object.keys(cleanFormData).forEach(key => {
+        const fieldKey = key as keyof Company
+        if (cleanFormData[fieldKey] === undefined) {
+          delete cleanFormData[fieldKey]
+        }
+      })
+      
+      console.log('送信前のフォームデータ確認:', {
+        original: formData,
+        cleaned: cleanFormData,
+        undefinedFields: Object.keys(formData).filter(key => formData[key as keyof Company] === undefined)
+      })
+      
+      await onSubmit(cleanFormData)
     } catch (error) {
       console.error('Error submitting form:', error)
     }

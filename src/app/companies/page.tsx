@@ -22,7 +22,10 @@ import {
   Eye,
   RefreshCw,
   Upload,
-  FileText
+  FileText,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react'
 import { Company } from '@/types/company'
 import { getCompanies, deleteCompany } from '@/lib/firestore/companies'
@@ -71,6 +74,10 @@ function CompaniesPageContent() {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<Company['status'] | 'all'>('all')
   const [sizeFilter, setSizeFilter] = useState<Company['size'] | 'all'>('all')
+  
+  // ソート状態
+  const [sortBy, setSortBy] = useState<'name' | 'createdAt' | 'updatedAt' | 'status'>('name')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
   
   // 削除ダイアログ
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -188,16 +195,89 @@ function CompaniesPageContent() {
     )
   }
 
-  // フィルタリング済み企業リスト
-  const filteredCompanies = companies.filter(company => {
-    const matchesSearch = company.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         company.email.toLowerCase().includes(searchTerm.toLowerCase())
-    
-    const matchesStatus = statusFilter === 'all' || company.status === statusFilter
-    const matchesSize = sizeFilter === 'all' || company.size === sizeFilter
-    
-    return matchesSearch && matchesStatus && matchesSize
-  })
+  // フィルタリング＆ソート済み企業リスト
+  const filteredAndSortedCompanies = companies
+    .filter(company => {
+      const matchesSearch = company.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           company.email.toLowerCase().includes(searchTerm.toLowerCase())
+      
+      const matchesStatus = statusFilter === 'all' || company.status === statusFilter
+      const matchesSize = sizeFilter === 'all' || company.size === sizeFilter
+      
+      return matchesSearch && matchesStatus && matchesSize
+    })
+    .sort((a, b) => {
+      let valueA: string | Date
+      let valueB: string | Date
+      
+      switch (sortBy) {
+        case 'name':
+          valueA = a.name.toLowerCase()
+          valueB = b.name.toLowerCase()
+          break
+        case 'createdAt':
+          valueA = new Date(a.createdAt)
+          valueB = new Date(b.createdAt)
+          break
+        case 'updatedAt':
+          valueA = new Date(a.updatedAt)
+          valueB = new Date(b.updatedAt)
+          break
+        case 'status':
+          valueA = a.status
+          valueB = b.status
+          break
+        default:
+          valueA = a.name.toLowerCase()
+          valueB = b.name.toLowerCase()
+      }
+      
+      if (valueA < valueB) {
+        return sortOrder === 'asc' ? -1 : 1
+      }
+      if (valueA > valueB) {
+        return sortOrder === 'asc' ? 1 : -1
+      }
+      return 0
+    })
+
+  // ソート切り替えハンドラー
+  const handleSort = (field: 'name' | 'createdAt' | 'updatedAt' | 'status') => {
+    if (sortBy === field) {
+      // 同じフィールドの場合は昇順・降順を切り替え
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
+    } else {
+      // 異なるフィールドの場合は昇順に設定
+      setSortBy(field)
+      setSortOrder('asc')
+    }
+  }
+
+  // ソートアイコンを取得
+  const getSortIcon = (field: 'name' | 'createdAt' | 'updatedAt' | 'status') => {
+    if (sortBy !== field) {
+      return <ArrowUpDown className="w-4 h-4 text-gray-400" />
+    }
+    return sortOrder === 'asc' 
+      ? <ArrowUp className="w-4 h-4 text-blue-600" />
+      : <ArrowDown className="w-4 h-4 text-blue-600" />
+  }
+
+  // ソート可能なヘッダーコンポーネント
+  const SortableHeader = ({ field, children }: { 
+    field: 'name' | 'createdAt' | 'updatedAt' | 'status', 
+    children: React.ReactNode 
+  }) => (
+    <TableHead 
+      className="cursor-pointer hover:bg-gray-50 select-none"
+      onClick={() => handleSort(field)}
+    >
+      <div className="flex items-center space-x-1">
+        <span>{children}</span>
+        {getSortIcon(field)}
+      </div>
+    </TableHead>
+  )
 
   // 統計データ
   const stats = {
@@ -349,11 +429,11 @@ function CompaniesPageContent() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Search className="h-5 w-5" />
-            検索・フィルター
+            検索・フィルター・ソート
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             {/* 検索 */}
             <div>
               <Input
@@ -393,6 +473,29 @@ function CompaniesPageContent() {
                 </SelectContent>
               </Select>
             </div>
+            
+            {/* ソート選択 */}
+            <div>
+              <Select value={`${sortBy}-${sortOrder}`} onValueChange={(value) => {
+                const [field, order] = value.split('-') as [typeof sortBy, typeof sortOrder]
+                setSortBy(field)
+                setSortOrder(order)
+              }}>
+                <SelectTrigger>
+                  <SelectValue placeholder="並び順" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="name-asc">企業名（昇順）</SelectItem>
+                  <SelectItem value="name-desc">企業名（降順）</SelectItem>
+                  <SelectItem value="status-asc">ステータス（昇順）</SelectItem>
+                  <SelectItem value="status-desc">ステータス（降順）</SelectItem>
+                  <SelectItem value="createdAt-desc">登録日（新しい順）</SelectItem>
+                  <SelectItem value="createdAt-asc">登録日（古い順）</SelectItem>
+                  <SelectItem value="updatedAt-desc">更新日（新しい順）</SelectItem>
+                  <SelectItem value="updatedAt-asc">更新日（古い順）</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -400,13 +503,13 @@ function CompaniesPageContent() {
       {/* 企業リスト */}
       <Card>
         <CardHeader>
-          <CardTitle>企業リスト ({filteredCompanies.length}件)</CardTitle>
+          <CardTitle>企業リスト ({filteredAndSortedCompanies.length}件)</CardTitle>
           <CardDescription>
             登録企業の一覧と管理
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {filteredCompanies.length === 0 ? (
+          {filteredAndSortedCompanies.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               {companies.length === 0 ? '企業が登録されていません' : '検索条件に一致する企業がありません'}
             </div>
@@ -414,16 +517,16 @@ function CompaniesPageContent() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>企業名</TableHead>
+                  <SortableHeader field="name">企業名</SortableHeader>
                   <TableHead>規模</TableHead>
-                  <TableHead>ステータス</TableHead>
+                  <SortableHeader field="status">ステータス</SortableHeader>
                   <TableHead>連絡先</TableHead>
                   <TableHead>Domino</TableHead>
                   <TableHead className="text-right">アクション</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredCompanies.map((company) => (
+                {filteredAndSortedCompanies.map((company) => (
                   <TableRow key={company.id}>
                     <TableCell className="font-medium">
                       <div>

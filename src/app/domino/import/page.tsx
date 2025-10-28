@@ -56,6 +56,7 @@ function DominoImportPageContent() {
       limit: number
       since: string
       sinceUntil: string
+      includeEmpty: boolean
     }
     result: {
       success: number
@@ -77,6 +78,7 @@ function DominoImportPageContent() {
     limit: 100,
     since: '',
     sinceUntil: '', // 追加：終了日時
+    includeEmpty: false, // 追加：更新日時が空白の企業も含むかどうか
     useActualAPI: false, // デフォルトはfalse、ユーザーが明示的に切り替える
     useProxy: true // デフォルトでプロキシを使用（CORS回避）
   })
@@ -268,6 +270,104 @@ function DominoImportPageContent() {
     }
   }
 
+  // 別エンドポイントでの店舗データ確認
+  const testAlternativeStoreEndpoints = async () => {
+    console.log('🔍 別エンドポイントでの店舗データ確認を開始')
+    
+    const baseUrl = process.env.NEXT_PUBLIC_DOMINO_API_URL || 'https://sushi-domino.vercel.app/api/hr-export'
+    const apiKey = process.env.NEXT_PUBLIC_DOMINO_API_KEY || 'your-hr-api-secret-key'
+    
+    const endpointsToTest = [
+      '/stores',
+      '/shops', 
+      '/locations',
+      '/branches',
+      '/company-stores',
+      '/companies/stores'
+    ]
+    
+    for (const endpoint of endpointsToTest) {
+      try {
+        console.log(`🔍 テスト中: ${endpoint}`)
+        
+        const testUrl = `${baseUrl}${endpoint}?limit=1&api_key=${apiKey}`
+        const response = await fetch(testUrl, {
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'X-API-Key': apiKey,
+            'Content-Type': 'application/json'
+          }
+        })
+        
+        console.log(`📊 ${endpoint} レスポンス:`, {
+          status: response.status,
+          ok: response.ok,
+          contentType: response.headers.get('content-type')
+        })
+        
+        if (response.ok) {
+          const data = await response.json()
+          console.log(`✅ ${endpoint} データ:`, data)
+          toast.success(`${endpoint} エンドポイントが利用可能です！`)
+        }
+        
+      } catch (error) {
+        console.log(`❌ ${endpoint} エラー:`, error)
+      }
+    }
+    
+    toast.info('別エンドポイントテスト完了 - コンソールを確認してください')
+  }
+
+  // 店舗データフィールド確認テスト
+  const testStoreDataFields = async () => {
+    console.log('🏪 店舗データフィールド確認テストを開始')
+    
+    try {
+      const response = await fetch('/api/domino-test')
+      const result = await response.json()
+      
+      console.log('🏪 店舗データフィールドテスト結果:', result)
+      
+      if (result.success && result.responseData) {
+        const companies = result.responseData.data || []
+        let hasAnyStores = false
+        let storeFieldVariations = new Set<string>()
+        
+        companies.forEach((company: any) => {
+          // 店舗関連フィールドを検索
+          Object.keys(company).forEach(key => {
+            if (key.toLowerCase().includes('store') || 
+                key.toLowerCase().includes('shop') || 
+                key.toLowerCase().includes('branch') ||
+                key.toLowerCase().includes('location')) {
+              storeFieldVariations.add(key)
+            }
+          })
+          
+          if (company.stores && Array.isArray(company.stores) && company.stores.length > 0) {
+            hasAnyStores = true
+          }
+        })
+        
+        if (hasAnyStores) {
+          toast.success(`✅ 店舗データが見つかりました！`)
+          console.log('🏪 発見された店舗関連フィールド:', Array.from(storeFieldVariations))
+        } else {
+          toast.error(`❌ 店舗データが見つかりませんでした`)
+          console.log('⚠️ 発見された店舗関連フィールド:', Array.from(storeFieldVariations))
+          console.log('💡 Domino APIが店舗データを含んでいない可能性があります')
+        }
+      } else {
+        toast.error(`❌ API呼び出し失敗: ${result.error}`)
+      }
+      
+    } catch (error) {
+      console.error('❌ 店舗データフィールドテストエラー:', error)
+      toast.error(`店舗データフィールドテストエラー: ${error}`)
+    }
+  }
+
   // API認証テスト
   const testApiAuth = async () => {
     console.log('🔐 API認証テストを開始')
@@ -387,6 +487,49 @@ function DominoImportPageContent() {
     }
   }
 
+  // 店舗データ処理のヘルパー関数
+  const processStores = async (dominoCompany: any, companyId: string, errors: string[]) => {
+    let storesCreated = 0
+    
+    console.log(`🔍 企業「${dominoCompany.name}」の店舗データチェック:`, {
+      hasStores: !!(dominoCompany.stores),
+      storesLength: dominoCompany.stores?.length || 0,
+      storesArray: dominoCompany.stores,
+      companyId: companyId
+    })
+    
+    if (dominoCompany.stores && dominoCompany.stores.length > 0) {
+      console.log(`🏪 企業「${dominoCompany.name}」の店舗データ（${dominoCompany.stores.length}件）を処理中...`)
+      
+      for (const dominoStore of dominoCompany.stores) {
+        try {
+          console.log(`🏪 店舗処理中: "${dominoStore.name}" (ステータス: ${dominoStore.status})`)
+          
+          if (dominoStore.status === 'active') {
+            console.log(`✅ アクティブ店舗「${dominoStore.name}」を作成します`)
+            const storeData = convertDominoStoreToStore(dominoStore, companyId)
+            console.log(`📋 変換後の店舗データ:`, storeData)
+            
+            const storeId = await createStore(storeData)
+            storesCreated++
+            console.log(`✅ 店舗「${dominoStore.name}」を作成しました (ID: ${storeId})`)
+          } else {
+            console.log(`⏭️ 店舗「${dominoStore.name}」はステータス「${dominoStore.status}」のためスキップします`)
+          }
+        } catch (storeError) {
+          console.error(`❌ 店舗「${dominoStore.name}」の作成エラー:`, storeError)
+          errors.push(`店舗「${dominoStore.name}」の作成に失敗: ${storeError}`)
+        }
+      }
+    } else {
+      console.log(`ℹ️ 企業「${dominoCompany.name}」には店舗データがありません`)
+      console.log(`📋 企業データの全フィールド:`, Object.keys(dominoCompany))
+    }
+    
+    console.log(`📊 企業「${dominoCompany.name}」の店舗処理結果: ${storesCreated}件作成`)
+    return storesCreated
+  }
+
   const handleImport = async () => {
     const startTime = Date.now()
     const logId = `import-${Date.now()}`
@@ -406,6 +549,7 @@ function DominoImportPageContent() {
       errors: [] as string[],
       totalRequested: settings.limit,
       actualReceived: 0,
+      activeReceived: 0, // アクティブ企業の受信数
       storesCreated: 0 // 店舗作成数を追加
     }
     
@@ -433,20 +577,107 @@ function DominoImportPageContent() {
         requestParams.until = settings.sinceUntil
       }
       
+      // 更新日時が空白の企業も含むかどうか
+      if (settings.includeEmpty) {
+        requestParams.includeEmpty = true
+      }
+      
       console.log('📤 送信パラメータ:', requestParams)
       
       const dominoResponse = await client.getCompanies(requestParams)
 
       console.log('📊 Dominoから取得したデータ:', dominoResponse)
+      console.log('📊 データ構造詳細:', {
+        type: typeof dominoResponse.data,
+        isArray: Array.isArray(dominoResponse.data),
+        keys: dominoResponse.data ? Object.keys(dominoResponse.data as any) : 'null/undefined',
+        structure: dominoResponse.data
+      })
+      
+      // 生のレスポンスデータを詳細にログ出力
+      console.log('🔍 生のレスポンスデータ (JSON文字列):', JSON.stringify(dominoResponse, null, 2))
+      
+      // レスポンス構造に応じてデータを取得
+      let companies: any[] = []
+      const responseData = dominoResponse.data as any
+      
+      if (Array.isArray(responseData)) {
+        // 新しい /integrated 形式: [{ company: {...}, shops: [...] }]
+        if (responseData.length > 0 && responseData[0].company) {
+          console.log('🔄 /integrated 形式のデータを変換中...')
+          companies = responseData.map((item: any) => {
+            const company = { ...item.company }
+            // shops を stores として追加
+            if (item.shops && Array.isArray(item.shops)) {
+              company.stores = item.shops
+            }
+            return company
+          })
+          console.log('✅ /integrated 形式のデータ変換完了')
+        } else {
+          // 従来の形式: 直接企業配列
+          companies = responseData
+        }
+      } else if (responseData && responseData.companies && Array.isArray(responseData.companies)) {
+        companies = responseData.companies
+      } else if (responseData && responseData.data && Array.isArray(responseData.data)) {
+        companies = responseData.data
+      } else {
+        console.error('❌ 予期しないデータ構造:', dominoResponse.data)
+        throw new Error('取得したデータが予期した形式ではありません')
+      }
+      
+      console.log('📊 抽出した企業データ:', {
+        type: typeof companies,
+        isArray: Array.isArray(companies),
+        length: companies?.length || 0,
+        firstItem: companies?.[0] || 'なし',
+        hasStoresInFirstItem: !!(companies?.[0]?.stores),
+        firstItemStoreCount: companies?.[0]?.stores?.length || 0
+      })
+      
+      // アクティブ企業の数を事前にカウント
+      const activeCompanies = companies.filter((company: any) => company.status === 'active')
+      const totalReceived = companies.length
+      const activeCount = activeCompanies.length
+      
+      console.log('📊 データ統計:', {
+        totalReceived,
+        activeCount,
+        nonActiveCount: totalReceived - activeCount,
+        requestedLimit: settings.limit,
+        achievement: `${activeCount}/${settings.limit} (${Math.round(activeCount / settings.limit * 100)}%)`
+      })
+      
       console.log('📋 各企業の詳細データ:')
-      dominoResponse.data.forEach((company, index) => {
+      companies.forEach((company: any, index: number) => {
         console.log(`🏢 企業${index + 1}:`, {
           id: company.id,
           name: company.name,
           status: company.status,
           size: company.size,
-          allFields: company // 全フィールドを表示
+          isActive: company.status === 'active',
+          willBeProcessed: company.status === 'active' && !company.id.startsWith('mock-'),
+          hasStores: !!(company.stores && company.stores.length > 0),
+          storeCount: company.stores?.length || 0,
+          activeStoreCount: company.stores?.filter((s: any) => s.status === 'active').length || 0
         })
+        
+        // 店舗データの詳細も表示
+        if (company.stores && company.stores.length > 0) {
+          console.log(`🏪 企業「${company.name}」の店舗一覧:`)
+          company.stores.forEach((store: any, storeIndex: number) => {
+            console.log(`  店舗${storeIndex + 1}: ${store.name} (ステータス: ${store.status})`)
+            console.log(`    店舗詳細:`, store)
+          })
+        } else {
+          console.log(`ℹ️ 企業「${company.name}」には店舗データがありません`)
+          console.log(`🔍 企業データのキー一覧:`, Object.keys(company))
+          console.log(`🔍 stores フィールドの値:`, company.stores)
+          console.log(`🔍 shop フィールドの値:`, company.shop)
+          console.log(`🔍 shopList フィールドの値:`, company.shopList)
+          console.log(`🔍 storeList フィールドの値:`, company.storeList)
+        }
       })
 
       let successCount = 0
@@ -454,7 +685,7 @@ function DominoImportPageContent() {
       const errors: string[] = []
 
       // 取得したデータをFirestoreに保存
-      for (const dominoCompany of dominoResponse.data) {
+      for (const dominoCompany of companies) {
         try {
           console.log(`🏢 企業「${dominoCompany.name}」（ステータス: ${dominoCompany.status}）を処理中...`)
           
@@ -464,10 +695,16 @@ function DominoImportPageContent() {
             continue
           }
           
-          // モックデータの場合はFirestore操作をスキップ
+          // モックデータの場合の特別処理
           if (dominoCompany.id.startsWith('mock-')) {
-            console.log(`⚠️ モックデータ「${dominoCompany.name}」はFirestore保存をスキップします`)
-            continue // カウントも増やさない
+            console.log(`🧪 モックデータ「${dominoCompany.name}」を処理します（テスト用）`)
+            
+            // モックデータでも店舗データの処理をテスト
+            const mockStoresCreated = await processStores(dominoCompany, 'mock-company-id', errors)
+            importResult.storesCreated += mockStoresCreated
+            
+            console.log(`⚠️ モックデータ「${dominoCompany.name}」のFirestore保存はスキップしますが、店舗処理は実行しました`)
+            continue // Firestoreの企業保存は行わない
           }
           
           // DominoCompanyをCompanyに変換
@@ -491,6 +728,10 @@ function DominoImportPageContent() {
                 await updateCompany(existingCompany.id, companyData)
                 updatedCount++
                 console.log(`✅ 企業「${dominoCompany.name}」を更新しました`)
+                
+                // 企業更新時にも店舗データを処理
+                const storesCreated = await processStores(dominoCompany, existingCompany.id, errors)
+                importResult.storesCreated += storesCreated
               } else {
                 // IDは検索で見つかったが実際には存在しない場合は新規作成
                 console.log(`⚠️ 企業ID「${existingCompany.id}」は存在しないため、新規作成します`)
@@ -498,6 +739,10 @@ function DominoImportPageContent() {
                 const newCompanyId = await createCompany(companyData)
                 successCount++
                 console.log(`✅ 企業「${dominoCompany.name}」を新規作成しました (Firestore ID: ${newCompanyId})`)
+                
+                // 存在チェック失敗からの新規作成時の店舗データ処理
+                const storesCreated = await processStores(dominoCompany, newCompanyId, errors)
+                importResult.storesCreated += storesCreated
               }
             } catch (updateError) {
               console.error(`❌ 企業「${dominoCompany.name}」の更新に失敗。新規作成を試行します:`, updateError)
@@ -506,6 +751,10 @@ function DominoImportPageContent() {
               const newCompanyId = await createCompany(companyData)
               successCount++
               console.log(`✅ 企業「${dominoCompany.name}」を新規作成しました (Firestore ID: ${newCompanyId})`)
+              
+              // 更新失敗からの新規作成時の店舗データ処理
+              const storesCreated = await processStores(dominoCompany, newCompanyId, errors)
+              importResult.storesCreated += storesCreated
             }
           } else {
             // 新規企業として作成
@@ -515,26 +764,9 @@ function DominoImportPageContent() {
             successCount++
             console.log(`✅ 企業「${dominoCompany.name}」を新規作成しました (Firestore ID: ${newCompanyId})`)
             
-            // 新規作成の場合は店舗データも処理
-            if (dominoCompany.stores && dominoCompany.stores.length > 0) {
-              console.log(`🏪 企業「${dominoCompany.name}」の店舗データ（${dominoCompany.stores.length}件）を処理中...`)
-              
-              for (const dominoStore of dominoCompany.stores) {
-                try {
-                  if (dominoStore.status === 'active') {
-                    const storeData = convertDominoStoreToStore(dominoStore, newCompanyId)
-                    const storeId = await createStore(storeData)
-                    importResult.storesCreated++
-                    console.log(`✅ 店舗「${dominoStore.name}」を作成しました (ID: ${storeId})`)
-                  } else {
-                    console.log(`⏭️ 店舗「${dominoStore.name}」はステータス「${dominoStore.status}」のためスキップします`)
-                  }
-                } catch (storeError) {
-                  console.error(`❌ 店舗「${dominoStore.name}」の作成エラー:`, storeError)
-                  errors.push(`店舗「${dominoStore.name}」の作成に失敗: ${storeError}`)
-                }
-              }
-            }
+            // 新規作成時の店舗データ処理
+            const storesCreated = await processStores(dominoCompany, newCompanyId, errors)
+            importResult.storesCreated += storesCreated
           }
         } catch (error) {
           console.error(`Error processing company ${dominoCompany.name}:`, error)
@@ -543,7 +775,8 @@ function DominoImportPageContent() {
       }
 
       // 実際に受信したデータ数を記録
-      importResult.actualReceived = dominoResponse.data.length
+      importResult.actualReceived = companies.length
+      importResult.activeReceived = companies.filter((c: any) => c.status === 'active').length
       importResult.success = successCount
       importResult.updated = updatedCount
       importResult.errors = errors
@@ -569,18 +802,21 @@ function DominoImportPageContent() {
           prefecture: settings.prefecture,
           limit: settings.limit,
           since: settings.since,
-          sinceUntil: settings.sinceUntil
+          sinceUntil: settings.sinceUntil,
+          includeEmpty: settings.includeEmpty
         },
         result: importResult,
         duration
       }
       saveImportLog(importLog)
 
+      const activeReceived = importResult.activeReceived
+      const totalProcessed = successCount + updatedCount
+      
       if (errors.length > 0) {
-        toast.error(`インポート完了: 新規${successCount}件、更新${updatedCount}件、エラー${errors.length}件`)
+        toast.error(`インポート完了: アクティブ企業${activeReceived}件受信、処理${totalProcessed}件（新規${successCount}件、更新${updatedCount}件）、エラー${errors.length}件`)
       } else {
-        const total = successCount + updatedCount
-        toast.success(`Dominoから${total}件のデータをインポートしました（新規${successCount}件、更新${updatedCount}件）`)
+        toast.success(`Dominoからアクティブ企業${activeReceived}件を受信し、${totalProcessed}件を処理しました（新規${successCount}件、更新${updatedCount}件）`)
       }
       
     } catch (error) {
@@ -599,7 +835,8 @@ function DominoImportPageContent() {
           prefecture: settings.prefecture,
           limit: settings.limit,
           since: settings.since,
-          sinceUntil: settings.sinceUntil
+          sinceUntil: settings.sinceUntil,
+          includeEmpty: settings.includeEmpty
         },
         result: {
           ...importResult,
@@ -658,6 +895,26 @@ function DominoImportPageContent() {
                 </Button>
                 
                 <Button 
+                  onClick={testStoreDataFields}
+                  variant="outline"
+                  className="min-w-[140px] hover:bg-purple-50 hover:border-purple-300"
+                >
+                  <Database className="w-4 h-4 mr-2" />
+                  🏪 店舗データ確認
+                </Button>
+                
+                <Button 
+                  onClick={testAlternativeStoreEndpoints}
+                  variant="outline"
+                  className="min-w-[140px] hover:bg-indigo-50 hover:border-indigo-300"
+                >
+                  <Database className="w-4 h-4 mr-2" />
+                  🔍 別エンドポイント
+                </Button>
+              </div>
+              
+              <div className="flex gap-3 flex-wrap">
+                <Button 
                   onClick={checkEnvironmentVariables}
                   variant="outline"
                   className="min-w-[140px] hover:bg-orange-50 hover:border-orange-300"
@@ -673,6 +930,15 @@ function DominoImportPageContent() {
                 >
                   <CheckCircle className="w-4 h-4 mr-2" />
                   🔌 直接接続テスト
+                </Button>
+                
+                <Button 
+                  onClick={testStoreDataFields}
+                  variant="outline"
+                  className="min-w-[140px] hover:bg-purple-50 hover:border-purple-300"
+                >
+                  <Database className="w-4 h-4 mr-2" />
+                  🏪 店舗データ確認
                 </Button>
                 
                 <Button 
@@ -727,25 +993,30 @@ function DominoImportPageContent() {
                     <span className="text-sm font-medium text-green-800">アクティブ企業のみ</span>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    ⚠️ セキュリティ上の理由により、アクティブステータスの企業のみインポートされます
+                    💡 Dominoシステムからアクティブステータスの企業のみが取得されます<br/>
+                    ⚠️ セキュリティ上の理由により、非アクティブ企業は対象外です
                   </p>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="limit">取得件数上限</Label>
+                  <Label htmlFor="limit">アクティブ企業の取得件数</Label>
                   <Select 
                     value={settings.limit.toString()} 
                     onValueChange={(value) => setSettings(prev => ({ ...prev, limit: parseInt(value) }))}
                   >
                     <SelectTrigger id="limit">
-                      <SelectValue placeholder="上限を選択" />
+                      <SelectValue placeholder="取得件数を選択" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="50">50件</SelectItem>
-                      <SelectItem value="100">100件</SelectItem>
-                      <SelectItem value="500">500件</SelectItem>
-                      <SelectItem value="1000">1000件</SelectItem>
+                      <SelectItem value="50">アクティブ企業50件</SelectItem>
+                      <SelectItem value="100">アクティブ企業100件</SelectItem>
+                      <SelectItem value="150">アクティブ企業150件</SelectItem>
+                      <SelectItem value="500">アクティブ企業500件</SelectItem>
+                      <SelectItem value="1000">アクティブ企業1000件</SelectItem>
                     </SelectContent>
                   </Select>
+                  <p className="text-xs text-muted-foreground">
+                    💡 指定した件数のアクティブ企業データのみが取得されます
+                  </p>
                 </div>
               </div>
 
@@ -801,6 +1072,24 @@ function DominoImportPageContent() {
                     この日時以前に更新された企業を取得（省略可）
                   </p>
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="includeEmpty"
+                    checked={settings.includeEmpty}
+                    onChange={(e) => setSettings(prev => ({ ...prev, includeEmpty: e.target.checked }))}
+                    className="rounded border-gray-300"
+                  />
+                  <Label htmlFor="includeEmpty">更新日時が空白の企業も含める</Label>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  💡 更新日時がnull/未設定の企業データも取得対象に含めます<br/>
+                  ⚠️ 日時範囲を指定した場合でも、更新日時が空白の企業はこのオプションにより取得されます<br/>
+                  🔍 <strong>使用例：</strong> 新規登録された企業（まだ更新されていない）や、更新日時が記録されていない古いデータを含めたい場合
+                </p>
               </div>
 
               <Separator />

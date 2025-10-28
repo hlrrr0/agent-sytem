@@ -44,6 +44,62 @@ export async function GET(request: NextRequest) {
     let responseData: any = null
     try {
       responseData = JSON.parse(responseText)
+      
+      // 店舗データの詳細分析
+      if (responseData && responseData.data && Array.isArray(responseData.data)) {
+        console.log('🏪 店舗データ分析開始:')
+        
+        responseData.data.forEach((company: any, index: number) => {
+          console.log(`\n📋 企業${index + 1}: "${company.name}"`)
+          console.log(`  - ID: ${company.id}`)
+          console.log(`  - ステータス: ${company.status}`)
+          console.log(`  - 全フィールド:`, Object.keys(company))
+          
+          // 店舗関連フィールドの確認
+          const storeFields = Object.keys(company).filter(key => 
+            key.toLowerCase().includes('store') || 
+            key.toLowerCase().includes('shop') || 
+            key.toLowerCase().includes('location') ||
+            key.toLowerCase().includes('branch')
+          )
+          
+          if (storeFields.length > 0) {
+            console.log(`  - 店舗関連フィールド:`, storeFields)
+            storeFields.forEach(field => {
+              console.log(`    ${field}:`, company[field])
+            })
+          }
+          
+          // stores フィールドの詳細確認
+          if (company.stores) {
+            console.log(`  ✅ stores フィールド存在:`, {
+              type: typeof company.stores,
+              isArray: Array.isArray(company.stores),
+              length: Array.isArray(company.stores) ? company.stores.length : 'N/A',
+              content: company.stores
+            })
+            
+            if (Array.isArray(company.stores) && company.stores.length > 0) {
+              company.stores.forEach((store: any, storeIndex: number) => {
+                console.log(`    店舗${storeIndex + 1}:`, {
+                  name: store.name || 'Name不明',
+                  status: store.status || 'Status不明',
+                  address: store.address || 'Address不明',
+                  allFields: Object.keys(store)
+                })
+              })
+            } else {
+              console.log('    ⚠️ stores配列が空またはnull')
+            }
+          } else {
+            console.log(`  ❌ stores フィールドが存在しません`)
+            console.log(`  📋 利用可能な全フィールド:`, Object.keys(company))
+          }
+        })
+      } else {
+        console.log('❌ 企業データが見つかりません')
+        console.log('📋 レスポンス構造:', responseData)
+      }
     } catch (parseError) {
       console.warn('⚠️ レスポンスがJSONではありません')
     }

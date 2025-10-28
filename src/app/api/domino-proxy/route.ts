@@ -12,6 +12,9 @@ export async function GET(request: NextRequest) {
     const sizeCategory = searchParams.get('sizeCategory')
     const limit = searchParams.get('limit') || '10'
     const offset = searchParams.get('offset') || '0'
+    const updatedAfter = searchParams.get('updatedAfter') || searchParams.get('since')
+    const updatedUntil = searchParams.get('updatedUntil') || searchParams.get('until')
+    const includeEmpty = searchParams.get('includeEmpty') // 空白の更新日時を含むかどうか
     
     // Domino APIのURL
     const dominoApiUrl = process.env.DOMINO_API_URL || 'https://sushi-domino.vercel.app/api/hr-export'
@@ -45,7 +48,8 @@ export async function GET(request: NextRequest) {
     })
     
     // オプションパラメータは値がある場合のみ追加
-    if (status && status !== 'active') {
+    // アクティブステータスは必ず送信（デフォルトがactiveの場合も含む）
+    if (status) {
       params.append('status', status)
     }
     
@@ -53,16 +57,35 @@ export async function GET(request: NextRequest) {
       params.append('sizeCategory', sizeCategory)
     }
     
+    // 更新日時パラメータの処理
+    if (updatedAfter) {
+      params.append('updatedAfter', updatedAfter)
+    }
+    
+    if (updatedUntil) {
+      params.append('updatedUntil', updatedUntil)
+    }
+    
+    // 空白の更新日時を含むかどうか
+    if (includeEmpty === 'true') {
+      params.append('includeEmpty', 'true')
+    }
+    
     console.log('🔗 クエリパラメータ詳細:', {
       limit,
       offset,
       status: status || '(未指定)',
+      statusSent: !!status,
       sizeCategory: sizeCategory || '(未指定)',
+      updatedAfter: updatedAfter || '(未指定)',
+      updatedUntil: updatedUntil || '(未指定)',
+      includeEmpty: includeEmpty || '(未指定)',
       api_key: dominoApiKey ? dominoApiKey.substring(0, 8) + '...' : '未設定',
-      fullParams: params.toString()
+      fullParams: params.toString(),
+      isActiveFilter: status === 'active'
     })
     
-    const targetUrl = `${dominoApiUrl}/companies?${params}`
+    const targetUrl = `${dominoApiUrl}/integrated?${params}`
     
     console.log('🔄 Domino APIプロキシ呼び出し:', {
       targetUrl, // 実際のURLをそのまま表示（デバッグ用）
@@ -144,6 +167,73 @@ export async function GET(request: NextRequest) {
     
     const data = await response.json()
     console.log('📊 Domino APIデータ:', data)
+    
+    // 店舗データの詳細ログ
+    if (data && data.data && Array.isArray(data.data)) {
+      console.log('🏪 店舗データ詳細分析:')
+      
+      let totalCompanies = data.data.length
+      let companiesWithStores = 0
+      let totalStores = 0
+      let activeStores = 0
+      
+      data.data.forEach((company: any, index: number) => {
+        const hasStores = company.stores && company.stores.length > 0
+        const storeCount = company.stores?.length || 0
+        const activeStoreCount = company.stores?.filter((s: any) => s.status === 'active').length || 0
+        
+        if (hasStores) {
+          companiesWithStores++
+          totalStores += storeCount
+          activeStores += activeStoreCount
+        }
+        
+        console.log(`  企業${index + 1} "${company.name}": 店舗${storeCount}件 (アクティブ${activeStoreCount}件)`)
+        
+        // フィールド構造の詳細分析
+        const allFields = Object.keys(company)
+        const storeRelatedFields = allFields.filter(field => 
+          field.toLowerCase().includes('store') ||
+          field.toLowerCase().includes('shop') ||
+          field.toLowerCase().includes('branch') ||
+          field.toLowerCase().includes('location')
+        )
+        
+        if (storeRelatedFields.length > 0) {
+          console.log(`    店舗関連フィールド: ${storeRelatedFields.join(', ')}`)
+        }
+        
+        if (hasStores) {
+          company.stores.forEach((store: any, storeIndex: number) => {
+            console.log(`    店舗${storeIndex + 1}: "${store.name}" (${store.status})`, {
+              address: store.address,
+              capacity: store.capacity,
+              type: store.type,
+              availableFields: Object.keys(store)
+            })
+          })
+        } else {
+          console.log(`    ❌ 店舗データなし - 全フィールド: ${allFields.join(', ')}`)
+        }
+      })
+      
+      console.log('📊 店舗データサマリー:', {
+        totalCompanies,
+        companiesWithStores,
+        totalStores,
+        activeStores,
+        storePresenceRate: `${Math.round(companiesWithStores / totalCompanies * 100)}%`
+      })
+      
+      if (companiesWithStores === 0) {
+        console.log('⚠️ 重要: Domino APIレスポンスに店舗データが含まれていません')
+        console.log('💡 可能性:')
+        console.log('  1. Domino APIが店舗データを返さない設計')
+        console.log('  2. 別のエンドポイントで店舗データを取得する必要がある')
+        console.log('  3. 特定のパラメータが必要')
+        console.log('  4. 権限不足で店舗データが除外されている')
+      }
+    }
     
     // CORSヘッダーを設定してレスポンス
     return NextResponse.json(data, {

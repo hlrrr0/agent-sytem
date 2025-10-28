@@ -221,19 +221,65 @@ export class DominoAPIClient {
           totalApproaches: 5,
           tags: ['寿司', '和食', '個人店'],
           createdAt: '2025-10-26T14:44:20.691Z',
-          updatedAt: '2025-10-26T14:44:20.691Z'
+          updatedAt: '2025-10-26T14:44:20.691Z',
+          stores: [
+            {
+              id: 'mock-store-1',
+              name: 'サンプル寿司店 本店',
+              address: '東京都渋谷区神南1-1-1',
+              prefecture: '東京都',
+              city: '渋谷区',
+              phone: '03-1234-5678',
+              status: 'active',
+              type: '本店',
+              capacity: 20,
+              openingHours: '11:00-22:00',
+              createdAt: '2025-10-26T14:44:20.691Z',
+              updatedAt: '2025-10-26T14:44:20.691Z'
+            },
+            {
+              id: 'mock-store-2',
+              name: 'サンプル寿司店 支店',
+              address: '東京都新宿区歌舞伎町1-1-1',
+              prefecture: '東京都',
+              city: '新宿区',
+              phone: '03-2345-6789',
+              status: 'active',
+              type: '支店',
+              capacity: 15,
+              openingHours: '17:00-24:00',
+              createdAt: '2025-10-26T14:44:20.691Z',
+              updatedAt: '2025-10-26T14:44:20.691Z'
+            }
+          ]
         },
         {
           id: 'mock-company-2',
           name: 'テスト居酒屋',
-          status: 'prospect',
+          status: 'active', // activeに変更
           size: 'small',
           sizeCategory: 'small',
           totalJobs: 1,
           totalApproaches: 3,
           tags: ['居酒屋', '和食'],
           createdAt: '2025-10-26T14:44:20.691Z',
-          updatedAt: '2025-10-26T14:44:20.691Z'
+          updatedAt: '2025-10-26T14:44:20.691Z',
+          stores: [
+            {
+              id: 'mock-store-3',
+              name: 'テスト居酒屋 池袋店',
+              address: '東京都豊島区南池袋1-1-1',
+              prefecture: '東京都',
+              city: '豊島区',
+              phone: '03-3456-7890',
+              status: 'active', // activeに変更
+              type: '店舗',
+              capacity: 30,
+              openingHours: '17:00-02:00',
+              createdAt: '2025-10-26T14:44:20.691Z',
+              updatedAt: '2025-10-26T14:44:20.691Z'
+            }
+          ]
         }
       ],
       pagination: {
@@ -260,6 +306,8 @@ export class DominoAPIClient {
     sizeCategory?: string
     prefecture?: string
     since?: string
+    until?: string
+    includeEmpty?: boolean
     limit?: number
     offset?: number
   }): Promise<DominoAPIResponse> {
@@ -284,8 +332,19 @@ export class DominoAPIClient {
       ...(options?.status && { status: options.status }),
       ...(options?.sizeCategory && { sizeCategory: options.sizeCategory }),
       ...(options?.since && { updatedAfter: options.since }),
+      ...(options?.until && { updatedUntil: options.until }),
+      ...(options?.includeEmpty && { includeEmpty: 'true' }),
       limit: (options?.limit || 100).toString(),
       offset: (options?.offset || 0).toString()
+    })
+    
+    console.log('📤 API呼び出しパラメータ:', {
+      status: options?.status || '未指定',
+      sizeCategory: options?.sizeCategory || '未指定', 
+      since: options?.since || '未指定',
+      limit: options?.limit || 100,
+      offset: options?.offset || 0,
+      fullParams: params.toString()
     })
 
     // プロキシを使用する場合
@@ -340,6 +399,24 @@ export class DominoAPIClient {
         
         const data = await response.json()
         console.log('📊 プロキシ経由で取得したデータ:', data)
+        
+        // 店舗データの詳細分析
+        if (data && data.data && Array.isArray(data.data)) {
+          console.log('🏪 取得した企業の店舗データ詳細:')
+          data.data.forEach((company: any, index: number) => {
+            const hasStores = company.stores && company.stores.length > 0
+            const storeCount = company.stores?.length || 0
+            const activeStoreCount = company.stores?.filter((s: any) => s.status === 'active').length || 0
+            
+            console.log(`  企業${index + 1} "${company.name}":`, {
+              hasStores,
+              storeCount,
+              activeStoreCount,
+              storesList: company.stores?.map((s: any) => ({ name: s.name, status: s.status })) || []
+            })
+          })
+        }
+        
         return data
       } catch (error) {
         console.error('❌ プロキシ Fetch エラー:', error)
