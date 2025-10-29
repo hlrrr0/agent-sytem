@@ -8,11 +8,11 @@ export const metadata: Metadata = {
   title: '求人情報 - 人材紹介システム',
   description: '人材紹介サービスの求人情報',
   robots: {
-    index: true,
-    follow: true,
+    index: false,
+    follow: false,
     googleBot: {
-      index: true,
-      follow: true,
+      index: false,
+      follow: false,
     },
   },
 }
@@ -22,18 +22,13 @@ export default function PublicLayout({
 }: {
   children: React.ReactNode
 }) {
-  // デバッグ用：公開レイアウトが使用されていることを確認
-  console.log('Public layout is being used - no header should be present')
-  
   return (
     <html lang="ja" suppressHydrationWarning>
       <body className={inter.className} suppressHydrationWarning>
         {/* 公開ページ専用レイアウト - ヘッダーなし */}
-        <div style={{ backgroundColor: '#f8f9fa', minHeight: '100vh' }}>
-          <main className="min-h-screen">
-            {children}
-          </main>
-        </div>
+        <main className="min-h-screen">
+          {children}
+        </main>
       </body>
     </html>
   )
