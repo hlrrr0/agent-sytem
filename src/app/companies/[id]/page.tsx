@@ -274,12 +274,10 @@ function CompanyDetailContent({ params }: CompanyDetailPageProps) {
               )}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
-                  {company.representative && (
-                    <div>
-                      <h3 className="font-medium text-gray-700">代表者名</h3>
-                      <p className="text-lg">{company.representative}</p>
-                    </div>
-                  )}
+                  <div>
+                    <h3 className="font-medium text-gray-700">代表者名</h3>
+                    <p className="text-lg">{company.representative || '未入力'}</p>
+                  </div>
                 </div>
                 <div>
                   <h3 className="font-medium text-gray-700 flex items-center gap-2">
@@ -310,15 +308,21 @@ function CompanyDetailContent({ params }: CompanyDetailPageProps) {
                   <Separator />
                   <div>
                     <h3 className="font-medium text-gray-700 mb-3">会社特徴</h3>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="space-y-2">
                       {company.feature1 && (
-                        <Badge variant="secondary">{company.feature1}</Badge>
+                        <div className="bg-gray-50 p-3 rounded-lg">
+                          <p className="text-sm text-gray-800 break-words whitespace-pre-wrap">{company.feature1}</p>
+                        </div>
                       )}
                       {company.feature2 && (
-                        <Badge variant="secondary">{company.feature2}</Badge>
+                        <div className="bg-gray-50 p-3 rounded-lg">
+                          <p className="text-sm text-gray-800 break-words whitespace-pre-wrap">{company.feature2}</p>
+                        </div>
                       )}
                       {company.feature3 && (
-                        <Badge variant="secondary">{company.feature3}</Badge>
+                        <div className="bg-gray-50 p-3 rounded-lg">
+                          <p className="text-sm text-gray-800 break-words whitespace-pre-wrap">{company.feature3}</p>
+                        </div>
                       )}
                     </div>
                   </div>

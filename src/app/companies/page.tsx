@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Checkbox } from '@/components/ui/checkbox'
 import { 
   Building2, 
   Plus, 
@@ -82,6 +83,10 @@ function CompaniesPageContent() {
   // 削除ダイアログ
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [companyToDelete, setCompanyToDelete] = useState<Company | null>(null)
+  
+  // 一括選択状態
+  const [selectedCompanies, setSelectedCompanies] = useState<Set<string>>(new Set())
+  const [isAllSelected, setIsAllSelected] = useState(false)
   
   // アコーディオンの展開状態と店舗データ
   const [expandedCompanies, setExpandedCompanies] = useState<Set<string>>(new Set())
@@ -226,6 +231,118 @@ function CompaniesPageContent() {
     }
     
     return '-'
+  }
+
+  // 一括選択関連の関数
+  const handleSelectAll = () => {
+    if (!isAdmin) return
+    
+    if (isAllSelected) {
+      setSelectedCompanies(new Set())
+      setIsAllSelected(false)
+    } else {
+      const filteredCompanyIds = filteredAndSortedCompanies.map(company => company.id)
+      setSelectedCompanies(new Set(filteredCompanyIds))
+      setIsAllSelected(true)
+    }
+  }
+
+  const handleSelectCompany = (companyId: string) => {
+    if (!isAdmin) return
+    
+    const newSelected = new Set(selectedCompanies)
+    if (newSelected.has(companyId)) {
+      newSelected.delete(companyId)
+    } else {
+      newSelected.add(companyId)
+    }
+    setSelectedCompanies(newSelected)
+    setIsAllSelected(newSelected.size === filteredAndSortedCompanies.length && filteredAndSortedCompanies.length > 0)
+  }
+
+  // 選択された企業のCSV出力
+  const exportSelectedCompaniesCSV = () => {
+    if (selectedCompanies.size === 0) {
+      toast.error('エクスポートする企業を選択してください')
+      return
+    }
+
+    const selectedCompanyData = companies.filter(company => selectedCompanies.has(company.id))
+    
+    // CSVヘッダー（CSVテンプレートと同じ形式）
+    const headers = [
+      'name',
+      'address',
+      'phone',
+      'website',
+      'email',
+      'establishedYear',
+      'employeeCount',
+      'capital',
+      'representative',
+      'feature1',
+      'feature2',
+      'feature3',
+      'careerPath',
+      'youngRecruitReason',
+      'logo',
+      'status',
+      'size',
+      'isPublic',
+      'hasHousingSupport',
+      'fullTimeAgeGroup',
+      'independenceRecord',
+      'hasIndependenceSupport',
+      'consultantId',
+      'memo',
+      'dominoId',
+      'importedAt'
+    ]
+
+    // CSVデータを生成
+    const csvRows = [
+      headers.join(','),
+      ...selectedCompanyData.map(company => {
+        return headers.map(header => {
+          let value = company[header as keyof Company] || ''
+          
+          // Boolean値を文字列に変換
+          if (typeof value === 'boolean') {
+            value = value.toString()
+          }
+          
+          // Date値を文字列に変換
+          if (value instanceof Date) {
+            value = value.toISOString().split('T')[0] // YYYY-MM-DD形式
+          }
+          
+          // Firestore Timestampを文字列に変換
+          if (value && typeof value === 'object' && 'toDate' in value && typeof (value as any).toDate === 'function') {
+            value = (value as any).toDate().toISOString().split('T')[0] // YYYY-MM-DD形式
+          }
+          
+          // CSVフィールドをエスケープ
+          const stringValue = String(value)
+          if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+            return `"${stringValue.replace(/"/g, '""')}"`
+          }
+          return stringValue
+        }).join(',')
+      })
+    ]
+
+    const csvContent = csvRows.join('\n')
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    link.setAttribute('href', url)
+    link.setAttribute('download', `companies_export_${new Date().toISOString().split('T')[0]}.csv`)
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    
+    toast.success(`${selectedCompanies.size}件の企業データをエクスポートしました`)
   }
 
   // アコーディオンの切り替えと店舗データの読み込み
@@ -436,14 +553,40 @@ function CompaniesPageContent() {
               更新
             </Button>
 
-            <Button
-              onClick={downloadCSVTemplate}
-              variant="outline"
-              className="bg-white text-blue-600 hover:bg-blue-50 border-white flex items-center gap-2"
-            >
-              <FileText className="h-4 w-4" />
-              CSVテンプレート
-            </Button>
+            {/* 管理者のみ表示 */}
+            {isAdmin && (
+              <>
+                <Button
+                  onClick={exportSelectedCompaniesCSV}
+                  disabled={selectedCompanies.size === 0}
+                  variant="outline"
+                  className="bg-white text-blue-600 hover:bg-blue-50 border-white flex items-center gap-2 disabled:opacity-50"
+                >
+                  <Download className="h-4 w-4" />
+                  選択した企業をCSV出力 ({selectedCompanies.size})
+                </Button>
+
+                <Button
+                  onClick={downloadCSVTemplate}
+                  variant="outline"
+                  className="bg-white text-blue-600 hover:bg-blue-50 border-white flex items-center gap-2"
+                >
+                  <FileText className="h-4 w-4" />
+                  CSVテンプレート
+                </Button>
+              </>
+            )}
+            
+            {!isAdmin && (
+              <Button
+                onClick={downloadCSVTemplate}
+                variant="outline"
+                className="bg-white text-blue-600 hover:bg-blue-50 border-white flex items-center gap-2"
+              >
+                <FileText className="h-4 w-4" />
+                CSVテンプレート
+              </Button>
+            )}
             <div className="relative">
               <input
                 type="file"
@@ -576,6 +719,15 @@ function CompaniesPageContent() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  {isAdmin && (
+                    <TableHead className="w-12">
+                      <Checkbox
+                        checked={companies.length > 0 && selectedCompanies.size === companies.length}
+                        onCheckedChange={handleSelectAll}
+                        aria-label="全て選択"
+                      />
+                    </TableHead>
+                  )}
                   <SortableHeader field="name">企業名</SortableHeader>
                   <SortableHeader field="status">ステータス</SortableHeader>
                   <TableHead>担当者</TableHead>
@@ -596,6 +748,15 @@ function CompaniesPageContent() {
                       <TableRow 
                         className={isInactive ? 'bg-gray-50' : ''}
                       >
+                        {isAdmin && (
+                          <TableCell>
+                            <Checkbox
+                              checked={selectedCompanies.has(company.id)}
+                              onCheckedChange={() => handleSelectCompany(company.id)}
+                              aria-label={`${company.name}を選択`}
+                            />
+                          </TableCell>
+                        )}
                         <TableCell className="font-medium">
                           <Link href={`/companies/${company.id}`} className="hover:text-blue-600 hover:underline">
                             <div className="font-semibold">{company.name}</div>

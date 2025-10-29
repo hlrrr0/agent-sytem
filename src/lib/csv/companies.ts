@@ -15,8 +15,43 @@ export const importCompaniesFromCSV = async (csvText: string): Promise<ImportRes
   }
 
   try {
-    // CSV解析
-    const lines = csvText.trim().split('\n')
+    // CSV解析 - 複数行にわたるフィールドに対応
+    const lines = []
+    let currentLine = ''
+    let inQuotes = false
+    
+    for (let i = 0; i < csvText.length; i++) {
+      const char = csvText[i]
+      
+      if (char === '"') {
+        if (inQuotes && i + 1 < csvText.length && csvText[i + 1] === '"') {
+          // エスケープされた引用符
+          currentLine += '""'
+          i++ // 次の引用符をスキップ
+        } else {
+          // 引用符の開始/終了
+          inQuotes = !inQuotes
+          currentLine += char
+        }
+      } else if (char === '\n' && !inQuotes) {
+        // 行の終了（引用符内でない場合のみ）
+        if (currentLine.trim()) {
+          lines.push(currentLine.trim())
+        }
+        currentLine = ''
+      } else if (char === '\r') {
+        // キャリッジリターンは無視
+        continue
+      } else {
+        currentLine += char
+      }
+    }
+    
+    // 最後の行を追加
+    if (currentLine.trim()) {
+      lines.push(currentLine.trim())
+    }
+    
     if (lines.length < 2) {
       result.errors.push('CSVファイルにデータが含まれていません')
       return result
@@ -59,7 +94,7 @@ export const importCompaniesFromCSV = async (csvText: string): Promise<ImportRes
     const headers = originalHeaders.map(header => headerMapping[header] || header)
     
     // 必須フィールドの確認（英語フィールド名で）
-    const requiredFields = ['name', 'address', 'email', 'size', 'isPublic', 'status']
+    const requiredFields = ['name', 'address', 'email', 'size', 'status']
     const missingFields = requiredFields.filter(field => !headers.includes(field))
     if (missingFields.length > 0) {
       // 日本語フィールド名で逆マッピングしてエラーメッセージを表示
@@ -73,9 +108,26 @@ export const importCompaniesFromCSV = async (csvText: string): Promise<ImportRes
     for (let i = 1; i < lines.length; i++) {
       try {
         const values = parseCSVLine(lines[i])
+        
+        // デバッグ情報を追加
+        if (i === 1) {
+          console.log('期待ヘッダー数:', headers.length)
+          console.log('実際のフィールド数:', values.length)
+          console.log('ヘッダー:', headers)
+          console.log('最初のデータ行:', values)
+        }
+        
         if (values.length !== headers.length) {
-          result.errors.push(`行${i + 1}: フィールド数が一致しません`)
-          continue
+          // フィールド数が一致しない場合、不足分を空文字で埋める
+          while (values.length < headers.length) {
+            values.push('')
+          }
+          // 余分なフィールドは切り捨て
+          if (values.length > headers.length) {
+            values.splice(headers.length)
+          }
+          
+          console.warn(`行${i + 1}: フィールド数を調整しました (期待: ${headers.length}, 実際: ${parseCSVLine(lines[i]).length})`)
         }
 
         // データオブジェクトを作成
@@ -101,8 +153,10 @@ export const importCompaniesFromCSV = async (csvText: string): Promise<ImportRes
           address: rowData.address?.trim() || '',
           email: rowData.email?.trim() || '',
           size: (rowData.size as 'startup' | 'small' | 'medium' | 'large' | 'enterprise') || 'small',
-          isPublic: rowData.isPublic === 'true' || rowData.isPublic === '1',
-          status: (rowData.status === 'active' || rowData.status === 'inactive') ? rowData.status : 'active',
+          isPublic: rowData.isPublic ? (rowData.isPublic === 'true' || rowData.isPublic === '1') : false,
+          status: (['active', 'inactive', 'prospect', 'prospect_contacted', 'appointment', 'no_approach', 'suspended', 'paused'].includes(rowData.status)) 
+            ? rowData.status as Company['status'] 
+            : 'active',
           // オプションフィールド
           employeeCount: rowData.employeeCount ? parseInt(rowData.employeeCount) : undefined,
           capital: rowData.capital ? parseInt(rowData.capital) : undefined,
@@ -169,7 +223,7 @@ function parseCSVLine(line: string): string[] {
     const char = line[i]
     
     if (char === '"') {
-      if (inQuotes && line[i + 1] === '"') {
+      if (inQuotes && i + 1 < line.length && line[i + 1] === '"') {
         // エスケープされた引用符
         current += '"'
         i++ // 次の引用符をスキップ
@@ -179,7 +233,7 @@ function parseCSVLine(line: string): string[] {
       }
     } else if (char === ',' && !inQuotes) {
       // フィールドの区切り
-      result.push(current.trim())
+      result.push(current)
       current = ''
     } else {
       current += char
@@ -187,7 +241,7 @@ function parseCSVLine(line: string): string[] {
   }
   
   // 最後のフィールドを追加
-  result.push(current.trim())
+  result.push(current)
   
   return result
 }
