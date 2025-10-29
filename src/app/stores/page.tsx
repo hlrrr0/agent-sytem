@@ -316,15 +316,6 @@ function StoresPageContent() {
                 }
               }}
             />
-            <Link href="/companies">
-              <Button 
-                variant="outline"
-                className="bg-white text-green-600 hover:bg-green-50 border-white flex items-center gap-2"
-              >
-                <Building2 className="h-4 w-4" />
-                企業管理へ
-              </Button>
-            </Link>
             <Link href="/stores/new">
               <Button variant="outline" className="bg-white text-green-600 hover:bg-green-50 border-white">
                 <Plus className="h-4 w-4 mr-2" />

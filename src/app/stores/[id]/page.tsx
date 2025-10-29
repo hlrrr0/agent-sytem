@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import { 
   ArrowLeft, 
@@ -15,7 +16,8 @@ import {
   MapPin, 
   Building2,
   ExternalLink,
-  Briefcase
+  Briefcase,
+  X
 } from 'lucide-react'
 import { doc, getDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
@@ -42,6 +44,7 @@ function StoreDetailContent({ params }: StoreDetailPageProps) {
   const [storeId, setStoreId] = useState<string>('')
   const [store, setStore] = useState<StoreType | null>(null)
   const [company, setCompany] = useState<Company | null>(null)
+  const [modalImage, setModalImage] = useState<{ src: string; alt: string } | null>(null)
 
   useEffect(() => {
     const initializeComponent = async () => {
@@ -91,6 +94,42 @@ function StoreDetailContent({ params }: StoreDetailPageProps) {
         {statusLabels[status]}
       </Badge>
     )
+  }
+
+  const formatDateTime = (date: any) => {
+    if (!date) return '未設定'
+    
+    try {
+      let dateObj: Date
+      
+      // Firestore Timestampの場合
+      if (date && typeof date === 'object' && date.toDate) {
+        dateObj = date.toDate()
+      }
+      // Date オブジェクトの場合
+      else if (date instanceof Date) {
+        dateObj = date
+      }
+      // 文字列の場合
+      else if (typeof date === 'string') {
+        dateObj = new Date(date)
+      }
+      // その他の場合
+      else {
+        return '未設定'
+      }
+      
+      return dateObj.toLocaleString('ja-JP', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    } catch (error) {
+      console.error('日付フォーマットエラー:', error)
+      return '未設定'
+    }
   }
 
   if (loading) {
@@ -148,18 +187,6 @@ function StoreDetailContent({ params }: StoreDetailPageProps) {
               <CardTitle>基本情報</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <h3 className="font-medium text-gray-700">店舗名</h3>
-                  <p className="text-lg">{store.name}</p>
-                </div>
-                <div>
-                  <h3 className="font-medium text-gray-700">ステータス</h3>
-                  <div className="mt-1">{getStatusBadge(store.status)}</div>
-                </div>
-              </div>
-
-              <Separator />
 
               {store.address && (
                 <div>
@@ -168,6 +195,16 @@ function StoreDetailContent({ params }: StoreDetailPageProps) {
                     店舗住所
                   </h3>
                   <p className="mt-1">{store.address}</p>
+                </div>
+              )}
+
+              {store.nearestStation && (
+                <div>
+                  <h3 className="font-medium text-gray-700 flex items-center gap-2">
+                    <MapPin className="h-4 w-4" />
+                    最寄り駅
+                  </h3>
+                  <p className="mt-1 whitespace-pre-line">{store.nearestStation}</p>
                 </div>
               )}
 
@@ -188,7 +225,7 @@ function StoreDetailContent({ params }: StoreDetailPageProps) {
                 </div>
               )}
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {store.unitPrice && (
                   <div>
                     <h3 className="font-medium text-gray-700">単価</h3>
@@ -201,14 +238,13 @@ function StoreDetailContent({ params }: StoreDetailPageProps) {
                     <p className="mt-1">{store.seatCount}席</p>
                   </div>
                 )}
+                {store.isReservationRequired !== undefined && (
+                  <div>
+                    <h3 className="font-medium text-gray-700">予約制（時間固定）</h3>
+                    <p className="mt-1">{store.isReservationRequired ? 'あり' : 'なし'}</p>
+                  </div>
+                )}
               </div>
-
-              {store.isReservationRequired !== undefined && (
-                <div>
-                  <h3 className="font-medium text-gray-700">予約制（時間固定）</h3>
-                  <p className="mt-1">{store.isReservationRequired ? 'あり' : 'なし'}</p>
-                </div>
-              )}
 
             </CardContent>
           </Card>
@@ -250,16 +286,39 @@ function StoreDetailContent({ params }: StoreDetailPageProps) {
           </Card>
 
           {/* 実績・評価 */}
-          {store.reputation && (
+          {(store.googleReviewScore || store.tabelogScore || store.reputation || store.trainingPeriod) && (
             <Card>
               <CardHeader>
                 <CardTitle>実績・評価</CardTitle>
               </CardHeader>
-              <CardContent>
-                <div>
-                  <h3 className="font-medium text-gray-700">食べログスコア / ミシュラン等の獲得状況</h3>
-                  <p className="mt-2 whitespace-pre-line">{store.reputation}</p>
-                </div>
+              <CardContent className="space-y-4">
+                {store.googleReviewScore && (
+                  <div>
+                    <h3 className="font-medium text-gray-700">Googleの口コミスコア</h3>
+                    <p className="mt-2 whitespace-pre-line">{store.googleReviewScore}</p>
+                  </div>
+                )}
+                
+                {store.tabelogScore && (
+                  <div>
+                    <h3 className="font-medium text-gray-700">食べログの口コミスコア</h3>
+                    <p className="mt-2 whitespace-pre-line">{store.tabelogScore}</p>
+                  </div>
+                )}
+                
+                {store.reputation && (
+                  <div>
+                    <h3 className="font-medium text-gray-700">その他 / ミシュランなどの獲得状況等の実績</h3>
+                    <p className="mt-2 whitespace-pre-line">{store.reputation}</p>
+                  </div>
+                )}
+
+                {store.trainingPeriod && (
+                  <div>
+                    <h3 className="font-medium text-gray-700">握れるまでの期間</h3>
+                    <p className="mt-2">{store.trainingPeriod}</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
@@ -280,86 +339,83 @@ function StoreDetailContent({ params }: StoreDetailPageProps) {
           )}
 
           {/* 素材セクション */}
-          {(store.ownerPhoto || store.ownerVideo || store.interiorPhoto) && (
+          {(store.ownerPhoto || store.ownerVideo || store.interiorPhoto || store.photo1 || store.photo2 || store.photo3 || store.photo4 || store.photo5 || store.photo6 || store.photo7) && (
             <Card>
               <CardHeader>
                 <CardTitle>素材</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {store.ownerPhoto && (
-                  <div>
-                    <h3 className="font-medium text-gray-700">大将の写真</h3>
-                    <div className="mt-2">
-                      <img 
-                        src={store.ownerPhoto} 
-                        alt="大将の写真"
-                        className="max-w-md rounded-lg"
-                        onError={(e) => {
-                          e.currentTarget.style.display = 'none'
-                        }}
-                      />
-                      <p className="text-sm text-gray-500 mt-1">{store.ownerPhoto}</p>
-                    </div>
+                  <div className="col-span-1">
+                    <h3 className="font-medium text-gray-700 text-sm mb-2">大将の写真</h3>
+                    <img 
+                      src={store.ownerPhoto} 
+                      alt="大将の写真"
+                      className="w-full h-32 object-cover rounded-lg cursor-pointer hover:opacity-80 transition-opacity"
+                      onClick={() => setModalImage({ src: store.ownerPhoto!, alt: '大将の写真' })}
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none'
+                      }}
+                    />
                   </div>
                 )}
 
                 {store.ownerVideo && (
-                  <div>
-                    <h3 className="font-medium text-gray-700">大将の動画</h3>
-                    <div className="mt-2">
-                      <video 
-                        controls 
-                        className="max-w-md rounded-lg"
-                        onError={(e) => {
-                          e.currentTarget.style.display = 'none'
-                        }}
-                      >
-                        <source src={store.ownerVideo} />
-                        動画を再生できません
-                      </video>
-                      <p className="text-sm text-gray-500 mt-1">{store.ownerVideo}</p>
-                    </div>
+                  <div className="col-span-1">
+                    <h3 className="font-medium text-gray-700 text-sm mb-2">大将の動画</h3>
+                    <video 
+                      controls 
+                      className="w-full h-32 object-cover rounded-lg"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none'
+                      }}
+                    >
+                      <source src={store.ownerVideo} />
+                      動画を再生できません
+                    </video>
                   </div>
                 )}
 
                 {store.interiorPhoto && (
-                  <div>
-                    <h3 className="font-medium text-gray-700">店内の写真</h3>
-                    <div className="mt-2">
+                  <div className="col-span-1">
+                    <h3 className="font-medium text-gray-700 text-sm mb-2">店内の写真</h3>
+                    <img 
+                      src={store.interiorPhoto} 
+                      alt="店内の写真"
+                      className="w-full h-32 object-cover rounded-lg cursor-pointer hover:opacity-80 transition-opacity"
+                      onClick={() => setModalImage({ src: store.interiorPhoto!, alt: '店内の写真' })}
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none'
+                      }}
+                    />
+                  </div>
+                )}
+
+                {[1, 2, 3, 4, 5, 6, 7].map((num) => {
+                  const photoField = `photo${num}` as keyof StoreType
+                  const photoUrl = store[photoField] as string
+                  if (!photoUrl) return null
+                  
+                  return (
+                    <div key={photoField} className="col-span-1">
+                      <h3 className="font-medium text-gray-700 text-sm mb-2">素材写真{num}</h3>
                       <img 
-                        src={store.interiorPhoto} 
-                        alt="店内の写真"
-                        className="max-w-md rounded-lg"
+                        src={photoUrl} 
+                        alt={`素材写真${num}`}
+                        className="w-full h-32 object-cover rounded-lg cursor-pointer hover:opacity-80 transition-opacity"
+                        onClick={() => setModalImage({ src: photoUrl, alt: `素材写真${num}` })}
                         onError={(e) => {
                           e.currentTarget.style.display = 'none'
                         }}
                       />
-                      <p className="text-sm text-gray-500 mt-1">{store.interiorPhoto}</p>
                     </div>
-                  </div>
-                )}
+                  )
+                })}
+                </div>
               </CardContent>
             </Card>
           )}
-
-          {/* 管理情報 */}
-          <Card>
-            <CardHeader>
-              <CardTitle>管理情報</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
-                <div>
-                  <h3 className="font-medium">作成日時</h3>
-                  <p>{new Date(store.createdAt).toLocaleString('ja-JP')}</p>
-                </div>
-                <div>
-                  <h3 className="font-medium">更新日時</h3>
-                  <p>{new Date(store.updatedAt).toLocaleString('ja-JP')}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
         </div>
 
         {/* サイドバー */}
@@ -400,14 +456,7 @@ function StoreDetailContent({ params }: StoreDetailPageProps) {
             <CardHeader>
               <CardTitle>クイックアクション</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2">
-              <Link href={`/stores/${storeId}/edit`}>
-                <Button variant="outline" className="w-full justify-start">
-                  <Edit className="h-4 w-4 mr-2" />
-                  店舗情報を編集
-                </Button>
-              </Link>
-              
+            <CardContent className="space-y-2">              
               <Link href={`/jobs/new?company=${store.companyId}&store=${storeId}`}>
                 <Button variant="outline" className="w-full justify-start">
                   <Briefcase className="h-4 w-4 mr-2" />
@@ -439,8 +488,54 @@ function StoreDetailContent({ params }: StoreDetailPageProps) {
               </div>
             </CardContent>
           </Card>
+         {/* 管理情報 */}
+          <Card>
+            <CardHeader>
+              <CardTitle>管理情報</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
+                <div>
+                  <h3 className="font-medium">作成日時</h3>
+                  <p>{formatDateTime(store.createdAt)}</p>
+                </div>
+                <div>
+                  <h3 className="font-medium">更新日時</h3>
+                  <p>{formatDateTime(store.updatedAt)}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
+
+      {/* 画像拡大モーダル */}
+      <Dialog open={!!modalImage} onOpenChange={() => setModalImage(null)}>
+        <DialogContent className="max-w-4xl w-full max-h-[90vh] p-0">
+          <DialogHeader className="p-6 pb-0">
+            <DialogTitle className="flex items-center justify-between">
+              {modalImage?.alt}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setModalImage(null)}
+                className="h-6 w-6 p-0"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </DialogTitle>
+          </DialogHeader>
+          {modalImage && (
+            <div className="p-6 pt-2">
+              <img
+                src={modalImage.src}
+                alt={modalImage.alt}
+                className="w-full h-auto max-h-[70vh] object-contain rounded-lg"
+              />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
     </div>
   )

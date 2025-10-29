@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { Button } from '@/components/ui/button'
-import { Save, Loader2 } from 'lucide-react'
+import { Save, Loader2, Plus, Minus } from 'lucide-react'
 import { Store } from '@/types/store'
 import { Company } from '@/types/company'
 import { collection, getDocs, query, where } from 'firebase/firestore'
@@ -29,22 +29,33 @@ export default function StoreForm({
 }: StoreFormProps) {
   const [companies, setCompanies] = useState<Company[]>([])
   const [loadingCompanies, setLoadingCompanies] = useState(true)
+  const [additionalPhotosCount, setAdditionalPhotosCount] = useState(0)
   const [formData, setFormData] = useState<Partial<Store>>({
     companyId: '',
     name: '',
     address: '',
+    nearestStation: '',
     website: '',
     unitPrice: undefined,
     seatCount: undefined,
     isReservationRequired: false,
     instagramUrl: '',
     tabelogUrl: '',
+    googleReviewScore: '',
+    tabelogScore: '',
     reputation: '',
     staffReview: '',
     trainingPeriod: '',
     ownerPhoto: '',
     ownerVideo: '',
     interiorPhoto: '',
+    photo1: '',
+    photo2: '',
+    photo3: '',
+    photo4: '',
+    photo5: '',
+    photo6: '',
+    photo7: '',
     status: 'active'
   })
 
@@ -54,21 +65,36 @@ export default function StoreForm({
         companyId: initialData.companyId || '',
         name: initialData.name || '',
         address: initialData.address || '',
+        nearestStation: initialData.nearestStation || '',
         website: initialData.website || '',
         unitPrice: initialData.unitPrice,
         seatCount: initialData.seatCount,
         isReservationRequired: initialData.isReservationRequired || false,
         instagramUrl: initialData.instagramUrl || '',
         tabelogUrl: initialData.tabelogUrl || '',
+        googleReviewScore: initialData.googleReviewScore || '',
+        tabelogScore: initialData.tabelogScore || '',
         reputation: initialData.reputation || '',
         staffReview: initialData.staffReview || '',
         trainingPeriod: initialData.trainingPeriod || '',
         ownerPhoto: initialData.ownerPhoto || '',
         ownerVideo: initialData.ownerVideo || '',
         interiorPhoto: initialData.interiorPhoto || '',
+        photo1: initialData.photo1 || '',
+        photo2: initialData.photo2 || '',
+        photo3: initialData.photo3 || '',
+        photo4: initialData.photo4 || '',
+        photo5: initialData.photo5 || '',
+        photo6: initialData.photo6 || '',
+        photo7: initialData.photo7 || '',
         status: initialData.status || 'active',
         ...initialData
       })
+
+      // 既存の追加写真の数を計算
+      const photoFields = ['photo1', 'photo2', 'photo3', 'photo4', 'photo5', 'photo6', 'photo7']
+      const existingPhotos = photoFields.filter(field => initialData[field as keyof Store])
+      setAdditionalPhotosCount(existingPhotos.length)
     }
   }, [initialData])
 
@@ -102,6 +128,43 @@ export default function StoreForm({
       ...prev,
       [field]: value
     }))
+  }
+
+  const addPhotoField = () => {
+    if (additionalPhotosCount < 7) {
+      setAdditionalPhotosCount(prev => prev + 1)
+    }
+  }
+
+  const removePhotoField = () => {
+    if (additionalPhotosCount > 0) {
+      const photoFieldToRemove = `photo${additionalPhotosCount}` as keyof Store
+      setFormData(prev => ({
+        ...prev,
+        [photoFieldToRemove]: ''
+      }))
+      setAdditionalPhotosCount(prev => prev - 1)
+    }
+  }
+
+  const renderAdditionalPhotoFields = () => {
+    const fields = []
+    for (let i = 1; i <= additionalPhotosCount; i++) {
+      const fieldName = `photo${i}` as keyof Store
+      fields.push(
+        <div key={fieldName}>
+          <Label htmlFor={fieldName}>素材写真{i}</Label>
+          <Input
+            id={fieldName}
+            type="url"
+            value={(formData[fieldName] as string) || ''}
+            onChange={(e) => handleChange(fieldName, e.target.value)}
+            placeholder={`https://example.com/photo${i}.jpg`}
+          />
+        </div>
+      )
+    }
+    return fields
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -192,6 +255,17 @@ export default function StoreForm({
           </div>
 
           <div>
+            <Label htmlFor="nearestStation">最寄り駅</Label>
+            <Textarea
+              id="nearestStation"
+              value={formData.nearestStation || ''}
+              onChange={(e) => handleChange('nearestStation', e.target.value)}
+              rows={2}
+              placeholder="最寄り駅の情報を入力してください"
+            />
+          </div>
+
+          <div>
             <Label htmlFor="website">店舗URL</Label>
             <Input
               id="website"
@@ -200,39 +274,6 @@ export default function StoreForm({
               onChange={(e) => handleChange('website', e.target.value)}
               placeholder="https://example.com"
             />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="unitPrice">単価</Label>
-              <Input
-                id="unitPrice"
-                type="number"
-                value={formData.unitPrice || ''}
-                onChange={(e) => handleChange('unitPrice', parseInt(e.target.value) || undefined)}
-                placeholder="円"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="seatCount">席数</Label>
-              <Input
-                id="seatCount"
-                type="number"
-                value={formData.seatCount || ''}
-                onChange={(e) => handleChange('seatCount', parseInt(e.target.value) || undefined)}
-                placeholder="席"
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <Switch
-              id="isReservationRequired"
-              checked={formData.isReservationRequired ?? false}
-              onCheckedChange={(checked) => handleChange('isReservationRequired', checked)}
-            />
-            <Label htmlFor="isReservationRequired">予約制なのか（時間固定の）</Label>
           </div>
 
           <div>
@@ -257,14 +298,78 @@ export default function StoreForm({
             />
           </div>
 
+        </CardContent>
+      </Card>
+      {/* 詳細セクション */}
+      <Card>
+        <CardHeader>
+          <CardTitle>詳細セクション</CardTitle>
+          <CardDescription>店舗の詳細情報について管理します</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+
+          <div className="flex items-center space-x-2">
+            <Switch
+              id="isReservationRequired"
+              checked={formData.isReservationRequired ?? false}
+              onCheckedChange={(checked) => handleChange('isReservationRequired', checked)}
+            />
+            <Label htmlFor="isReservationRequired">予約制なのか（時間固定の）</Label>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="unitPrice">単価</Label>
+              <Input
+                id="unitPrice"
+                type="number"
+                value={formData.unitPrice || ''}
+                onChange={(e) => handleChange('unitPrice', parseInt(e.target.value) || undefined)}
+                placeholder="円"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="seatCount">席数</Label>
+              <Input
+                id="seatCount"
+                type="number"
+                value={formData.seatCount || ''}
+                onChange={(e) => handleChange('seatCount', parseInt(e.target.value) || undefined)}
+                placeholder="席"
+              />
+            </div>
+          </div>
+          
           <div>
-            <Label htmlFor="reputation">食べログの口コミスコア / ミシュランなどの獲得状況等の実績</Label>
+            <Label htmlFor="googleReviewScore">Googleの口コミスコア</Label>
+            <Textarea
+              id="googleReviewScore"
+              value={formData.googleReviewScore || ''}
+              onChange={(e) => handleChange('googleReviewScore', e.target.value)}
+              rows={2}
+              placeholder="Googleレビューのスコアや評価を記載してください"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="tabelogScore">食べログの口コミスコア</Label>
+            <Textarea
+              id="tabelogScore"
+              value={formData.tabelogScore || ''}
+              onChange={(e) => handleChange('tabelogScore', e.target.value)}
+              rows={2}
+              placeholder="食べログのスコアや評価を記載してください"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="reputation">その他 / ミシュランなどの獲得状況等の実績</Label>
             <Textarea
               id="reputation"
               value={formData.reputation || ''}
               onChange={(e) => handleChange('reputation', e.target.value)}
               rows={3}
-              placeholder="食べログスコア、ミシュラン獲得状況、その他の実績を記載してください"
+              placeholder="ミシュラン獲得状況、その他の実績を記載してください"
             />
           </div>
 
@@ -295,7 +400,7 @@ export default function StoreForm({
       <Card>
         <CardHeader>
           <CardTitle>素材セクション</CardTitle>
-          <CardDescription>店舗の写真や動画素材を管理します</CardDescription>
+          <CardDescription>店舗の写真や動画素材を管理します（合計10枚まで登録可能）</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
@@ -329,6 +434,37 @@ export default function StoreForm({
               onChange={(e) => handleChange('interiorPhoto', e.target.value)}
               placeholder="https://example.com/interior-photo.jpg"
             />
+          </div>
+
+          {/* 動的に追加される素材写真フィールド */}
+          {renderAdditionalPhotoFields()}
+
+          {/* 写真追加・削除ボタン */}
+          <div className="flex gap-2">
+            {additionalPhotosCount < 7 && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={addPhotoField}
+                className="flex items-center gap-2"
+              >
+                <Plus className="h-4 w-4" />
+                素材写真を追加
+              </Button>
+            )}
+            {additionalPhotosCount > 0 && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={removePhotoField}
+                className="flex items-center gap-2"
+              >
+                <Minus className="h-4 w-4" />
+                最後の写真を削除
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>
