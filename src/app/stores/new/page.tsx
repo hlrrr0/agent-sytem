@@ -1,7 +1,7 @@
 "use client"
 
 import Link from 'next/link'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft, Store } from 'lucide-react'
@@ -9,7 +9,7 @@ import { createStore, checkStoreByNameAndCompany, checkStoreByTabelogUrl } from 
 import { Store as StoreType } from '@/types/store'
 import StoreForm from '@/components/stores/StoreForm'
 
-export default function NewStorePage() {
+function NewStorePageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [loading, setLoading] = useState(false)
@@ -117,5 +117,17 @@ export default function NewStorePage() {
         />
       </div>
     </div>
+  )
+}
+
+export default function NewStorePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center">
+        <div className="text-green-600">読み込み中...</div>
+      </div>
+    }>
+      <NewStorePageContent />
+    </Suspense>
   )
 }

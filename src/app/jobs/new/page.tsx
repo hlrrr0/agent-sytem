@@ -1,7 +1,7 @@
 "use client"
 
 import Link from 'next/link'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft, Briefcase } from 'lucide-react'
@@ -9,7 +9,7 @@ import { createJob } from '@/lib/firestore/jobs'
 import { Job } from '@/types/job'
 import JobForm from '@/components/jobs/JobForm'
 
-export default function NewJobPage() {
+function NewJobPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [loading, setLoading] = useState(false)
@@ -109,5 +109,17 @@ export default function NewJobPage() {
         />
       </div>
     </div>
+  )
+}
+
+export default function NewJobPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-violet-100 flex items-center justify-center">
+        <div className="text-purple-600">読み込み中...</div>
+      </div>
+    }>
+      <NewJobPageContent />
+    </Suspense>
   )
 }
