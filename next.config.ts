@@ -20,6 +20,9 @@ const nextConfig: NextConfig = {
   // トレイル設定
   trailingSlash: false,
   
+  // 出力設定 - Static Site Generationを無効化
+  output: 'standalone',
+  
   // Webpack設定でFirebase関連の問題を解決
   webpack: (config, { isServer }) => {
     if (!isServer) {
