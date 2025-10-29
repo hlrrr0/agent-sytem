@@ -78,9 +78,9 @@ function NewStorePageContent() {
         updatedAt: new Date()
       }
 
-      await createStore(newStore)
+      const storeId = await createStore(newStore)
       alert('店舗が正常に追加されました')
-      router.push('/stores')
+      router.push(`/stores/${storeId}`)
     } catch (error) {
       console.error('店舗の追加に失敗しました:', error)
       alert('店舗の追加に失敗しました。もう一度お試しください。')

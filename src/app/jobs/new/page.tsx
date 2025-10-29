@@ -70,9 +70,9 @@ function NewJobPageContent() {
         updatedAt: new Date()
       }
 
-      await createJob(newJob)
+      const jobId = await createJob(newJob)
       alert('求人が正常に追加されました')
-      router.push('/jobs')
+      router.push(`/jobs/${jobId}`)
     } catch (error) {
       console.error('求人の追加に失敗しました:', error)
       alert('求人の追加に失敗しました。もう一度お試しください。')

@@ -108,6 +108,39 @@ function JobDetailContent({ params }: JobDetailPageProps) {
     initializeComponent()
   }, [params, router])
 
+  // 日時をフォーマットする関数
+  const formatDateTime = (dateValue: any) => {
+    if (!dateValue) return '未設定'
+    
+    try {
+      let date: Date
+      
+      if (dateValue && typeof dateValue.toDate === 'function') {
+        // Firestore Timestamp
+        date = dateValue.toDate()
+      } else if (dateValue instanceof Date) {
+        // Date オブジェクト
+        date = dateValue
+      } else if (typeof dateValue === 'string') {
+        // 文字列
+        date = new Date(dateValue)
+      } else {
+        return '不正な日時'
+      }
+      
+      return date.toLocaleString('ja-JP', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    } catch (error) {
+      console.error('日時のフォーマットに失敗:', error)
+      return '不正な日時'
+    }
+  }
+
   const getStatusBadge = (status: Job['status']) => {
     const colors = {
       draft: 'bg-gray-100 text-gray-800',
@@ -216,13 +249,14 @@ function JobDetailContent({ params }: JobDetailPageProps) {
             </div>
           </div>
         </div>
-        
-        <Link href={`/jobs/${jobId}/edit`}>
-          <Button className="flex items-center gap-2">
-            <Edit className="h-4 w-4" />
-            編集
-          </Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link href={`/jobs/${jobId}/edit`}>
+            <Button variant="outline" size="sm" className="border-purple-300 text-purple-700 hover:bg-purple-50">
+              <Edit className="h-4 w-4 mr-2" />
+              編集
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -317,25 +351,6 @@ function JobDetailContent({ params }: JobDetailPageProps) {
               </CardContent>
             </Card>
           )}
-
-          {/* 応募情報 */}
-          <Card>
-            <CardHeader>
-              <CardTitle>応募情報</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
-                <div>
-                  <h3 className="font-medium">作成日時</h3>
-                  <p>{new Date(job.createdAt).toLocaleString('ja-JP')}</p>
-                </div>
-                <div>
-                  <h3 className="font-medium">更新日時</h3>
-                  <p>{new Date(job.updatedAt).toLocaleString('ja-JP')}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
         </div>
 
         {/* サイドバー */}
@@ -487,12 +502,21 @@ function JobDetailContent({ params }: JobDetailPageProps) {
                   <span className="text-gray-600">雇用形態</span>
                   <span>{getEmploymentTypeBadge(job.employmentType)}</span>
                 </div>
+                <Separator />
+                <div className="flex justify-between">
+                  <span className="text-gray-600">作成日時</span>
+                  <span>{formatDateTime(job.createdAt)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">更新日時</span>
+                  <span>{formatDateTime(job.updatedAt)}</span>
+                </div>
               </div>
             </CardContent>
           </Card>
         </div>
       </div>
-    </div>
+      </div>
     </div>
   )
 }

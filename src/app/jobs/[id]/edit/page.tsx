@@ -37,6 +37,7 @@ export default function EditJobPage({ params }: EditJobPageProps) {
       try {
         const jobData = await getJob(jobId)
         if (jobData) {
+          console.log('Edit page: Loaded job data:', jobData)
           setInitialData(jobData)
         } else {
           alert('求人が見つかりませんでした')
@@ -70,7 +71,7 @@ export default function EditJobPage({ params }: EditJobPageProps) {
 
       await updateJob(jobId, updatedJob)
       alert('求人が正常に更新されました')
-      router.push('/jobs')
+      router.push(`/jobs/${jobId}`)
     } catch (error) {
       console.error('求人の更新に失敗しました:', error)
       alert('求人の更新に失敗しました。もう一度お試しください。')

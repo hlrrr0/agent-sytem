@@ -18,10 +18,11 @@ import {
   ExternalLink,
   Briefcase
 } from 'lucide-react'
-import { doc, getDoc } from 'firebase/firestore'
+import { doc, getDoc, collection, query, where, getDocs, addDoc, Timestamp } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { Store as StoreType, statusLabels } from '@/types/store'
 import { Company } from '@/types/company'
+import { Job } from '@/types/job'
 
 interface StoreDetailPageProps {
   params: Promise<{
@@ -43,6 +44,7 @@ function StoreDetailContent({ params }: StoreDetailPageProps) {
   const [storeId, setStoreId] = useState<string>('')
   const [store, setStore] = useState<StoreType | null>(null)
   const [company, setCompany] = useState<Company | null>(null)
+  const [jobs, setJobs] = useState<Job[]>([])
   const [modalImage, setModalImage] = useState<{ src: string; alt: string } | null>(null)
 
   useEffect(() => {
@@ -64,6 +66,18 @@ function StoreDetailContent({ params }: StoreDetailPageProps) {
                 setCompany({ ...companyDoc.data(), id: storeData.companyId } as Company)
               }
             }
+
+            // この店舗に関連する求人を取得
+            const jobsQuery = query(
+              collection(db, 'jobs'),
+              where('storeId', '==', resolvedParams.id)
+            )
+            const jobsSnapshot = await getDocs(jobsQuery)
+            const jobsData = jobsSnapshot.docs.map(doc => ({
+              id: doc.id,
+              ...doc.data()
+            } as Job))
+            setJobs(jobsData)
           } else {
             alert('店舗が見つかりません')
             router.push('/stores')
@@ -128,6 +142,46 @@ function StoreDetailContent({ params }: StoreDetailPageProps) {
     } catch (error) {
       console.error('日付フォーマットエラー:', error)
       return '未設定'
+    }
+  }
+
+  const duplicateJob = async (jobToDuplicate: Job) => {
+    if (!store || !company) return
+
+    try {
+      // 求人データを複製用に準備
+      const duplicatedJobData = {
+        title: `${jobToDuplicate.title}（複製）`,
+        businessType: jobToDuplicate.businessType,
+        employmentType: jobToDuplicate.employmentType,
+        trialPeriod: jobToDuplicate.trialPeriod,
+        workingHours: jobToDuplicate.workingHours,
+        holidays: jobToDuplicate.holidays,
+        overtime: jobToDuplicate.overtime,
+        salaryInexperienced: jobToDuplicate.salaryInexperienced,
+        salaryExperienced: jobToDuplicate.salaryExperienced,
+        requiredSkills: jobToDuplicate.requiredSkills,
+        jobDescription: jobToDuplicate.jobDescription,
+        smokingPolicy: jobToDuplicate.smokingPolicy,
+        insurance: jobToDuplicate.insurance,
+        benefits: jobToDuplicate.benefits,
+        selectionProcess: jobToDuplicate.selectionProcess,
+        consultantReview: jobToDuplicate.consultantReview,
+        companyId: company.id,
+        storeId: store.id,
+        status: 'draft' as const,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now()
+      }
+
+      // 新しい求人として保存
+      const docRef = await addDoc(collection(db, 'jobs'), duplicatedJobData)
+      
+      // 新しく作成された求人の編集画面に遷移
+      router.push(`/jobs/${docRef.id}/edit`)
+    } catch (error) {
+      console.error('求人の複製に失敗しました:', error)
+      alert('求人の複製に失敗しました')
     }
   }
 
@@ -464,6 +518,61 @@ function StoreDetailContent({ params }: StoreDetailPageProps) {
               </Link>
             </CardContent>
           </Card>
+
+          {/* 関連求人 */}
+          {jobs.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>関連求人 ({jobs.length}件)</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {jobs.map((job) => (
+                  <div key={job.id} className="border rounded-lg p-3 space-y-2">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h4 className="font-medium text-sm">{job.title}</h4>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Badge 
+                            variant={job.status === 'active' ? 'default' : 'secondary'}
+                            className="text-xs"
+                          >
+                            {job.status === 'draft' && '下書き'}
+                            {job.status === 'active' && '募集中'}
+                            {job.status === 'closed' && '募集終了'}
+                          </Badge>
+                          {(job.salaryInexperienced || job.salaryExperienced) && (
+                            <span className="text-xs text-gray-600">
+                              {job.salaryInexperienced || job.salaryExperienced}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex gap-1">
+                      <Link href={`/jobs/${job.id}`}>
+                        <Button variant="outline" size="sm" className="text-xs h-7">
+                          詳細
+                        </Button>
+                      </Link>
+                      <Link href={`/jobs/${job.id}/edit`}>
+                        <Button variant="outline" size="sm" className="text-xs h-7">
+                          編集
+                        </Button>
+                      </Link>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="text-xs h-7"
+                        onClick={() => duplicateJob(job)}
+                      >
+                        複製
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
 
           {/* 統計情報 */}
           <Card>

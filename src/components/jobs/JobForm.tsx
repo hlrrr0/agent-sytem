@@ -54,8 +54,8 @@ export default function JobForm({
   })
 
   useEffect(() => {
-    if (Object.keys(initialData).length > 0 && !loadingData) {
-      // 企業・店舗データの読み込みが完了してから初期データを設定
+    if (Object.keys(initialData).length > 0) {
+      // 初期データを設定（loadingDataの状態に関係なく）
       console.log('JobForm: Setting initial data:', initialData)
       setFormData({
         companyId: initialData.companyId || '',
@@ -80,7 +80,19 @@ export default function JobForm({
         ...initialData
       })
     }
-  }, [initialData, loadingData])
+  }, [initialData])
+
+  // 企業・店舗データが読み込まれた後に、initialDataがある場合は再設定
+  useEffect(() => {
+    if (!loadingData && Object.keys(initialData).length > 0) {
+      console.log('JobForm: Re-setting initial data after data load:', initialData)
+      setFormData(prev => ({
+        ...prev,
+        companyId: initialData.companyId || prev.companyId,
+        storeId: initialData.storeId || prev.storeId,
+      }))
+    }
+  }, [loadingData, initialData])
 
   useEffect(() => {
     const loadData = async () => {
