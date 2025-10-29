@@ -395,7 +395,7 @@ function JobDetailContent({ params }: JobDetailPageProps) {
                 variant="outline" 
                 className="w-full justify-start"
                 onClick={() => {
-                  if (job.status === 'published') {
+                  if (job.status === 'active') {
                     // 公開停止の処理
                     console.log('求人を非公開にする')
                   } else {
@@ -404,7 +404,7 @@ function JobDetailContent({ params }: JobDetailPageProps) {
                   }
                 }}
               >
-                {job.status === 'published' ? (
+                {job.status === 'active' ? (
                   <>
                     <EyeOff className="h-4 w-4 mr-2" />
                     公開を停止
@@ -481,7 +481,7 @@ function JobDetailContent({ params }: JobDetailPageProps) {
               <div className="space-y-3 text-sm">
                 <div className="flex justify-between">
                   <span className="text-gray-600">公開状況</span>
-                  <span>{job.status === 'published' ? '公開中' : '非公開'}</span>
+                  <span>{job.status === 'active' ? '募集中' : job.status === 'draft' ? '下書き' : '募集終了'}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">雇用形態</span>

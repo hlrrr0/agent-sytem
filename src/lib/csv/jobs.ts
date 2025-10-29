@@ -96,7 +96,7 @@ export const importJobsFromCSV = async (csvText: string): Promise<ImportResult> 
         const jobData: Omit<Job, 'id' | 'createdAt' | 'updatedAt'> = {
           title: rowData.title.trim(),
           companyId: rowData.companyId.trim(),
-          status: (rowData.status as 'draft' | 'published' | 'active' | 'paused' | 'closed') || 'draft',
+          status: (rowData.status as 'draft' | 'active' | 'closed') || 'draft',
           // オプションフィールド
           storeId: rowData.storeId?.trim(),
           businessType: rowData.businessType?.trim(),
