@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google'
 import './globals.css'
 import Header from '@/components/header'
 import { AuthProvider } from '@/contexts/AuthContext'
+import { ConditionalMain } from '@/components/ConditionalMain'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -29,9 +30,9 @@ export default function RootLayout({
       <body className={inter.className}>
         <AuthProvider>
           <Header />
-          <main className="pt-16">
+          <ConditionalMain>
             {children}
-          </main>
+          </ConditionalMain>
         </AuthProvider>
       </body>
     </html>

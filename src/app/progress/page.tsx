@@ -1,7 +1,8 @@
 "use client"
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
@@ -23,7 +24,9 @@ import {
   Send,
   AlertCircle,
   Edit,
-  Eye
+  Eye,
+  Briefcase,
+  Users
 } from 'lucide-react'
 import { Match } from '@/types/matching'
 import { Candidate } from '@/types/candidate'
@@ -42,6 +45,7 @@ interface MatchWithDetails extends Match {
 
 function ProgressPageContent() {
   const { user } = useAuth()
+  const searchParams = useSearchParams()
   const [matches, setMatches] = useState<MatchWithDetails[]>([])
   const [filteredMatches, setFilteredMatches] = useState<MatchWithDetails[]>([])
   const [candidates, setCandidates] = useState<Candidate[]>([])
@@ -55,6 +59,8 @@ function ProgressPageContent() {
   // Dialog states
   const [createMatchOpen, setCreateMatchOpen] = useState(false)
   const [statusUpdateOpen, setStatusUpdateOpen] = useState(false)
+  const [jobSelectModalOpen, setJobSelectModalOpen] = useState(false)
+  const [candidateSelectModalOpen, setCandidateSelectModalOpen] = useState(false)
   const [selectedMatch, setSelectedMatch] = useState<MatchWithDetails | null>(null)
   const [newStatus, setNewStatus] = useState<Match['status']>('suggested')
   const [newMatchData, setNewMatchData] = useState({
@@ -63,6 +69,8 @@ function ProgressPageContent() {
     score: 50,
     notes: ''
   })
+  const [jobSearchTerm, setJobSearchTerm] = useState('')
+  const [candidateSearchTerm, setCandidateSearchTerm] = useState('')
 
   useEffect(() => {
     if (user) {
@@ -73,6 +81,20 @@ function ProgressPageContent() {
   useEffect(() => {
     filterMatches()
   }, [matches, searchTerm, statusFilter, companyFilter])
+
+  // URLパラメータから候補者IDを取得して、新規作成ダイアログを開く
+  useEffect(() => {
+    const candidateParam = searchParams.get('candidate')
+    if (candidateParam && candidates.length > 0) {
+      setNewMatchData(prev => ({
+        ...prev,
+        candidateId: candidateParam
+      }))
+      setCreateMatchOpen(true)
+      // URLパラメータをクリア（ブラウザ履歴を汚さないように）
+      window.history.replaceState({}, '', '/progress')
+    }
+  }, [searchParams, candidates])
 
   const loadData = async () => {
     try {
@@ -201,6 +223,46 @@ function ProgressPageContent() {
     }
   }
 
+  const handleJobSelect = (jobId: string) => {
+    setNewMatchData(prev => ({ ...prev, jobId }))
+    setJobSelectModalOpen(false)
+    setJobSearchTerm('')
+  }
+
+  const handleCandidateSelect = (candidateId: string) => {
+    setNewMatchData(prev => ({ ...prev, candidateId }))
+    setCandidateSelectModalOpen(false)
+    setCandidateSearchTerm('')
+  }
+
+  const getFilteredJobs = () => {
+    return jobs.filter(job => {
+      const company = companies.find(c => c.id === job.companyId)
+      const searchText = `${job.title} ${company?.name || ''}`.toLowerCase()
+      return searchText.includes(jobSearchTerm.toLowerCase())
+    })
+  }
+
+  const getFilteredCandidates = () => {
+    return candidates.filter(candidate => {
+      const searchText = `${candidate.firstName} ${candidate.lastName} ${candidate.firstNameKana} ${candidate.lastNameKana} ${candidate.email || ''}`.toLowerCase()
+      return searchText.includes(candidateSearchTerm.toLowerCase())
+    })
+  }
+
+  const getSelectedJobDisplay = () => {
+    if (!newMatchData.jobId) return '求人を選択'
+    const job = jobs.find(j => j.id === newMatchData.jobId)
+    const company = companies.find(c => c.id === job?.companyId)
+    return job ? `${job.title} - ${company?.name || '不明'}` : '求人を選択'
+  }
+
+  const getSelectedCandidateDisplay = () => {
+    if (!newMatchData.candidateId) return '求職者を選択'
+    const candidate = candidates.find(c => c.id === newMatchData.candidateId)
+    return candidate ? `${candidate.firstName} ${candidate.lastName}` : '求職者を選択'
+  }
+
   const getStatusIcon = (status: Match['status']) => {
     switch (status) {
       case 'suggested': return <Clock className="h-4 w-4" />
@@ -299,40 +361,25 @@ function ProgressPageContent() {
                     <div className="space-y-4">
                       <div>
                         <Label htmlFor="candidate">求職者</Label>
-                        <Select value={newMatchData.candidateId} onValueChange={(value) => 
-                          setNewMatchData(prev => ({ ...prev, candidateId: value }))
-                        }>
-                          <SelectTrigger>
-                            <SelectValue placeholder="求職者を選択" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {candidates.map((candidate) => (
-                              <SelectItem key={candidate.id} value={candidate.id}>
-                                {candidate.firstName} {candidate.lastName}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start text-left font-normal"
+                          onClick={() => setCandidateSelectModalOpen(true)}
+                        >
+                          <Users className="h-4 w-4 mr-2" />
+                          {getSelectedCandidateDisplay()}
+                        </Button>
                       </div>
                       <div>
                         <Label htmlFor="job">求人</Label>
-                        <Select value={newMatchData.jobId} onValueChange={(value) => 
-                          setNewMatchData(prev => ({ ...prev, jobId: value }))
-                        }>
-                          <SelectTrigger>
-                            <SelectValue placeholder="求人を選択" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {jobs.map((job) => {
-                              const company = companies.find(c => c.id === job.companyId)
-                              return (
-                                <SelectItem key={job.id} value={job.id}>
-                                  {job.title} - {company?.name || '不明'}
-                                </SelectItem>
-                              )
-                            })}
-                          </SelectContent>
-                        </Select>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start text-left font-normal"
+                          onClick={() => setJobSelectModalOpen(true)}
+                        >
+                          <Briefcase className="h-4 w-4 mr-2" />
+                          {getSelectedJobDisplay()}
+                        </Button>
                       </div>
                       <div>
                         <Label htmlFor="score">マッチングスコア ({newMatchData.score})</Label>
@@ -575,6 +622,226 @@ function ProgressPageContent() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+
+          {/* 求人選択モーダル */}
+          <Dialog open={jobSelectModalOpen} onOpenChange={setJobSelectModalOpen}>
+            <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
+              <DialogHeader>
+                <DialogTitle>求人を選択</DialogTitle>
+                <DialogDescription>
+                  マッチングを作成する求人を選択してください
+                </DialogDescription>
+              </DialogHeader>
+              
+              <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
+                {/* 検索フィールド */}
+                <div className="flex items-center space-x-2">
+                  <Search className="h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="求人名、企業名で検索..."
+                    value={jobSearchTerm}
+                    onChange={(e) => setJobSearchTerm(e.target.value)}
+                    className="flex-1"
+                  />
+                </div>
+
+                {/* 求人リスト */}
+                <div className="flex-1 overflow-y-auto border rounded-lg">
+                  <div className="space-y-2 p-4">
+                    {getFilteredJobs().map((job) => {
+                      const company = companies.find(c => c.id === job.companyId)
+                      const isSelected = newMatchData.jobId === job.id
+                      
+                      return (
+                        <div
+                          key={job.id}
+                          className={`p-4 border rounded-lg cursor-pointer transition-colors hover:bg-gray-50 ${
+                            isSelected ? 'border-orange-500 bg-orange-50' : 'border-gray-200'
+                          }`}
+                          onClick={() => handleJobSelect(job.id)}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <h4 className="font-medium text-lg">{job.title}</h4>
+                              <p className="text-gray-600 text-sm mt-1">
+                                {company?.name || '企業名不明'}
+                              </p>
+                              <div className="flex items-center gap-2 mt-2">
+                                <Badge 
+                                  variant={job.status === 'active' ? 'default' : 'secondary'}
+                                  className="text-xs"
+                                >
+                                  {job.status === 'draft' && '下書き'}
+                                  {job.status === 'active' && '募集中'}
+                                  {job.status === 'closed' && '募集終了'}
+                                </Badge>
+                                {(job.salaryInexperienced || job.salaryExperienced) && (
+                                  <span className="text-xs text-gray-500">
+                                    {job.salaryInexperienced || job.salaryExperienced}
+                                  </span>
+                                )}
+                              </div>
+                              {job.jobDescription && (
+                                <p className="text-gray-600 text-sm mt-2 line-clamp-2">
+                                  {job.jobDescription}
+                                </p>
+                              )}
+                            </div>
+                            {isSelected && (
+                              <CheckCircle className="h-5 w-5 text-orange-500 mt-1" />
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+                    
+                    {getFilteredJobs().length === 0 && (
+                      <div className="text-center py-8 text-gray-500">
+                        {jobSearchTerm ? '検索条件に一致する求人が見つかりません' : '求人がありません'}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setJobSelectModalOpen(false)
+                    setJobSearchTerm('')
+                  }}
+                >
+                  キャンセル
+                </Button>
+                <Button
+                  onClick={() => {
+                    setJobSelectModalOpen(false)
+                    setJobSearchTerm('')
+                  }}
+                  disabled={!newMatchData.jobId}
+                  className="bg-orange-600 hover:bg-orange-700"
+                >
+                  選択
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* 求職者選択モーダル */}
+          <Dialog open={candidateSelectModalOpen} onOpenChange={setCandidateSelectModalOpen}>
+            <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
+              <DialogHeader>
+                <DialogTitle>求職者を選択</DialogTitle>
+                <DialogDescription>
+                  マッチングを作成する求職者を選択してください
+                </DialogDescription>
+              </DialogHeader>
+              
+              <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
+                {/* 検索フィールド */}
+                <div className="flex items-center space-x-2">
+                  <Search className="h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="氏名、カナ、メールアドレスで検索..."
+                    value={candidateSearchTerm}
+                    onChange={(e) => setCandidateSearchTerm(e.target.value)}
+                    className="flex-1"
+                  />
+                </div>
+
+                {/* 求職者リスト */}
+                <div className="flex-1 overflow-y-auto border rounded-lg">
+                  <div className="space-y-2 p-4">
+                    {getFilteredCandidates().map((candidate) => {
+                      const isSelected = newMatchData.candidateId === candidate.id
+                      
+                      return (
+                        <div
+                          key={candidate.id}
+                          className={`p-4 border rounded-lg cursor-pointer transition-colors hover:bg-gray-50 ${
+                            isSelected ? 'border-orange-500 bg-orange-50' : 'border-gray-200'
+                          }`}
+                          onClick={() => handleCandidateSelect(candidate.id)}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <h4 className="font-medium text-lg">
+                                {candidate.firstName} {candidate.lastName}
+                              </h4>
+                              <p className="text-gray-600 text-sm mt-1">
+                                {candidate.firstNameKana} {candidate.lastNameKana}
+                              </p>
+                              {candidate.email && (
+                                <p className="text-gray-500 text-sm mt-1">
+                                  {candidate.email}
+                                </p>
+                              )}
+                              <div className="flex items-center gap-2 mt-2">
+                                {candidate.phone && (
+                                  <span className="text-xs text-gray-500">
+                                    📞 {candidate.phone}
+                                  </span>
+                                )}
+                                {candidate.nearestStation && (
+                                  <span className="text-xs text-gray-500">
+                                    🚉 {candidate.nearestStation}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2 mt-2">
+                                {candidate.cookingExperience && (
+                                  <Badge variant="secondary" className="text-xs">
+                                    {candidate.cookingExperience}
+                                  </Badge>
+                                )}
+                                {candidate.preferredArea && (
+                                  <Badge variant="outline" className="text-xs">
+                                    希望エリア: {candidate.preferredArea}
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                            {isSelected && (
+                              <CheckCircle className="h-5 w-5 text-orange-500 mt-1" />
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+                    
+                    {getFilteredCandidates().length === 0 && (
+                      <div className="text-center py-8 text-gray-500">
+                        {candidateSearchTerm ? '検索条件に一致する求職者が見つかりません' : '求職者がいません'}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setCandidateSelectModalOpen(false)
+                    setCandidateSearchTerm('')
+                  }}
+                >
+                  キャンセル
+                </Button>
+                <Button
+                  onClick={() => {
+                    setCandidateSelectModalOpen(false)
+                    setCandidateSearchTerm('')
+                  }}
+                  disabled={!newMatchData.candidateId}
+                  className="bg-orange-600 hover:bg-orange-700"
+                >
+                  選択
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
     </ProtectedRoute>
@@ -582,5 +849,13 @@ function ProgressPageContent() {
 }
 
 export default function ProgressPage() {
-  return <ProgressPageContent />
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-100 flex items-center justify-center">
+        <div className="text-orange-600">読み込み中...</div>
+      </div>
+    }>
+      <ProgressPageContent />
+    </Suspense>
+  )
 }

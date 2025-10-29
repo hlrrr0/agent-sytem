@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/contexts/AuthContext"
 import { UserCheck, LogOut, User } from "lucide-react"
@@ -9,6 +10,12 @@ import { UserCheck, LogOut, User } from "lucide-react"
 export default function Header() {
   const { user, logout, isAdmin } = useAuth()
   const router = useRouter()
+  const pathname = usePathname()
+
+  // 公開ページではヘッダーを表示しない
+  if (pathname?.startsWith('/public/')) {
+    return null
+  }
 
   const handleLogout = async () => {
     try {

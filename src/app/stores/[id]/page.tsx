@@ -473,6 +473,20 @@ function StoreDetailContent({ params }: StoreDetailPageProps) {
 
         {/* サイドバー */}
         <div className="space-y-6">
+          {/* クイックアクション */}
+          <Card>
+            <CardHeader>
+              <CardTitle>クイックアクション</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">              
+              <Link href={`/jobs/new?company=${store.companyId}&store=${storeId}`}>
+                <Button variant="outline" className="w-full justify-start">
+                  <Briefcase className="h-4 w-4 mr-2" />
+                  この店舗で求人を作成
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
           {/* 関連会社 */}
           {company && (
             <Card>
@@ -503,21 +517,6 @@ function StoreDetailContent({ params }: StoreDetailPageProps) {
               </CardContent>
             </Card>
           )}
-
-          {/* クイックアクション */}
-          <Card>
-            <CardHeader>
-              <CardTitle>クイックアクション</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">              
-              <Link href={`/jobs/new?company=${store.companyId}&store=${storeId}`}>
-                <Button variant="outline" className="w-full justify-start">
-                  <Briefcase className="h-4 w-4 mr-2" />
-                  この店舗で求人を作成
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
 
           {/* 関連求人 */}
           {jobs.length > 0 && (

@@ -21,7 +21,9 @@ import {
   Eye,
   EyeOff,
   TrendingUp,
-  User
+  User,
+  Share,
+  Copy
 } from 'lucide-react'
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
@@ -50,6 +52,7 @@ function JobDetailContent({ params }: JobDetailPageProps) {
   const [company, setCompany] = useState<Company | null>(null)
   const [store, setStore] = useState<any | null>(null)
   const [applications, setApplications] = useState<any[]>([])
+  const [showPublicUrl, setShowPublicUrl] = useState(false)
 
   useEffect(() => {
     const initializeComponent = async () => {
@@ -210,6 +213,27 @@ function JobDetailContent({ params }: JobDetailPageProps) {
     return '給与: 要相談'
   }
 
+  const getPublicUrl = () => {
+    if (typeof window !== 'undefined') {
+      return `${window.location.origin}/public/jobs/${jobId}`
+    }
+    return ''
+  }
+
+  const copyPublicUrl = async () => {
+    try {
+      await navigator.clipboard.writeText(getPublicUrl())
+      alert('公開URLをクリップボードにコピーしました')
+    } catch (error) {
+      console.error('クリップボードへのコピーに失敗しました:', error)
+      alert('クリップボードへのコピーに失敗しました')
+    }
+  }
+
+  const openPublicUrl = () => {
+    window.open(getPublicUrl(), '_blank')
+  }
+
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -250,6 +274,37 @@ function JobDetailContent({ params }: JobDetailPageProps) {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowPublicUrl(!showPublicUrl)}
+            className="border-green-300 text-green-700 hover:bg-green-50"
+          >
+            <Share className="h-4 w-4 mr-2" />
+            公開URL {job.status && `(${job.status})`}
+          </Button>
+          {showPublicUrl && (
+            <div className="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={copyPublicUrl}
+                className="border-blue-300 text-blue-700 hover:bg-blue-50"
+              >
+                <Copy className="h-4 w-4 mr-2" />
+                コピー
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={openPublicUrl}
+                className="border-blue-300 text-blue-700 hover:bg-blue-50"
+              >
+                <Eye className="h-4 w-4 mr-2" />
+                プレビュー
+              </Button>
+            </div>
+          )}
           <Link href={`/jobs/${jobId}/edit`}>
             <Button variant="outline" size="sm" className="border-purple-300 text-purple-700 hover:bg-purple-50">
               <Edit className="h-4 w-4 mr-2" />
@@ -258,6 +313,27 @@ function JobDetailContent({ params }: JobDetailPageProps) {
           </Link>
         </div>
       </div>
+
+      {/* 公開URL表示 */}
+      {showPublicUrl && job.status === 'active' && (
+        <div className="mb-6">
+          <Card className="border-green-200 bg-green-50">
+            <CardContent className="pt-4">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <h3 className="font-medium text-green-800 mb-2">公開URL</h3>
+                  <p className="text-sm text-green-700 bg-white px-3 py-2 rounded border">
+                    {getPublicUrl()}
+                  </p>
+                  <p className="text-xs text-green-600 mt-2">
+                    この URLを応募者に共有すると、ログインなしで求人票を閲覧できます。
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* メイン情報 */}

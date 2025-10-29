@@ -435,17 +435,7 @@ function CompaniesPageContent() {
               <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
               更新
             </Button>
-            {isAdmin && (
-              <Link href="/domino/import">
-                <Button 
-                  variant="outline"
-                  className="bg-white text-blue-600 hover:bg-blue-50 border-white flex items-center gap-2"
-                >
-                  <Download className="h-4 w-4" />
-                  詳細インポート
-                </Button>
-              </Link>
-            )}
+
             <Button
               onClick={downloadCSVTemplate}
               variant="outline"

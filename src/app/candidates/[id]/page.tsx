@@ -213,6 +213,16 @@ export default function CandidateDetailPage({ params }: CandidateDetailPageProps
             <RefreshCw className="h-4 w-4 mr-2" />
             更新
           </Button>
+          <Link href={`/progress?candidate=${candidateId}`}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-orange-600 border-orange-200 hover:bg-orange-50"
+            >
+              <TrendingUp className="h-4 w-4 mr-2" />
+              進捗を作成
+            </Button>
+          </Link>
           <Link href={`/candidates/${candidateId}/edit`}>
             <Button className="bg-blue-600 hover:bg-blue-700">
               <Edit className="h-4 w-4 mr-2" />
