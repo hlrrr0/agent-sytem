@@ -16,8 +16,7 @@ import {
   MapPin, 
   Building2,
   ExternalLink,
-  Briefcase,
-  X
+  Briefcase
 } from 'lucide-react'
 import { doc, getDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
@@ -513,16 +512,8 @@ function StoreDetailContent({ params }: StoreDetailPageProps) {
       <Dialog open={!!modalImage} onOpenChange={() => setModalImage(null)}>
         <DialogContent className="max-w-4xl w-full max-h-[90vh] p-0">
           <DialogHeader className="p-6 pb-0">
-            <DialogTitle className="flex items-center justify-between">
+            <DialogTitle>
               {modalImage?.alt}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setModalImage(null)}
-                className="h-6 w-6 p-0"
-              >
-                <X className="h-4 w-4" />
-              </Button>
             </DialogTitle>
           </DialogHeader>
           {modalImage && (

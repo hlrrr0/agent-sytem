@@ -36,7 +36,7 @@ export interface Job {
   consultantReview?: string               // キャリア担当からの"正直な"感想（任意）
   
   // ステータス
-  status: 'draft' | 'published' | 'active' | 'paused' | 'closed'  // 求人ステータス
+  status: 'draft' | 'active' | 'closed'  // 求人ステータス
   
   // メタデータ
   createdAt: string | Date
@@ -46,9 +46,7 @@ export interface Job {
 
 export const jobStatusLabels = {
   'draft': '下書き',
-  'published': '公開中',
   'active': '募集中',
-  'paused': '一時停止',
   'closed': '募集終了'
 }
 
