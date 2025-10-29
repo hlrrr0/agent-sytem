@@ -224,7 +224,7 @@ export default function MatchDetailPage() {
         <div className="container mx-auto py-8 px-4">
           <div className="flex items-center justify-center min-h-[400px]">
             <div className="text-center">
-              <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-purple-600" />
+              <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-orange-600" />
               <p className="text-gray-600">マッチング詳細を読み込み中...</p>
             </div>
           </div>
@@ -239,7 +239,7 @@ export default function MatchDetailPage() {
         <div className="container mx-auto py-8 px-4">
           <div className="text-center">
             <h1 className="text-2xl font-bold text-gray-900 mb-4">マッチングが見つかりません</h1>
-            <Button asChild className="bg-purple-600 hover:bg-purple-700">
+            <Button asChild className="bg-orange-600 hover:bg-orange-700">
               <Link href="/progress">
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 進捗管理に戻る
@@ -253,49 +253,50 @@ export default function MatchDetailPage() {
 
   return (
     <ProtectedRoute>
-      <div className="container mx-auto py-8 px-4">
-        {/* ヘッダー */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center space-x-4">
-            <Button
-              variant="outline"
-              onClick={() => router.push('/progress')}
-              className="text-purple-600 border-purple-200 hover:bg-purple-50"
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              進捗管理
-            </Button>
-            <div>
-              <h1 className="text-3xl font-bold text-purple-800">
-                マッチング詳細
-              </h1>
-              <p className="text-gray-600 mt-1">
-                ID: {match.id}
-              </p>
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-100">
+        <div className="container mx-auto py-8 px-4">
+          {/* ヘッダー */}
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center space-x-4">
+              <Button
+                variant="outline"
+                onClick={() => router.push('/progress')}
+                className="text-orange-600 border-orange-200 hover:bg-orange-50"
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                進捗管理
+              </Button>
+              <div>
+                <h1 className="text-3xl font-bold text-orange-800">
+                  マッチング詳細
+                </h1>
+                <p className="text-gray-600 mt-1">
+                  ID: {match.id}
+                </p>
+              </div>
             </div>
-          </div>
-          <div className="flex gap-2">
-            <Button
-              onClick={loadMatchData}
-              variant="outline"
-              className="text-purple-600 border-purple-200 hover:bg-purple-50"
-            >
-              <RefreshCw className="h-4 w-4 mr-2" />
-              更新
-            </Button>
-            <Dialog open={statusUpdateOpen} onOpenChange={setStatusUpdateOpen}>
-              <DialogTrigger asChild>
-                <Button
-                  onClick={() => {
-                    setNewStatus(match.status)
-                    setStatusUpdateOpen(true)
-                  }}
-                  className="bg-purple-600 hover:bg-purple-700 text-white"
-                >
-                  <MessageSquare className="h-4 w-4 mr-2" />
-                  ステータス更新
-                </Button>
-              </DialogTrigger>
+            <div className="flex gap-2">
+              <Button
+                onClick={loadMatchData}
+                variant="outline"
+                className="text-orange-600 border-orange-200 hover:bg-orange-50"
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                更新
+              </Button>
+              <Dialog open={statusUpdateOpen} onOpenChange={setStatusUpdateOpen}>
+                <DialogTrigger asChild>
+                  <Button
+                    onClick={() => {
+                      setNewStatus(match.status)
+                      setStatusUpdateOpen(true)
+                    }}
+                    className="bg-orange-600 hover:bg-orange-700 text-white"
+                  >
+                    <MessageSquare className="h-4 w-4 mr-2" />
+                    ステータス更新
+                  </Button>
+                </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>ステータス更新</DialogTitle>
@@ -601,6 +602,7 @@ export default function MatchDetailPage() {
               </CardContent>
             </Card>
           </div>
+        </div>
         </div>
       </div>
     </ProtectedRoute>

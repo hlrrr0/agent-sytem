@@ -11,7 +11,6 @@ import ProtectedRoute from '@/components/ProtectedRoute'
 import { 
   ArrowLeft, 
   Building2, 
-  Edit, 
   MapPin, 
   Globe, 
   Users,
@@ -20,7 +19,8 @@ import {
   Store,
   Briefcase,
   TrendingUp,
-  DollarSign
+  DollarSign,
+  Edit
 } from 'lucide-react'
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
@@ -142,11 +142,32 @@ function CompanyDetailContent({ params }: CompanyDetailPageProps) {
   }
 
   // 日時フォーマット関数
-  const formatDateTime = (dateValue: string | Date | undefined) => {
+  const formatDateTime = (dateValue: string | Date | any | undefined) => {
     if (!dateValue) return '未設定'
     
     try {
-      const date = dateValue instanceof Date ? dateValue : new Date(dateValue)
+      let date: Date;
+      
+      // Firestoreのタイムスタンプオブジェクトの場合
+      if (dateValue && typeof dateValue === 'object' && dateValue.toDate) {
+        date = dateValue.toDate()
+      }
+      // Date オブジェクトの場合
+      else if (dateValue instanceof Date) {
+        date = dateValue
+      }
+      // 文字列の場合
+      else if (typeof dateValue === 'string') {
+        date = new Date(dateValue)
+      }
+      // secondsフィールドがある場合（Firestore Timestamp）
+      else if (dateValue && typeof dateValue === 'object' && dateValue.seconds) {
+        date = new Date(dateValue.seconds * 1000)
+      }
+      else {
+        return '日時形式エラー'
+      }
+      
       if (isNaN(date.getTime())) return '無効な日時'
       
       return date.toLocaleString('ja-JP', {
@@ -158,7 +179,7 @@ function CompanyDetailContent({ params }: CompanyDetailPageProps) {
         second: '2-digit'
       })
     } catch (error) {
-      console.error('日時フォーマットエラー:', error)
+      console.error('日時フォーマットエラー:', error, 'dateValue:', dateValue)
       return '日時エラー'
     }
   }
@@ -201,6 +222,11 @@ function CompanyDetailContent({ params }: CompanyDetailPageProps) {
               {company.isPublic && (
                 <Badge variant="outline">公開中</Badge>
               )}
+              {consultant && (
+                <Badge variant="secondary" className="bg-purple-100 text-purple-800">
+                  担当: {consultant.displayName || consultant.email}
+                </Badge>
+              )}
             </div>
           </div>
         </div>
@@ -221,21 +247,6 @@ function CompanyDetailContent({ params }: CompanyDetailPageProps) {
               <CardTitle>基本情報</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <h3 className="font-medium text-gray-700">企業名</h3>
-                  <p className="text-lg">{company.name}</p>
-                </div>
-                {company.representative && (
-                  <div>
-                    <h3 className="font-medium text-gray-700">代表者名</h3>
-                    <p className="text-lg">{company.representative}</p>
-                  </div>
-                )}
-              </div>
-
-              <Separator />
-
               <div>
                 <h3 className="font-medium text-gray-700 flex items-center gap-2">
                   <MapPin className="h-4 w-4" />
@@ -261,21 +272,28 @@ function CompanyDetailContent({ params }: CompanyDetailPageProps) {
                   </a>
                 </div>
               )}
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
+                  {company.representative && (
+                    <div>
+                      <h3 className="font-medium text-gray-700">代表者名</h3>
+                      <p className="text-lg">{company.representative}</p>
+                    </div>
+                  )}
+                </div>
                 <div>
                   <h3 className="font-medium text-gray-700 flex items-center gap-2">
                     <Users className="h-4 w-4" />
                     従業員数
                   </h3>
-                  <p className="mt-1 text-lg">{company.employeeCount || 0}名</p>
+                  <p className="mt-1 text-lg">{company.employeeCount || '未入力'}名</p>
                 </div>
                 <div>
                   <h3 className="font-medium text-gray-700 flex items-center gap-2">
                     <DollarSign className="h-4 w-4" />
                     資本金
                   </h3>
-                  <p className="mt-1 text-lg">{company.capital || 0}万円</p>
+                  <p className="mt-1 text-lg">{company.capital || '未入力'}万円</p>
                 </div>
                 <div>
                   <h3 className="font-medium text-gray-700 flex items-center gap-2">
@@ -309,90 +327,105 @@ function CompanyDetailContent({ params }: CompanyDetailPageProps) {
             </CardContent>
           </Card>
 
-          {/* 管理情報 */}
-          <Card>
-            <CardHeader>
-              <CardTitle>管理情報</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {company.contractStartDate && (
+          {/* 福利厚生情報 */}
+          {(company.hasHousingSupport || company.hasIndependenceSupport || company.fullTimeAgeGroup || company.independenceRecord || company.careerPath || company.youngRecruitReason) && (
+            <Card>
+              <CardHeader>
+                <CardTitle>福利厚生・キャリア情報</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* サポート制度 */}
+                {(company.hasHousingSupport || company.hasIndependenceSupport) && (
                   <div>
-                    <h3 className="font-medium text-gray-700">取引開始日</h3>
-                    <p className="mt-1">
-                      {new Date(company.contractStartDate).toLocaleDateString('ja-JP')}
-                    </p>
-                  </div>
-                )}
-                
-                {consultant && (
-                  <div>
-                    <h3 className="font-medium text-gray-700">担当コンサルタント</h3>
-                    <p className="mt-1 flex items-center gap-2">
-                      <span>{consultant.displayName || consultant.email}</span>
-                      <Badge variant="outline" className="text-xs">
-                        {consultant.role === 'admin' ? '管理者' : 'ユーザー'}
-                      </Badge>
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              <Separator />
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
-                <div>
-                  <h3 className="font-medium text-gray-700 flex items-center gap-2">
-                    <Calendar className="h-4 w-4" />
-                    作成日時
-                  </h3>
-                  <p className="mt-1">{formatDateTime(company.createdAt)}</p>
-                </div>
-                <div>
-                  <h3 className="font-medium text-gray-700 flex items-center gap-2">
-                    <Calendar className="h-4 w-4" />
-                    更新日時
-                  </h3>
-                  <p className="mt-1">{formatDateTime(company.updatedAt)}</p>
-                </div>
-              </div>
-
-              {/* メモ・特記事項 */}
-              {company.memo && (
-                <>
-                  <Separator />
-                  <div>
-                    <h3 className="font-medium text-gray-700 mb-2">メモ・特記事項</h3>
-                    <div className="bg-gray-50 p-3 rounded-lg">
-                      <p className="text-sm whitespace-pre-wrap">{company.memo}</p>
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {/* Dominoシステム連携情報 */}
-              {company.dominoId && (
-                <>
-                  <Separator />
-                  <div className="bg-blue-50 p-4 rounded-lg">
-                    <h3 className="font-medium text-blue-800 mb-2">Dominoシステム連携</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <span className="font-medium text-blue-700">Domino ID:</span>
-                        <span className="ml-2 font-mono">{company.dominoId}</span>
-                      </div>
-                      {company.importedAt && (
-                        <div>
-                          <span className="font-medium text-blue-700">インポート日時:</span>
-                          <span className="ml-2">{formatDateTime(company.importedAt)}</span>
-                        </div>
+                    <h3 className="font-medium text-gray-700 mb-3">サポート制度</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {company.hasHousingSupport && (
+                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                          寮・家賃保証あり
+                        </Badge>
+                      )}
+                      {company.hasIndependenceSupport && (
+                        <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                          独立支援あり
+                        </Badge>
                       )}
                     </div>
                   </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
+                )}
+
+                {/* 年齢層 */}
+                {company.fullTimeAgeGroup && (
+                  <div>
+                    <h3 className="font-medium text-gray-700">正社員年齢層</h3>
+                    <p className="mt-1 text-sm">{company.fullTimeAgeGroup}</p>
+                  </div>
+                )}
+
+                {/* 独立実績 */}
+                {company.independenceRecord && (
+                  <div>
+                    <h3 className="font-medium text-gray-700">独立実績</h3>
+                    <p className="mt-1 text-sm">{company.independenceRecord}</p>
+                  </div>
+                )}
+
+                {/* キャリアパス */}
+                {company.careerPath && (
+                  <div>
+                    <h3 className="font-medium text-gray-700">目指せるキャリア</h3>
+                    <p className="mt-1 text-sm">{company.careerPath}</p>
+                  </div>
+                )}
+
+                {/* 若手入社理由 */}
+                {company.youngRecruitReason && (
+                  <div>
+                    <h3 className="font-medium text-gray-700">若手の入社理由</h3>
+                    <p className="mt-1 text-sm">{company.youngRecruitReason}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* メモ・特記事項 */}
+          {company.memo && (
+            <Card>
+              <CardHeader>
+                <CardTitle>メモ・特記事項</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="bg-gray-50 p-3 rounded-lg">
+                  <p className="text-sm whitespace-pre-wrap">{company.memo}</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Dominoシステム連携情報 */}
+          {company.dominoId && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-blue-800">Dominoシステム連携</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="font-medium text-blue-700">Domino ID:</span>
+                      <span className="ml-2 font-mono">{company.dominoId}</span>
+                    </div>
+                    {company.importedAt && (
+                      <div>
+                        <span className="font-medium text-blue-700">インポート日時:</span>
+                        <span className="ml-2">{formatDateTime(company.importedAt)}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* 関連店舗 */}
           {relatedStores.length > 0 && (
@@ -475,13 +508,6 @@ function CompanyDetailContent({ params }: CompanyDetailPageProps) {
               <CardTitle>クイックアクション</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              <Link href={`/companies/${companyId}/edit`}>
-                <Button variant="outline" className="w-full justify-start">
-                  <Edit className="h-4 w-4 mr-2" />
-                  企業情報を編集
-                </Button>
-              </Link>
-              
               <Link href={`/stores/new?company=${companyId}`}>
                 <Button variant="outline" className="w-full justify-start">
                   <Store className="h-4 w-4 mr-2" />
@@ -522,10 +548,42 @@ function CompanyDetailContent({ params }: CompanyDetailPageProps) {
                     {relatedJobs.filter(job => job.status === 'published').length}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">従業員数</span>
-                  <span className="font-medium">{company?.employeeCount || 0}名</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 管理情報 */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="h-5 w-5" />
+                管理情報
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">作成日時</span>
+                  <span className="font-medium text-sm">{formatDateTime(company?.createdAt)}</span>
                 </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">更新日時</span>
+                  <span className="font-medium text-sm">{formatDateTime(company?.updatedAt)}</span>
+                </div>
+                {company?.contractStartDate && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">取引開始日</span>
+                    <span className="font-medium text-sm">
+                      {new Date(company.contractStartDate).toLocaleDateString('ja-JP')}
+                    </span>
+                  </div>
+                )}
+                {consultant && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">担当者</span>
+                    <span className="font-medium text-sm">{consultant.displayName || consultant.email}</span>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

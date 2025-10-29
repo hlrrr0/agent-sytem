@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Button } from '@/components/ui/button'
 import { Save, Loader2 } from 'lucide-react'
 import { Company } from '@/types/company'
@@ -132,6 +133,21 @@ export default function CompanyForm({
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
+            <Label htmlFor="status">ステータス *</Label>
+            <Select 
+              value={formData.status || 'active'} 
+              onValueChange={(value) => handleChange('status', value)}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="active">アクティブ</SelectItem>
+                <SelectItem value="inactive">非アクティブ</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
             <Label htmlFor="name">企業名 *</Label>
             <Input
               id="name"
@@ -201,30 +217,109 @@ export default function CompanyForm({
           </div>
 
           <div>
-            <Label htmlFor="feature1">企業の特徴</Label>
+            <Label htmlFor="feature1">企業の特徴1</Label>
             <Textarea
               id="feature1"
               value={formData.feature1 ?? ''}
               onChange={(e) => handleChange('feature1', e.target.value)}
-              rows={4}
-              placeholder="企業の特徴や強みについて記載してください"
+              rows={3}
+              placeholder="例: 最新技術の積極的な導入"
             />
           </div>
 
           <div>
-            <Label htmlFor="status">ステータス *</Label>
-            <Select 
-              value={formData.status || 'active'} 
-              onValueChange={(value) => handleChange('status', value)}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="active">アクティブ</SelectItem>
-                <SelectItem value="inactive">非アクティブ</SelectItem>
-              </SelectContent>
-            </Select>
+            <Label htmlFor="feature2">企業の特徴2</Label>
+            <Textarea
+              id="feature2"
+              value={formData.feature2 ?? ''}
+              onChange={(e) => handleChange('feature2', e.target.value)}
+              rows={3}
+              placeholder="例: 働きやすい環境づくり"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="feature3">企業の特徴3</Label>
+            <Textarea
+              id="feature3"
+              value={formData.feature3 ?? ''}
+              onChange={(e) => handleChange('feature3', e.target.value)}
+              rows={3}
+              placeholder="例: 社員の成長を重視"
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 福利厚生情報 */}
+      <Card>
+        <CardHeader>
+          <CardTitle>福利厚生情報</CardTitle>
+          <CardDescription>企業の福利厚生や働き方に関する情報を入力してください</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="hasHousingSupport"
+                checked={formData.hasHousingSupport || false}
+                onCheckedChange={(checked) => handleChange('hasHousingSupport', checked)}
+              />
+              <Label htmlFor="hasHousingSupport">寮・家賃保証の有無</Label>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="hasIndependenceSupport"
+                checked={formData.hasIndependenceSupport || false}
+                onCheckedChange={(checked) => handleChange('hasIndependenceSupport', checked)}
+              />
+              <Label htmlFor="hasIndependenceSupport">独立支援の有無</Label>
+            </div>
+          </div>
+
+          <div>
+            <Label htmlFor="independenceRecord">独立実績</Label>
+            <Textarea
+              id="independenceRecord"
+              value={formData.independenceRecord ?? ''}
+              onChange={(e) => handleChange('independenceRecord', e.target.value)}
+              rows={3}
+              placeholder="例: 過去5年で10名が独立、都内で3店舗、地方で2店舗の開業実績"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="fullTimeAgeGroup">正社員年齢層</Label>
+            <Textarea
+              id="fullTimeAgeGroup"
+              value={formData.fullTimeAgeGroup ?? ''}
+              onChange={(e) => handleChange('fullTimeAgeGroup', e.target.value)}
+              rows={2}
+              placeholder="例: 20代～40代中心、新卒から50代まで幅広く"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="careerPath">目指せるキャリア</Label>
+            <Textarea
+              id="careerPath"
+              value={formData.careerPath ?? ''}
+              onChange={(e) => handleChange('careerPath', e.target.value)}
+              rows={3}
+              placeholder="例: 海外就職、海外独立、国内独立、経営層、料理長、店長など"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="youngRecruitReason">若手の入社理由</Label>
+            <Textarea
+              id="youngRecruitReason"
+              value={formData.youngRecruitReason ?? ''}
+              onChange={(e) => handleChange('youngRecruitReason', e.target.value)}
+              rows={3}
+              placeholder="例: 技術力向上、独立支援制度、海外研修制度、キャリアアップの機会"
+            />
           </div>
         </CardContent>
       </Card>
@@ -290,11 +385,11 @@ export default function CompanyForm({
         </CardContent>
       </Card>
 
-      {/* 担当者割り当て */}
+      {/* メモ・その他 */}
       <Card>
         <CardHeader>
-          <CardTitle>担当者割り当て</CardTitle>
-          <CardDescription>この企業を担当するユーザーを選択してください</CardDescription>
+          <CardTitle>メモ・その他</CardTitle>
+          <CardDescription>追加情報やメモを入力してください</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
@@ -324,16 +419,7 @@ export default function CompanyForm({
               </SelectContent>
             </Select>
           </div>
-        </CardContent>
-      </Card>
 
-      {/* メモ・その他 */}
-      <Card>
-        <CardHeader>
-          <CardTitle>メモ・その他</CardTitle>
-          <CardDescription>追加情報やメモを入力してください</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
           <div>
             <Label htmlFor="memo">メモ</Label>
             <Textarea

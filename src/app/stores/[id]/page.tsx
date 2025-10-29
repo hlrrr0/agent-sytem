@@ -14,7 +14,8 @@ import {
   Edit, 
   MapPin, 
   Building2,
-  ExternalLink
+  ExternalLink,
+  Briefcase
 } from 'lucide-react'
 import { doc, getDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
@@ -407,9 +408,9 @@ function StoreDetailContent({ params }: StoreDetailPageProps) {
                 </Button>
               </Link>
               
-              <Link href="/jobs/new">
+              <Link href={`/jobs/new?company=${store.companyId}&store=${storeId}`}>
                 <Button variant="outline" className="w-full justify-start">
-                  <Store className="h-4 w-4 mr-2" />
+                  <Briefcase className="h-4 w-4 mr-2" />
                   この店舗で求人を作成
                 </Button>
               </Link>

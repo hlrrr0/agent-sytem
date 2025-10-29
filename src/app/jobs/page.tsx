@@ -166,15 +166,6 @@ function JobsPageContent() {
     return matchesSearch && matchesStatus && matchesEmploymentType
   })
 
-  const stats = {
-    total: jobs.length,
-    published: jobs.filter(j => j.status === 'published').length,
-    active: jobs.filter(j => j.status === 'active').length,
-    draft: jobs.filter(j => j.status === 'draft').length,
-    paused: jobs.filter(j => j.status === 'paused').length,
-    closed: jobs.filter(j => j.status === 'closed').length,
-  }
-
   // 実際のデータから雇用形態のオプションを動的に作成
   const availableEmploymentTypes = Array.from(
     new Set(jobs.filter(job => job.employmentType && job.employmentType.trim()).map(job => job.employmentType!))
@@ -218,7 +209,7 @@ function JobsPageContent() {
           </div>
           
           {/* ヘッダーアクション */}
-          <div className="flex flex-col sm:flex-row gap-2">
+          <div className="flex flex-col sm:flex-col gap-2">
             <Button
               onClick={downloadCSVTemplate}
               variant="outline"
@@ -288,63 +279,6 @@ function JobsPageContent() {
             </Link>
           </div>
         </div>
-      </div>
-
-      {/* 統計カード */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">総求人数</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{stats.total}</div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">公開中</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">{stats.published}</div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">募集中</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">{stats.active}</div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">下書き</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-gray-600">{stats.draft}</div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">一時停止</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">{stats.paused}</div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">終了</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">{stats.closed}</div>
-          </CardContent>
-        </Card>
       </div>
 
       {/* 検索・フィルター */}

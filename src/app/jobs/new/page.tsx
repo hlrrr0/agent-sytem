@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -20,6 +20,7 @@ import { Store } from '@/types/store'
 
 export default function NewJobPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [loading, setLoading] = useState(false)
   const [companies, setCompanies] = useState<Company[]>([])
   const [stores, setStores] = useState<Store[]>([])
@@ -63,6 +64,40 @@ export default function NewJobPage() {
 
     fetchData()
   }, [])
+
+  // URLパラメータの処理を別のuseEffectで実行
+  useEffect(() => {
+    if (companies.length > 0 && stores.length > 0) {
+      const companyParam = searchParams.get('company')
+      const storeParam = searchParams.get('store')
+      
+      console.log('Company param from URL:', companyParam)
+      console.log('Store param from URL:', storeParam)
+      console.log('Available companies:', companies.map(c => c.id))
+      console.log('Available stores:', stores.map(s => s.id))
+      
+      if (companyParam && companies.some(company => company.id === companyParam)) {
+        console.log('Setting company ID to:', companyParam)
+        
+        const updatedFormData: any = {
+          companyId: companyParam
+        }
+        
+        // 店舗IDも指定されている場合、その店舗が企業に属しているかチェック
+        if (storeParam && stores.some(store => store.id === storeParam && store.companyId === companyParam)) {
+          console.log('Setting store ID to:', storeParam)
+          updatedFormData.storeId = storeParam
+        }
+        
+        setFormData(prev => ({
+          ...prev,
+          ...updatedFormData
+        }))
+      } else {
+        console.log('Company param not found or invalid')
+      }
+    }
+  }, [companies, stores, searchParams])
 
   useEffect(() => {
     if (formData.companyId) {

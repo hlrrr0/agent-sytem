@@ -45,7 +45,7 @@ export default function Header() {
                 <Button variant="ghost" className="text-purple-600 hover:text-purple-700 hover:bg-purple-50">求人</Button>
               </Link>
               <Link href="/progress">
-                <Button variant="ghost" className="text-purple-800 hover:text-purple-900 hover:bg-purple-50">進捗管理</Button>
+                <Button variant="ghost" className="text-orange-800 hover:text-orange-900 hover:bg-orange-50">進捗管理</Button>
               </Link>
               <Link href="/domino/import">
                 <Button variant="ghost">Domino連携</Button>

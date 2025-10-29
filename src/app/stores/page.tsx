@@ -272,7 +272,7 @@ function StoresPageContent() {
           </div>
           
           {/* ヘッダーアクション */}
-          <div className="flex flex-col sm:flex-row gap-2">
+          <div className="flex flex-col sm:flex-col gap-2">
             <Button
               onClick={downloadCSVTemplate}
               variant="outline"
