@@ -495,7 +495,6 @@ function JobsPageContent() {
                   <TableHead>企業名</TableHead>
                   <TableHead>店舗名</TableHead>
                   <TableHead>雇用形態</TableHead>
-                  <TableHead>給与</TableHead>
                   <TableHead>ステータス</TableHead>
                   <TableHead className="text-right">アクション</TableHead>
                 </TableRow>
@@ -512,20 +511,31 @@ function JobsPageContent() {
                       </TableCell>
                     )}
                     <TableCell className="font-medium">
-                      <div className="font-semibold">{job.title}</div>
-                      <div className="text-sm text-gray-500 truncate max-w-xs">
-                        {job.jobDescription || '詳細未入力'}
-                      </div>
+                      <Link href={`/jobs/${job.id}`} className="hover:text-purple-600 transition-colors">
+                        <div className="font-semibold hover:underline">{job.title}</div>
+                        <div className="text-sm text-gray-500 truncate max-w-xs">
+                          {job.jobDescription || '詳細未入力'}
+                        </div>
+                      </Link>
                     </TableCell>
-                    <TableCell>{getCompanyName(job.companyId)}</TableCell>
-                    <TableCell>{getStoreName(job.storeId)}</TableCell>
+                    <TableCell>
+                      <Link href={`/companies/${job.companyId}`} className="hover:text-purple-600 hover:underline transition-colors">
+                        {getCompanyName(job.companyId)}
+                      </Link>
+                    </TableCell>
+                    <TableCell>
+                      {job.storeId ? (
+                        <Link href={`/stores/${job.storeId}`} className="hover:text-purple-600 hover:underline transition-colors">
+                          {getStoreName(job.storeId)}
+                        </Link>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </TableCell>
                     <TableCell>
                       <Badge variant="outline">
                         {job.employmentType || '未設定'}
                       </Badge>
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      {job.salaryExperienced || job.salaryInexperienced || '未設定'}
                     </TableCell>
                     <TableCell>{getStatusBadge(job.status)}</TableCell>
                     <TableCell className="text-right">
