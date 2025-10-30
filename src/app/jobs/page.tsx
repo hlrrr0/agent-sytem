@@ -160,6 +160,7 @@ function JobsPageContent() {
     
     // CSVヘッダー（Job型定義に基づく完全なフィールド）
     const headers = [
+      'id',                         // ID追加
       'title',
       'companyId',
       'storeId',

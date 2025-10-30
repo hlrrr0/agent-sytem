@@ -23,19 +23,32 @@ export async function GET(request: NextRequest) {
     // 環境変数の検証
     if (!process.env.DOMINO_API_URL) {
       console.error('❌ DOMINO_API_URL が設定されていません')
+      return NextResponse.json(
+        { error: 'DOMINO_API_URL環境変数が設定されていません' },
+        { status: 500 }
+      )
     }
     if (!process.env.DOMINO_API_KEY) {
       console.error('❌ DOMINO_API_KEY が設定されていません')
+      return NextResponse.json(
+        { error: 'DOMINO_API_KEY環境変数が設定されていません' },
+        { status: 500 }
+      )
     }
     if (dominoApiKey === 'your-hr-api-secret-key') {
       console.error('❌ DOMINO_API_KEY がデフォルト値のままです')
+      return NextResponse.json(
+        { error: 'DOMINO_API_KEY環境変数がデフォルト値のままです' },
+        { status: 500 }
+      )
     }
     
     console.log('🔧 サーバーサイド環境変数確認:', {
       DOMINO_API_URL: process.env.DOMINO_API_URL,
-      DOMINO_API_KEY: process.env.DOMINO_API_KEY ? process.env.DOMINO_API_KEY.substring(0, 8) + '...' : '未設定',
+      DOMINO_API_KEY_SET: !!process.env.DOMINO_API_KEY,
+      DOMINO_API_KEY_LENGTH: process.env.DOMINO_API_KEY?.length,
+      DOMINO_API_KEY_PREFIX: process.env.DOMINO_API_KEY?.substring(0, 8) + '...',
       dominoApiUrl,
-      dominoApiKey: dominoApiKey ? dominoApiKey.substring(0, 8) + '...' : '未設定',
       envFileExists: process.env.NODE_ENV,
       allEnvKeys: Object.keys(process.env).filter(key => key.includes('DOMINO'))
     })
@@ -88,12 +101,10 @@ export async function GET(request: NextRequest) {
     const targetUrl = `${dominoApiUrl}/integrated?${params}`
     
     console.log('🔄 Domino APIプロキシ呼び出し:', {
-      targetUrl, // 実際のURLをそのまま表示（デバッグ用）
-      targetUrlMasked: targetUrl.replace(dominoApiKey, '***API_KEY***'), // マスク版も表示
+      targetUrlMasked: targetUrl.replace(dominoApiKey, '***API_KEY***'),
       hasApiKey: !!dominoApiKey,
       apiKeyLength: dominoApiKey?.length,
       apiKeyPrefix: dominoApiKey?.substring(0, 8) + '...',
-      apiKeyValue: dominoApiKey, // デバッグ用：実際のAPIキー値
       authMethods: ['Bearer token', 'X-API-Key header', 'api_key parameter']
     })
     

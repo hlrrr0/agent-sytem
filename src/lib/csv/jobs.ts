@@ -15,15 +15,16 @@ export const importJobsFromCSV = async (csvText: string): Promise<ImportResult> 
   }
 
   try {
-    // CSV解析
-    const lines = csvText.trim().split('\n')
-    if (lines.length < 2) {
+    // 改良されたCSV解析（複数行フィールドに対応）
+    const rows = parseCSVText(csvText)
+    if (rows.length < 2) {
       result.errors.push('CSVファイルにデータが含まれていません')
       return result
     }
 
     // 日本語ヘッダーから英語フィールド名へのマッピング
     const headerMapping: Record<string, string> = {
+      '求人ID': 'id',                                     // ID
       '求人タイトル': 'title',
       '企業ID': 'companyId',
       'ステータス': 'status',
@@ -47,8 +48,15 @@ export const importJobsFromCSV = async (csvText: string): Promise<ImportResult> 
     }
 
     // ヘッダー行を取得（日本語と英語の両方に対応）
-    const originalHeaders = lines[0].split(',').map(h => h.trim().replace(/"/g, ''))
-    const headers = originalHeaders.map(header => headerMapping[header] || header)
+    const originalHeaders = rows[0].map((h: string) => h.trim().replace(/"/g, ''))
+    const headers = originalHeaders.map((header: string) => headerMapping[header] || header)
+    
+    console.log('📊 CSV解析結果:', {
+      totalRows: rows.length,
+      headerCount: headers.length,
+      originalHeaders,
+      mappedHeaders: headers
+    })
     
     // 必須フィールドの確認（英語フィールド名で）
     const requiredFields = ['title', 'companyId', 'status']
@@ -62,17 +70,23 @@ export const importJobsFromCSV = async (csvText: string): Promise<ImportResult> 
     }
 
     // データ行を処理
-    for (let i = 1; i < lines.length; i++) {
+    for (let i = 1; i < rows.length; i++) {
       try {
-        const values = parseCSVLine(lines[i])
+        const values = rows[i]
         if (values.length !== headers.length) {
-          result.errors.push(`行${i + 1}: フィールド数が一致しません`)
+          console.log(`❌ 行${i + 1}のフィールド数不一致:`, {
+            expected: headers.length,
+            actual: values.length,
+            headers: headers,
+            values: values
+          })
+          result.errors.push(`行${i + 1}: フィールド数が一致しません (ヘッダー${headers.length}個、データ${values.length}個)`)
           continue
         }
 
         // データオブジェクトを作成
         const rowData: Record<string, string> = {}
-        headers.forEach((header, index) => {
+        headers.forEach((header: string, index: number) => {
           rowData[header] = values[index] || ''
         })
 
@@ -87,8 +101,14 @@ export const importJobsFromCSV = async (csvText: string): Promise<ImportResult> 
           continue
         }
 
-        if (!['draft', 'published', 'active', 'paused', 'closed'].includes(rowData.status)) {
-          result.errors.push(`行${i + 1}: ステータスが無効です (draft/published/active/paused/closed)`)
+        // ステータスの正規化（published/paused -> active にマッピング）
+        let normalizedStatus = rowData.status?.toLowerCase().trim()
+        if (normalizedStatus === 'published' || normalizedStatus === 'paused') {
+          normalizedStatus = 'active'
+        }
+        
+        if (!['draft', 'active', 'closed'].includes(normalizedStatus)) {
+          result.errors.push(`行${i + 1}: ステータスが無効です (draft/active/closed)。published/pausedはactiveとして扱われます`)
           continue
         }
 
@@ -96,7 +116,7 @@ export const importJobsFromCSV = async (csvText: string): Promise<ImportResult> 
         const jobData: Omit<Job, 'id' | 'createdAt' | 'updatedAt'> = {
           title: rowData.title.trim(),
           companyId: rowData.companyId.trim(),
-          status: (rowData.status as 'draft' | 'active' | 'closed') || 'draft',
+          status: (normalizedStatus as 'draft' | 'active' | 'closed') || 'draft',
           // オプションフィールド
           storeId: rowData.storeId?.trim(),
           businessType: rowData.businessType?.trim(),
@@ -117,23 +137,39 @@ export const importJobsFromCSV = async (csvText: string): Promise<ImportResult> 
           createdBy: rowData.createdBy?.trim()
         }
 
-        // 重複チェック：求人タイトル、企業ID、店舗ID（任意）の組み合わせで既存求人を検索
-        const existingJob = await findJobByTitleAndCompany(
-          jobData.title, 
-          jobData.companyId,
-          jobData.storeId
-        )
-
-        if (existingJob) {
-          // 既存求人が見つかった場合は更新
-          await updateJob(existingJob.id, jobData)
-          result.updated++
-          console.log(`行${i + 1}: 既存求人「${jobData.title}」を更新しました`)
+        // ID-based更新チェック（IDが提供されている場合）
+        if (rowData.id?.trim()) {
+          const { getJobById } = await import('@/lib/firestore/jobs')
+          const existingJob = await getJobById(rowData.id.trim())
+          
+          if (existingJob) {
+            // IDによる既存求人更新
+            await updateJob(existingJob.id, jobData)
+            result.updated++
+            console.log(`✅ 行${i + 1}: ID「${rowData.id}」の求人「${jobData.title}」を更新しました`)
+          } else {
+            result.errors.push(`行${i + 1}: 指定されたID「${rowData.id}」の求人が見つかりません`)
+            continue
+          }
         } else {
-          // 新規求人として作成
-          await createJob(jobData)
-          result.success++
-          console.log(`行${i + 1}: 新規求人「${jobData.title}」を作成しました`)
+          // 重複チェック：求人タイトル、企業ID、店舗ID（任意）の組み合わせで既存求人を検索
+          const existingJob = await findJobByTitleAndCompany(
+            jobData.title, 
+            jobData.companyId,
+            jobData.storeId
+          )
+
+          if (existingJob) {
+            // 既存求人が見つかった場合は更新
+            await updateJob(existingJob.id, jobData)
+            result.updated++
+            console.log(`✅ 行${i + 1}: 既存求人「${jobData.title}」を更新しました`)
+          } else {
+            // 新規求人として作成
+            await createJob(jobData)
+            result.success++
+            console.log(`✨ 行${i + 1}: 新規求人「${jobData.title}」を作成しました`)
+          }
         }
 
       } catch (error) {
@@ -150,7 +186,62 @@ export const importJobsFromCSV = async (csvText: string): Promise<ImportResult> 
   return result
 }
 
-// CSV行をパースするヘルパー関数
+// RFC 4180準拠のCSVパーサー（複数行フィールドに対応）
+const parseCSVText = (csvText: string): string[][] => {
+  const rows: string[][] = []
+  let currentRow: string[] = []
+  let currentField = ''
+  let inQuotes = false
+  
+  for (let i = 0; i < csvText.length; i++) {
+    const char = csvText[i]
+    const nextChar = csvText[i + 1]
+    
+    if (char === '"') {
+      if (inQuotes && nextChar === '"') {
+        // エスケープされたクォート
+        currentField += '"'
+        i++ // 次の文字をスキップ
+      } else {
+        // クォートの開始/終了
+        inQuotes = !inQuotes
+      }
+    } else if (char === ',' && !inQuotes) {
+      // フィールドの区切り
+      currentRow.push(currentField.trim())
+      currentField = ''
+    } else if ((char === '\n' || char === '\r') && !inQuotes) {
+      // 行の終了（クォート内でない場合のみ）
+      if (char === '\r' && nextChar === '\n') {
+        i++ // CRLFの場合、LFもスキップ
+      }
+      
+      // 現在のフィールドを追加して行を完了
+      currentRow.push(currentField.trim())
+      currentField = ''
+      
+      // 空行でない場合のみ追加
+      if (currentRow.length > 0 && currentRow.some(field => field !== '')) {
+        rows.push(currentRow)
+      }
+      currentRow = []
+    } else {
+      currentField += char
+    }
+  }
+  
+  // 最後のフィールドと行を追加
+  if (currentField !== '' || currentRow.length > 0) {
+    currentRow.push(currentField.trim())
+    if (currentRow.length > 0 && currentRow.some(field => field !== '')) {
+      rows.push(currentRow)
+    }
+  }
+  
+  return rows
+}
+
+// CSV行をパースするヘルパー関数（後方互換性のため保持）
 const parseCSVLine = (line: string): string[] => {
   const result: string[] = []
   let current = ''
@@ -187,9 +278,10 @@ const parseCSVLine = (line: string): string[] => {
 export const generateJobsCSVTemplate = (): string => {
   // 日本語ヘッダーと対応する英語フィールド名のマッピング
   const headerMapping = [
-    { jp: '求人タイトル', en: 'title' },                    // 必須
-    { jp: '企業ID', en: 'companyId' },                      // 必須
-    { jp: 'ステータス', en: 'status' },                     // 必須: draft/published/active/paused/closed
+    { jp: '求人ID', en: 'id' },                          // ID（更新時のみ使用）
+    { jp: '求人タイトル', en: 'title' },                  // 必須
+    { jp: '企業ID', en: 'companyId' },                    // 必須
+    { jp: 'ステータス', en: 'status' },                   // 必須: draft/active/closed
     { jp: '店舗ID', en: 'storeId' },
     { jp: '業態', en: 'businessType' },
     { jp: '雇用形態', en: 'employmentType' },
@@ -214,9 +306,10 @@ export const generateJobsCSVTemplate = (): string => {
   
   // サンプルデータ（日本語ヘッダーに対応）
   const sampleData = [
+    '',                                                 // 求人ID（新規作成時は空、更新時は既存ID）
     'ホールスタッフ・ウェイター',                          // 求人タイトル
     'comp_abc123def456',                                // 企業ID（実際の企業IDを入力）
-    'active',                                           // ステータス（draft/published/active/paused/closed）
+    'active',                                           // ステータス（draft/active/closed）
     'store_xyz789abc012',                               // 店舗ID（任意、店舗がある場合）
     'イタリアンレストラン',                             // 業態
     'full-time',                                        // 雇用形態
