@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Checkbox } from '@/components/ui/checkbox'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import { useAuth } from '@/contexts/AuthContext'
 import { 
@@ -54,6 +55,10 @@ function JobsPageContent() {
   const [stores, setStores] = useState<StoreType[]>([])
   const [loading, setLoading] = useState(true)
   const [csvImporting, setCsvImporting] = useState(false)
+  
+  // 一括選択状態
+  const [selectedJobs, setSelectedJobs] = useState<Set<string>>(new Set())
+  const [isAllSelected, setIsAllSelected] = useState(false)
   
   // フィルター・検索状態
   const [searchTerm, setSearchTerm] = useState('')
@@ -115,6 +120,112 @@ function JobsPageContent() {
     } finally {
       setCsvImporting(false)
     }
+  }
+
+  // 一括選択関連の関数
+  const handleSelectAll = () => {
+    if (!isAdmin) return
+    
+    if (isAllSelected) {
+      setSelectedJobs(new Set())
+      setIsAllSelected(false)
+    } else {
+      const filteredJobIds = filteredJobs.map(job => job.id)
+      setSelectedJobs(new Set(filteredJobIds))
+      setIsAllSelected(true)
+    }
+  }
+
+  const handleSelectJob = (jobId: string) => {
+    if (!isAdmin) return
+    
+    const newSelected = new Set(selectedJobs)
+    if (newSelected.has(jobId)) {
+      newSelected.delete(jobId)
+    } else {
+      newSelected.add(jobId)
+    }
+    setSelectedJobs(newSelected)
+    setIsAllSelected(newSelected.size === filteredJobs.length && filteredJobs.length > 0)
+  }
+
+  // 選択された求人のCSV出力
+  const exportSelectedJobsCSV = () => {
+    if (selectedJobs.size === 0) {
+      toast.error('エクスポートする求人を選択してください')
+      return
+    }
+
+    const selectedJobData = jobs.filter(job => selectedJobs.has(job.id))
+    
+    // CSVヘッダー（Job型定義に基づく完全なフィールド）
+    const headers = [
+      'title',
+      'companyId',
+      'storeId',
+      'businessType',
+      'employmentType',
+      'trialPeriod',
+      'workingHours',
+      'holidays',
+      'overtime',
+      'salaryInexperienced',
+      'salaryExperienced',
+      'requiredSkills',
+      'jobDescription',
+      'smokingPolicy',
+      'insurance',
+      'benefits',
+      'selectionProcess',
+      'consultantReview',
+      'status',
+      'createdBy'
+    ]
+
+    // CSVデータを生成
+    const csvRows = [
+      headers.join(','),
+      ...selectedJobData.map(job => {
+        return headers.map(header => {
+          let value: any = job[header as keyof Job] || ''
+          
+          // Boolean値を文字列に変換
+          if (typeof value === 'boolean') {
+            value = value.toString()
+          }
+          
+          // Date値を文字列に変換
+          if (value instanceof Date) {
+            value = value.toISOString().split('T')[0] // YYYY-MM-DD形式
+          }
+          
+          // Firestore Timestampを文字列に変換
+          if (value && typeof value === 'object' && 'toDate' in value && typeof (value as any).toDate === 'function') {
+            value = (value as any).toDate().toISOString().split('T')[0] // YYYY-MM-DD形式
+          }
+          
+          // CSVフィールドをエスケープ
+          const stringValue = String(value)
+          if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+            return `"${stringValue.replace(/"/g, '""')}"`
+          }
+          return stringValue
+        }).join(',')
+      })
+    ]
+
+    const csvContent = csvRows.join('\n')
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    link.setAttribute('href', url)
+    link.setAttribute('download', `jobs_export_${new Date().toISOString().split('T')[0]}.csv`)
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    
+    toast.success(`${selectedJobs.size}件の求人データをエクスポートしました`)
   }
 
   const downloadCSVTemplate = () => {
@@ -208,6 +319,28 @@ function JobsPageContent() {
           
           {/* ヘッダーアクション */}
           <div className="flex flex-col sm:flex-col gap-2">
+            {isAdmin && (
+              <div className="flex items-center gap-2 bg-white/20 rounded-lg p-2">
+                <Checkbox
+                  checked={selectedJobs.size === filteredJobs.length && filteredJobs.length > 0}
+                  onCheckedChange={handleSelectAll}
+                  id="select-all-header"
+                />
+                <label htmlFor="select-all-header" className="text-sm text-white cursor-pointer">
+                  全て選択 ({selectedJobs.size}件)
+                </label>
+                {selectedJobs.size > 0 && (
+                  <Button
+                    onClick={exportSelectedJobsCSV}
+                    variant="outline"
+                    size="sm"
+                    className="bg-green-600 text-white hover:bg-green-700 border-green-600 ml-2"
+                  >
+                    CSV出力 ({selectedJobs.size}件)
+                  </Button>
+                )}
+              </div>
+            )}
             <Button
               onClick={downloadCSVTemplate}
               variant="outline"
@@ -349,6 +482,14 @@ function JobsPageContent() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  {isAdmin && (
+                    <TableHead className="w-12">
+                      <Checkbox
+                        checked={selectedJobs.size === filteredJobs.length && filteredJobs.length > 0}
+                        onCheckedChange={handleSelectAll}
+                      />
+                    </TableHead>
+                  )}
                   <TableHead>求人名</TableHead>
                   <TableHead>企業名</TableHead>
                   <TableHead>店舗名</TableHead>
@@ -361,6 +502,14 @@ function JobsPageContent() {
               <TableBody>
                 {filteredJobs.map((job) => (
                   <TableRow key={job.id}>
+                    {isAdmin && (
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedJobs.has(job.id)}
+                          onCheckedChange={() => handleSelectJob(job.id)}
+                        />
+                      </TableCell>
+                    )}
                     <TableCell className="font-medium">
                       <div className="font-semibold">{job.title}</div>
                       <div className="text-sm text-gray-500 truncate max-w-xs">

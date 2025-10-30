@@ -208,13 +208,49 @@ export async function updateStore(
   }
 }
 
-// 店舗を削除
+// 店舗を削除（関連する求人も削除）
 export async function deleteStore(id: string): Promise<void> {
   try {
+    console.log(`🗑️ 店舗削除開始: ID「${id}」`)
+    
+    // 削除前に店舗が存在するかチェック
     const docRef = doc(storesCollection, id)
+    const docSnap = await getDoc(docRef)
+    
+    if (!docSnap.exists()) {
+      console.warn(`⚠️ 削除対象の店舗ID「${id}」が見つかりません。既に削除済みの可能性があります。`)
+      return
+    }
+    
+    const storeName = docSnap.data()?.name || 'Unknown'
+    console.log(`📋 削除対象店舗: ${storeName}`)
+    
+    // 店舗に関連する求人を検索・削除
+    console.log(`💼 店舗「${storeName}」に関連する求人を検索中...`)
+    const jobsCollection = collection(db, 'jobs')
+    const jobsQuery = query(jobsCollection, where('storeId', '==', id))
+    const jobsSnapshot = await getDocs(jobsQuery)
+    
+    console.log(`📊 関連求人数: ${jobsSnapshot.size}件`)
+    
+    // 関連求人を削除
+    for (const jobDoc of jobsSnapshot.docs) {
+      const jobTitle = jobDoc.data().title || 'Unknown'
+      console.log(`💼 求人「${jobTitle}」を削除中...`)
+      await deleteDoc(jobDoc.ref)
+      console.log(`✅ 求人「${jobTitle}」削除完了`)
+    }
+    
+    // 店舗を削除
     await deleteDoc(docRef)
+    console.log(`✅ 店舗「${storeName}」(ID: ${id})削除完了`)
+    
+    console.log(`🎯 削除サマリー:`)
+    console.log(`  - 店舗: 1件`)
+    console.log(`  - 関連求人: ${jobsSnapshot.size}件`)
+    
   } catch (error) {
-    console.error('Error deleting store:', error)
+    console.error(`❌ 店舗ID「${id}」の削除エラー:`, error)
     throw error
   }
 }

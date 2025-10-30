@@ -35,7 +35,7 @@ import {
 import { Company } from '@/types/company'
 import { Store as StoreType } from '@/types/store'
 import { User as UserType } from '@/types/user'
-import { getCompanies, deleteCompany } from '@/lib/firestore/companies'
+import { getCompanies, deleteCompany, deleteMultipleCompanies } from '@/lib/firestore/companies'
 import { getStoresByCompany } from '@/lib/firestore/stores'
 import { getActiveUsers } from '@/lib/firestore/users'
 import { importCompaniesFromCSV, generateCompaniesCSVTemplate } from '@/lib/csv/companies'
@@ -75,6 +75,7 @@ function CompaniesPageContent() {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<Company['status'] | 'all'>('all')
   const [sizeFilter, setSizeFilter] = useState<Company['size'] | 'all'>('all')
+  const [dominoFilter, setDominoFilter] = useState<'all' | 'connected' | 'not_connected'>('all')
   
   // ソート状態
   const [sortBy, setSortBy] = useState<'name' | 'createdAt' | 'updatedAt' | 'status'>('updatedAt')
@@ -83,6 +84,10 @@ function CompaniesPageContent() {
   // 削除ダイアログ
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [companyToDelete, setCompanyToDelete] = useState<Company | null>(null)
+  
+  // 一括削除ダイアログ
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false)
+  const [deletingBulk, setDeletingBulk] = useState(false)
   
   // 一括選択状態
   const [selectedCompanies, setSelectedCompanies] = useState<Set<string>>(new Set())
@@ -269,8 +274,9 @@ function CompaniesPageContent() {
 
     const selectedCompanyData = companies.filter(company => selectedCompanies.has(company.id))
     
-    // CSVヘッダー（CSVテンプレートと同じ形式）
+    // CSVヘッダー（CSVテンプレートと同じ形式 + ID）
     const headers = [
+      'id',              // 企業ID（編集/新規判定用）
       'name',
       'address',
       'phone',
@@ -420,6 +426,58 @@ function CompaniesPageContent() {
     }
   }
 
+  const handleBulkDelete = async () => {
+    if (selectedCompanies.size === 0) {
+      toast.error('削除する企業を選択してください')
+      return
+    }
+
+    console.log('🗑️ 一括削除を開始:', {
+      count: selectedCompanies.size,
+      ids: Array.from(selectedCompanies)
+    })
+
+    setDeletingBulk(true)
+
+    try {
+      const selectedIds = Array.from(selectedCompanies)
+      const selectedCompanyNames = companies
+        .filter(c => selectedIds.includes(c.id))
+        .map(c => c.name)
+        .join('、')
+
+      const result = await deleteMultipleCompanies(selectedIds)
+      
+      console.log('✅ 一括削除完了:', result)
+      
+      if (result.errors.length > 0) {
+        toast.error(`一括削除完了: 成功 ${result.success}件、エラー ${result.errors.length}件`)
+        console.error('❌ 一括削除エラー:', result.errors)
+      } else {
+        toast.success(`${result.success}件の企業とその関連データを削除しました`)
+      }
+      
+    } catch (error) {
+      console.error('❌ 一括削除エラー:', error)
+      toast.error(`一括削除に失敗しました: ${error}`)
+    } finally {
+      setDeletingBulk(false)
+      setBulkDeleteDialogOpen(false)
+      setSelectedCompanies(new Set())
+      setIsAllSelected(false)
+      
+      // 成功・失敗に関わらず一覧を更新
+      console.log('🔄 企業一覧を再読み込み中...')
+      try {
+        await loadCompanies()
+        console.log('🎯 一覧更新完了')
+      } catch (reloadError) {
+        console.error('❌ 一覧再読み込みエラー:', reloadError)
+        toast.error('一覧の更新に失敗しました。ページを再読み込みしてください。')
+      }
+    }
+  }
+
   const getStatusBadge = (status: Company['status']) => {
     return (
       <Badge className={statusColors[status]}>
@@ -437,7 +495,12 @@ function CompaniesPageContent() {
       const matchesStatus = statusFilter === 'all' || company.status === statusFilter
       const matchesSize = sizeFilter === 'all' || company.size === sizeFilter
       
-      return matchesSearch && matchesStatus && matchesSize
+      // Domino連携フィルター
+      const matchesDomino = dominoFilter === 'all' || 
+                           (dominoFilter === 'connected' && company.dominoId) ||
+                           (dominoFilter === 'not_connected' && !company.dominoId)
+      
+      return matchesSearch && matchesStatus && matchesSize && matchesDomino
     })
     .sort((a, b) => {
       let valueA: string | Date
@@ -567,6 +630,16 @@ function CompaniesPageContent() {
                 </Button>
 
                 <Button
+                  onClick={() => setBulkDeleteDialogOpen(true)}
+                  disabled={selectedCompanies.size === 0}
+                  variant="outline"
+                  className="bg-red-600 text-white hover:bg-red-700 border-red-600 flex items-center gap-2 disabled:opacity-50"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  選択した企業を削除 ({selectedCompanies.size})
+                </Button>
+
+                <Button
                   onClick={downloadCSVTemplate}
                   variant="outline"
                   className="bg-white text-blue-600 hover:bg-blue-50 border-white flex items-center gap-2"
@@ -635,7 +708,7 @@ function CompaniesPageContent() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             {/* 検索 */}
             <div>
               <Input
@@ -672,6 +745,30 @@ function CompaniesPageContent() {
                   {Object.entries(sizeLabels).map(([key, label]) => (
                     <SelectItem key={key} value={key}>{label}</SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Domino連携フィルター */}
+            <div>
+              <Select value={dominoFilter} onValueChange={(value: 'all' | 'connected' | 'not_connected') => setDominoFilter(value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Domino連携" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">すべて</SelectItem>
+                  <SelectItem value="connected">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                      連携済み
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="not_connected">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                      未連携
+                    </div>
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -730,6 +827,7 @@ function CompaniesPageContent() {
                   )}
                   <SortableHeader field="name">企業名</SortableHeader>
                   <SortableHeader field="status">ステータス</SortableHeader>
+                  <TableHead>Domino連携</TableHead>
                   <TableHead>担当者</TableHead>
                   <TableHead>店舗数</TableHead>
                   <TableHead className="text-right">アクション</TableHead>
@@ -763,6 +861,27 @@ function CompaniesPageContent() {
                           </Link>
                         </TableCell>
                         <TableCell>{getStatusBadge(company.status)}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            {company.dominoId ? (
+                              <div className="flex items-center gap-1">
+                                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                <span className="text-xs text-green-700 font-medium">連携済み</span>
+                                <span className="text-xs text-gray-500 font-mono">
+                                  {company.dominoId.length > 10 
+                                    ? `${company.dominoId.substring(0, 10)}...`
+                                    : company.dominoId
+                                  }
+                                </span>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-1">
+                                <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                                <span className="text-xs text-gray-500">未連携</span>
+                              </div>
+                            )}
+                          </div>
+                        </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <User className="h-4 w-4 text-gray-400" />
@@ -894,6 +1013,54 @@ function CompaniesPageContent() {
               onClick={handleDeleteCompany}
             >
               削除
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 一括削除確認ダイアログ */}
+      <Dialog open={bulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>企業の一括削除</DialogTitle>
+            <DialogDescription>
+              選択された{selectedCompanies.size}件の企業とその関連データ（店舗・求人）を削除しますか？
+              <br />
+              <strong className="text-red-600">この操作は取り消すことができません。</strong>
+              <br />
+              <br />
+              削除対象企業：
+              <br />
+              {companies
+                .filter(c => selectedCompanies.has(c.id))
+                .map(c => c.name)
+                .join('、')}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setBulkDeleteDialogOpen(false)}
+              disabled={deletingBulk}
+            >
+              キャンセル
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleBulkDelete}
+              disabled={deletingBulk}
+            >
+              {deletingBulk ? (
+                <>
+                  <RefreshCw className="h-4 w-4 animate-spin mr-2" />
+                  削除中...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  {selectedCompanies.size}件削除
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

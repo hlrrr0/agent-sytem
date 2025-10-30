@@ -1,5 +1,5 @@
 import { Company } from '@/types/company'
-import { createCompany, updateCompany, findCompanyByNameAndAddress } from '@/lib/firestore/companies'
+import { createCompany, updateCompany, findCompanyByNameAndAddress, findCompanyByDominoId } from '@/lib/firestore/companies'
 
 export interface ImportResult {
   success: number
@@ -59,6 +59,7 @@ export const importCompaniesFromCSV = async (csvText: string): Promise<ImportRes
 
     // 日本語ヘッダーから英語フィールド名へのマッピング
     const headerMapping: Record<string, string> = {
+      '企業ID': 'id',
       '企業名': 'name',
       '住所': 'address',
       'メールアドレス': 'email',
@@ -181,11 +182,69 @@ export const importCompaniesFromCSV = async (csvText: string): Promise<ImportRes
           importedAt: rowData.importedAt?.trim()
         }
 
-        // 重複チェック：企業名と住所の組み合わせで既存企業を検索
-        const existingCompany = await findCompanyByNameAndAddress(
-          companyData.name, 
-          companyData.address
-        )
+        // 重複チェック：企業IDがある場合は編集、Domino IDがある場合は優先、なければ企業名と住所の組み合わせで検索
+        let existingCompany = null
+        const companyId = rowData.id?.trim()
+        
+        if (companyId && companyId !== '') {
+          // 企業IDが指定されている場合は編集モード
+          console.log(`🔍 企業ID「${companyId}」で既存企業を検索中...`)
+          try {
+            const { getCompanyById } = await import('@/lib/firestore/companies')
+            existingCompany = await getCompanyById(companyId)
+            
+            if (existingCompany) {
+              console.log(`✅ 企業ID「${companyId}」に一致する企業を発見: 「${existingCompany.name}」`)
+              
+              // 既存のDomino連携情報を保持（CSVで明示的に指定されていない場合）
+              if (!companyData.dominoId && existingCompany.dominoId) {
+                console.log(`🔗 Domino連携情報を保持: ${existingCompany.dominoId}`)
+                companyData.dominoId = existingCompany.dominoId
+              }
+              if (!companyData.importedAt && existingCompany.importedAt) {
+                console.log(`📅 インポート日時を保持: ${existingCompany.importedAt}`)
+                companyData.importedAt = existingCompany.importedAt
+              }
+            } else {
+              console.log(`❌ 企業ID「${companyId}」の企業が見つかりません`)
+              result.errors.push(`行${i + 1}: 指定された企業ID「${companyId}」が存在しません`)
+              continue
+            }
+          } catch (error) {
+            console.error(`❌ 企業ID「${companyId}」の検索エラー:`, error)
+            result.errors.push(`行${i + 1}: 企業ID「${companyId}」の検索に失敗しました`)
+            continue
+          }
+        } else if (companyData.dominoId && companyData.dominoId.trim()) {
+          // 企業IDが空でDomino IDがある場合は、Domino IDで既存企業を検索
+          console.log(`🔍 Domino ID「${companyData.dominoId}」で既存企業を検索中...`)
+          existingCompany = await findCompanyByDominoId(companyData.dominoId)
+          
+          if (existingCompany) {
+            console.log(`✅ Domino ID「${companyData.dominoId}」に一致する企業を発見: 「${existingCompany.name}」`)
+          } else {
+            console.log(`📭 Domino ID「${companyData.dominoId}」に一致する企業は見つかりませんでした`)
+          }
+        } else {
+          // 企業IDもDomino IDもない場合は、企業名と住所の組み合わせで既存企業を検索
+          console.log(`🔍 企業名「${companyData.name}」と住所「${companyData.address}」で既存企業を検索中...`)
+          existingCompany = await findCompanyByNameAndAddress(
+            companyData.name, 
+            companyData.address
+          )
+          
+          if (existingCompany) {
+            // 既存企業のDomino連携情報を保持
+            if (existingCompany.dominoId) {
+              console.log(`🔗 既存企業のDomino連携情報を保持: ${existingCompany.dominoId}`)
+              companyData.dominoId = existingCompany.dominoId
+            }
+            if (existingCompany.importedAt) {
+              console.log(`📅 既存企業のインポート日時を保持: ${existingCompany.importedAt}`)
+              companyData.importedAt = existingCompany.importedAt
+            }
+          }
+        }
 
         if (existingCompany) {
           // 既存企業が見つかった場合は更新
@@ -250,6 +309,7 @@ function parseCSVLine(line: string): string[] {
 export const generateCompaniesCSVTemplate = (): string => {
   // 日本語ヘッダーと対応する英語フィールド名のマッピング
   const headerMapping = [
+    { jp: '企業ID', en: 'id' },                             // 編集/新規判定用
     { jp: '企業名', en: 'name' },                            // 必須
     { jp: '住所', en: 'address' },                           // 必須
     { jp: 'メールアドレス', en: 'email' },                   // 必須
@@ -276,8 +336,8 @@ export const generateCompaniesCSVTemplate = (): string => {
     { jp: '取引開始日', en: 'contractStartDate' },           // YYYY-MM-DD形式
     { jp: '担当コンサルタントID', en: 'consultantId' },
     { jp: 'メモ', en: 'memo' },
-    { jp: 'DominoID', en: 'dominoId' },
-    { jp: 'インポート日時', en: 'importedAt' }               // YYYY-MM-DD形式
+    { jp: 'DominoID', en: 'dominoId' },                   // 編集時は空にすると既存値を保持
+    { jp: 'インポート日時', en: 'importedAt' }           // 編集時は空にすると既存値を保持
   ]
 
   // 日本語ヘッダー行を生成
@@ -285,6 +345,7 @@ export const generateCompaniesCSVTemplate = (): string => {
   
   // サンプルデータ（日本語ヘッダーに対応）
   const sampleData = [
+    '',                                     // 企業ID（新規作成時は空、編集時は実際のIDを入力）
     '株式会社サンプル企業',                    // 企業名
     '東京都新宿区新宿1-1-1 サンプルビル3F',    // 住所
     'info@sample-company.co.jp',            // メールアドレス
@@ -311,8 +372,8 @@ export const generateCompaniesCSVTemplate = (): string => {
     '2023-04-01',                           // 取引開始日（YYYY-MM-DD）
     'consultant-001',                       // 担当コンサルタントID
     '優良な取引先企業。成長意欲の高い人材を求めている。', // メモ
-    'domino-sample-001',                    // DominoID
-    '2024-10-24'                            // インポート日時（YYYY-MM-DD）
+    '',                                 // DominoID（編集時は空にすると既存値を保持、新規作成時は手動設定可能）
+    ''                                  // インポート日時（編集時は空にすると既存値を保持、新規作成時は手動設定可能）
   ]
 
   // CSV形式で返す（日本語ヘッダー + サンプルデータ）

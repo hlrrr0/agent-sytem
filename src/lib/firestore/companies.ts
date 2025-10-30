@@ -252,7 +252,7 @@ export async function updateCompany(id: string, companyData: Partial<Omit<Compan
 }
 
 /**
- * 企業を削除
+ * 企業を削除（関連する店舗と求人も削除）
  */
 export async function deleteCompany(id: string): Promise<void> {
   try {
@@ -270,14 +270,103 @@ export async function deleteCompany(id: string): Promise<void> {
       return // エラーを投げずに正常終了
     }
     
-    console.log(`📋 削除対象企業:`, docSnap.data()?.name || 'Unknown')
+    const companyName = docSnap.data()?.name || 'Unknown'
+    console.log(`📋 削除対象企業: ${companyName}`)
     
+    // 関連する店舗を検索・削除
+    console.log(`🏪 企業「${companyName}」に関連する店舗を検索中...`)
+    const storesCollection = collection(db, 'stores')
+    const storesQuery = query(storesCollection, where('companyId', '==', id))
+    const storesSnapshot = await getDocs(storesQuery)
+    
+    console.log(`📊 関連店舗数: ${storesSnapshot.size}件`)
+    
+    // 各店舗とその関連求人を削除
+    for (const storeDoc of storesSnapshot.docs) {
+      const storeId = storeDoc.id
+      const storeName = storeDoc.data().name || 'Unknown'
+      console.log(`🏪 店舗「${storeName}」(ID: ${storeId})を削除中...`)
+      
+      // 店舗に関連する求人を検索・削除
+      console.log(`💼 店舗「${storeName}」に関連する求人を検索中...`)
+      const jobsCollection = collection(db, 'jobs')
+      const jobsQuery = query(jobsCollection, where('storeId', '==', storeId))
+      const jobsSnapshot = await getDocs(jobsQuery)
+      
+      console.log(`📊 店舗関連求人数: ${jobsSnapshot.size}件`)
+      
+      // 求人を削除
+      for (const jobDoc of jobsSnapshot.docs) {
+        const jobTitle = jobDoc.data().title || 'Unknown'
+        console.log(`💼 求人「${jobTitle}」を削除中...`)
+        await deleteDoc(jobDoc.ref)
+        console.log(`✅ 求人「${jobTitle}」削除完了`)
+      }
+      
+      // 店舗を削除
+      await deleteDoc(storeDoc.ref)
+      console.log(`✅ 店舗「${storeName}」削除完了`)
+    }
+    
+    // 企業に直接紐づく求人（店舗IDなし）も削除
+    console.log(`💼 企業「${companyName}」に直接関連する求人を検索中...`)
+    const jobsCollection = collection(db, 'jobs')
+    const directJobsQuery = query(jobsCollection, where('companyId', '==', id))
+    const directJobsSnapshot = await getDocs(directJobsQuery)
+    
+    console.log(`📊 企業直接関連求人数: ${directJobsSnapshot.size}件`)
+    
+    // 企業直接関連求人を削除
+    for (const jobDoc of directJobsSnapshot.docs) {
+      const jobTitle = jobDoc.data().title || 'Unknown'
+      console.log(`💼 企業直接求人「${jobTitle}」を削除中...`)
+      await deleteDoc(jobDoc.ref)
+      console.log(`✅ 企業直接求人「${jobTitle}」削除完了`)
+    }
+    
+    // 最後に企業を削除
     await deleteDoc(docRef)
-    console.log(`✅ 企業ID「${id}」の削除完了`)
+    console.log(`✅ 企業「${companyName}」(ID: ${id})の削除完了`)
+    
+    console.log(`🎯 削除サマリー:`)
+    console.log(`  - 企業: 1件`)
+    console.log(`  - 店舗: ${storesSnapshot.size}件`)
+    console.log(`  - 求人: ${directJobsSnapshot.size + storesSnapshot.docs.reduce((total, storeDoc) => total + (storeDoc.data().jobCount || 0), 0)}件`)
+    
   } catch (error) {
     console.error(`❌ 企業ID「${id}」の削除エラー:`, error)
     throw error
   }
+}
+
+/**
+ * 複数企業を一括削除（関連する店舗と求人も削除）
+ */
+export async function deleteMultipleCompanies(ids: string[]): Promise<{
+  success: number
+  errors: string[]
+}> {
+  console.log(`🗑️ 一括削除開始: ${ids.length}件の企業`)
+  
+  const result = {
+    success: 0,
+    errors: [] as string[]
+  }
+  
+  for (const id of ids) {
+    try {
+      await deleteCompany(id)
+      result.success++
+      console.log(`✅ 企業ID「${id}」の削除完了 (${result.success}/${ids.length})`)
+    } catch (error) {
+      const errorMessage = `企業ID「${id}」の削除に失敗: ${error}`
+      console.error(`❌ ${errorMessage}`)
+      result.errors.push(errorMessage)
+    }
+  }
+  
+  console.log(`🎯 一括削除完了: 成功 ${result.success}件、エラー ${result.errors.length}件`)
+  return result
 }
 
 /**

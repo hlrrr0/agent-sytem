@@ -188,6 +188,92 @@ function StoresPageContent() {
     }
   }
 
+  // 選択された店舗のCSV出力
+  const exportSelectedStoresCSV = () => {
+    if (selectedStores.length === 0) {
+      toast.error('エクスポートする店舗を選択してください')
+      return
+    }
+
+    const selectedStoreData = stores.filter(store => selectedStores.includes(store.id))
+    
+    // CSVヘッダー（CSVテンプレートと同じ形式 + ID）
+    const headers = [
+      'id',                     // 店舗ID（編集/新規判定用）
+      'name',
+      'companyId',
+      'address',
+      'nearestStation',
+      'website',
+      'unitPrice',
+      'seatCount',
+      'isReservationRequired',
+      'instagramUrl',
+      'tabelogUrl',
+      'googleReviewScore',
+      'tabelogScore',
+      'reputation',
+      'staffReview',
+      'trainingPeriod',
+      'ownerPhoto',
+      'ownerVideo',
+      'interiorPhoto',
+      'photo1',
+      'photo2',
+      'photo3',
+      'photo4',
+      'photo5',
+      'photo6',
+      'photo7',
+      'status'
+    ]
+
+    // CSVデータを生成
+    const csvRows = [
+      headers.join(','),
+      ...selectedStoreData.map(store => {
+        return headers.map(header => {
+          let value = store[header as keyof Store] || ''
+          
+          // Boolean値を文字列に変換
+          if (typeof value === 'boolean') {
+            value = value.toString()
+          }
+          
+          // Date値を文字列に変換
+          if (value instanceof Date) {
+            value = value.toISOString().split('T')[0] // YYYY-MM-DD形式
+          }
+          
+          // Firestore Timestampを文字列に変換
+          if (value && typeof value === 'object' && 'toDate' in value && typeof (value as any).toDate === 'function') {
+            value = (value as any).toDate().toISOString().split('T')[0] // YYYY-MM-DD形式
+          }
+          
+          // CSVフィールドをエスケープ
+          const stringValue = String(value)
+          if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+            return `"${stringValue.replace(/"/g, '""')}"`
+          }
+          return stringValue
+        }).join(',')
+      })
+    ]
+
+    const csvContent = csvRows.join('\n')
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    link.setAttribute('href', url)
+    link.setAttribute('download', `stores_export_${new Date().toISOString().split('T')[0]}.csv`)
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    
+    toast.success(`${selectedStores.length}件の店舗データをエクスポートしました`)
+  }
+
   const getCompanyName = (companyId: string) => {
     const company = companies.find(c => c.id === companyId)
     return company?.name || '不明な企業'
@@ -323,24 +409,34 @@ function StoresPageContent() {
               </Button>
             </Link>
             {isAdmin && selectedStores.length > 0 && (
-              <Button 
-                variant="destructive" 
-                onClick={handleBulkDelete}
-                disabled={bulkDeleting}
-                className="bg-red-600 hover:bg-red-700"
-              >
-                {bulkDeleting ? (
-                  <>
-                    <RefreshCw className="h-4 w-4 animate-spin mr-2" />
-                    削除中...
-                  </>
-                ) : (
-                  <>
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    選択した{selectedStores.length}件を削除
-                  </>
-                )}
-              </Button>
+              <>
+                <Button 
+                  variant="outline" 
+                  onClick={exportSelectedStoresCSV}
+                  className="bg-white text-green-600 hover:bg-green-50 border-white flex items-center gap-2"
+                >
+                  <Download className="h-4 w-4" />
+                  選択した{selectedStores.length}件をCSV出力
+                </Button>
+                <Button 
+                  variant="destructive" 
+                  onClick={handleBulkDelete}
+                  disabled={bulkDeleting}
+                  className="bg-red-600 hover:bg-red-700"
+                >
+                  {bulkDeleting ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 animate-spin mr-2" />
+                      削除中...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      選択した{selectedStores.length}件を削除
+                    </>
+                  )}
+                </Button>
+              </>
             )}
           </div>
         </div>

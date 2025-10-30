@@ -776,9 +776,56 @@ function DominoImportPageContent() {
           // DominoCompanyをCompanyに変換（担当者マッピングを含む）
           const companyData = convertDominoCompanyToCompany(dominoCompany, userDisplayNameMap)
 
+          // Domino IDのデバッグ情報を出力
+          console.log(`🔍 企業「${dominoCompany.name}」のDomino IDチェック:`, {
+            originalId: dominoCompany.id,
+            convertedDominoId: companyData.dominoId,
+            idType: typeof dominoCompany.id,
+            idLength: dominoCompany.id?.length,
+            isEmpty: !dominoCompany.id || dominoCompany.id.trim() === '',
+            isNull: dominoCompany.id === null,
+            isUndefined: dominoCompany.id === undefined
+          })
+
           // Domino IDで既存企業をチェック
           console.log(`🔍 Domino ID「${dominoCompany.id}」で既存企業をチェック中...`)
-          const existingCompany = await findCompanyByDominoId(dominoCompany.id)
+          let existingCompany = null
+          
+          // Domino IDが有効な場合のみ検索
+          if (dominoCompany.id && dominoCompany.id.trim() && !dominoCompany.id.startsWith('mock-')) {
+            existingCompany = await findCompanyByDominoId(dominoCompany.id)
+            console.log(`🔍 Domino ID検索結果:`, {
+              dominoId: dominoCompany.id,
+              found: !!existingCompany,
+              existingCompanyId: existingCompany?.id,
+              existingCompanyName: existingCompany?.name
+            })
+          } else {
+            console.log(`⚠️ 無効なDomino ID「${dominoCompany.id}」のため、検索をスキップします`)
+          }
+
+          // Domino IDで見つからない場合、企業名と住所による重複チェックも実行
+          if (!existingCompany && companyData.name && companyData.address) {
+            console.log(`🔍 企業名「${companyData.name}」と住所「${companyData.address}」で重複チェック中...`)
+            const { findCompanyByNameAndAddress } = await import('@/lib/firestore/companies')
+            const nameAddressMatch = await findCompanyByNameAndAddress(companyData.name, companyData.address)
+            
+            if (nameAddressMatch) {
+              console.log(`⚠️ 同名・同住所の企業が発見されました: 「${nameAddressMatch.name}」(ID: ${nameAddressMatch.id})`)
+              console.log(`既存企業のDomino ID: ${nameAddressMatch.dominoId}`)
+              console.log(`新しいDomino ID: ${dominoCompany.id}`)
+              
+              // Domino IDが異なる場合は警告
+              if (nameAddressMatch.dominoId !== dominoCompany.id) {
+                const warningMessage = `企業「${companyData.name}」: 同名・同住所だがDomino IDが異なります (既存: ${nameAddressMatch.dominoId}, 新規: ${dominoCompany.id})`
+                console.warn(`⚠️ ${warningMessage}`)
+                errors.push(warningMessage)
+              }
+              
+              // 既存企業として扱う
+              existingCompany = nameAddressMatch
+            }
+          }
           
           if (existingCompany) {
             // 見つかった企業IDが実際に存在するか再確認
