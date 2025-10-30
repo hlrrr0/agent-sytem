@@ -187,13 +187,15 @@ export default function CandidateDetailPage({ params }: CandidateDetailPageProps
     <ProtectedRoute>
       <div className="min-h-screen bg-gradient-to-br from-red-50 to-rose-100">
         <div className="container mx-auto px-4 py-8">
-        <div className="flex items-center gap-4 mb-8">
-        <Link href="/candidates">
-          <Button variant="outline" size="sm" className="text-red-600 border-red-200 hover:bg-red-50">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            戻る
-          </Button>
-        </Link>
+        <div className="mb-8">
+          <Link href="/candidates">
+            <Button variant="outline" size="sm">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              戻る
+            </Button>
+          </Link>
+        </div>
+        <div className="flex items-center gap-4 mb-8">        
         <div className="flex-1">
           <h1 className="text-3xl font-bold flex items-center gap-2 text-red-800">
             <Users className="h-8 w-8" />

@@ -13,7 +13,7 @@ export function ConditionalMain({ children }: ConditionalMainProps) {
   const isPublicPage = pathname?.startsWith('/public/')
   
   return (
-    <main className={isPublicPage ? "" : "pt-16"}>
+    <main className={isPublicPage ? "" : ""}>
       {children}
     </main>
   )

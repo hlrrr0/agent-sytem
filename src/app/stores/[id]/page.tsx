@@ -205,14 +205,16 @@ function StoreDetailContent({ params }: StoreDetailPageProps) {
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100">
       <div className="container mx-auto px-4 py-8">
       {/* ヘッダー */}
+      <div className="mb-8">
+      <Link href="/stores">
+        <Button variant="outline" size="sm">
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          求人一覧に戻る
+        </Button>
+      </Link>
+      </div>
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-4">
-          <Link href="/stores">
-            <Button variant="outline" size="sm">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              店舗一覧に戻る
-            </Button>
-          </Link>
           <div>
             <h1 className="text-3xl font-bold flex items-center gap-2">
               <Store className="h-8 w-8" />

@@ -254,14 +254,16 @@ function JobDetailContent({ params }: JobDetailPageProps) {
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-violet-100">
       <div className="container mx-auto px-4 py-8">
       {/* ヘッダー */}
+      <div className="mb-8">
+      <Link href="/jobs">
+        <Button variant="outline" size="sm">
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          求人一覧に戻る
+        </Button>
+      </Link>
+      </div>
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-4">
-          <Link href="/jobs">
-            <Button variant="outline" size="sm">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              求人一覧に戻る
-            </Button>
-          </Link>
           <div>
             <h1 className="text-3xl font-bold flex items-center gap-2">
               <Briefcase className="h-8 w-8" />

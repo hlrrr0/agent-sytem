@@ -256,9 +256,8 @@ export default function MatchDetailPage() {
       <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-100">
         <div className="container mx-auto py-8 px-4">
           {/* ヘッダー */}
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center space-x-4">
-              <Button
+          <div className="mb-8">
+            <Button
                 variant="outline"
                 onClick={() => router.push('/progress')}
                 className="text-orange-600 border-orange-200 hover:bg-orange-50"
@@ -266,6 +265,9 @@ export default function MatchDetailPage() {
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 進捗管理
               </Button>
+          </div>
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center space-x-4">
               <div>
                 <h1 className="text-3xl font-bold text-orange-800">
                   マッチング詳細

@@ -204,14 +204,16 @@ function CompanyDetailContent({ params }: CompanyDetailPageProps) {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       <div className="container mx-auto px-4 py-8">
       {/* ヘッダー */}
-      <div className="flex items-center justify-between mb-8">
-        <div className="flex items-center gap-4">
+        <div className="mb-8">
           <Link href="/companies">
             <Button variant="outline" size="sm">
               <ArrowLeft className="h-4 w-4 mr-2" />
               企業一覧に戻る
             </Button>
           </Link>
+        </div>
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center gap-4">
           <div>
             <h1 className="text-3xl font-bold flex items-center gap-2">
               <Building2 className="h-8 w-8" />
