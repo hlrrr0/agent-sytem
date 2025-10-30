@@ -217,7 +217,7 @@ export default function PublicJobClient({ params }: PublicJobClientProps) {
                     <div>
                       <h3 className="font-medium text-gray-700 flex items-center gap-2">
                         <DollarSign className="h-4 w-4" />
-                        給与：未経験者（飲食人大学卒業時）
+                        給与：未経験者
                       </h3>
                       <p className="text-lg">{job.salaryInexperienced}</p>
                     </div>
@@ -524,7 +524,7 @@ export default function PublicJobClient({ params }: PublicJobClientProps) {
                       <>
                         <Separator />
                         <div>
-                          <h4 className="font-medium text-gray-700 mb-2">オーナー動画</h4>
+                          <h4 className="font-medium text-gray-700 mb-2">動画</h4>
                           <div className="bg-gray-100 p-3 rounded-lg">
                             <a
                               href={store.ownerVideo}
@@ -717,7 +717,7 @@ export default function PublicJobClient({ params }: PublicJobClientProps) {
             {job.consultantReview && (
               <Card>
                 <CardHeader>
-                  <CardTitle>コンサルタントからのコメント</CardTitle>
+                  <CardTitle>営業担当からのコメント</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="bg-blue-50 p-4 rounded-lg">
