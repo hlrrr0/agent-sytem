@@ -258,7 +258,7 @@ export default function PublicJobClient({ params }: PublicJobClientProps) {
                       <img
                         src={images[currentSlide].src}
                         alt={images[currentSlide].alt}
-                        className="w-full h-full object-cover cursor-pointer"
+                        className="w-full h-full object-contain cursor-pointer"
                         onClick={() => handleImageClick(images[currentSlide].src, images[currentSlide].alt)}
                       />
                       
@@ -318,7 +318,7 @@ export default function PublicJobClient({ params }: PublicJobClientProps) {
             <Card>
               <CardHeader>
                 <CardTitle className="text-2xl flex items-center gap-2">
-                  <Briefcase className="h-6 w-6" />
+                  <Briefcase className="h-6 w-6 hidden md:block" />
                   {job.title}
                 </CardTitle>
                 <div className="flex items-center gap-2">
@@ -764,20 +764,20 @@ export default function PublicJobClient({ params }: PublicJobClientProps) {
                             <Play className="h-4 w-4" />
                             オーナー紹介動画
                           </h4>
-                          <div className="relative bg-gradient-to-r from-red-500 to-red-600 rounded-lg p-4 hover:from-red-600 hover:to-red-700 transition-all duration-200 shadow-lg hover:shadow-xl">
+                          <div className="bg-gray-50 rounded-lg p-3 border hover:bg-gray-100 transition-colors duration-200">
                             <a
                               href={store.ownerVideo}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="block"
                             >
-                              <div className="flex items-center justify-center gap-3 text-white">
-                                <div className="bg-white bg-opacity-20 rounded-full p-3 group-hover:bg-opacity-30 transition-all duration-200">
-                                  <Play className="h-6 w-6 fill-current" />
+                              <div className="flex items-center gap-3 text-gray-700">
+                                <div className="bg-blue-100 rounded-full p-2">
+                                  <Play className="h-4 w-4 text-blue-600 fill-current" />
                                 </div>
-                                <div className="text-center">
-                                  <div className="font-semibold text-lg">動画を視聴する</div>
-                                  <div className="text-sm text-red-100 mt-1">店舗の雰囲気や大将の想いをご覧ください</div>
+                                <div>
+                                  <div className="font-medium">動画を視聴する</div>
+                                  <div className="text-sm text-gray-500 mt-1">店舗の雰囲気をご覧ください</div>
                                 </div>
                               </div>
                             </a>
@@ -861,7 +861,7 @@ export default function PublicJobClient({ params }: PublicJobClientProps) {
               <CardHeader>
                 <CardTitle>応募について</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="px-4 md:px-6">
                 <div className="space-y-3">
                   <p className="text-sm text-gray-600">
                     この求人への応募については、弊社のキャリア担当へご連絡ください。
