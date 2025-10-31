@@ -490,7 +490,8 @@ function CompaniesPageContent() {
   const filteredAndSortedCompanies = companies
     .filter(company => {
       const matchesSearch = company.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           company.email.toLowerCase().includes(searchTerm.toLowerCase())
+                           company.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           (company.address && company.address.toLowerCase().includes(searchTerm.toLowerCase()))
       
       const matchesStatus = statusFilter === 'all' || company.status === statusFilter
       const matchesSize = sizeFilter === 'all' || company.size === sizeFilter
@@ -712,7 +713,7 @@ function CompaniesPageContent() {
             {/* 検索 */}
             <div>
               <Input
-                placeholder="企業名・メールアドレスで検索..."
+                placeholder="企業名・メールアドレス・所在地で検索..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full"

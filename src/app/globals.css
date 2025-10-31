@@ -120,3 +120,127 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Google Translate ウィジェットのグローバルスタイル */
+.goog-te-gadget {
+  font-family: inherit !important;
+  font-size: 13px !important;
+  color: #374151 !important;
+}
+
+.goog-te-gadget-simple {
+  background-color: white !important;
+  border: 1px solid #d1d5db !important;
+  border-radius: 6px !important;
+  padding: 6px 12px !important;
+  font-size: 13px !important;
+  color: #374151 !important;
+  cursor: pointer !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  transition: all 0.2s ease !important;
+}
+
+.goog-te-gadget-simple:hover {
+  background-color: #f9fafb !important;
+  border-color: #9ca3af !important;
+}
+
+.goog-te-gadget-simple .goog-te-menu-value {
+  color: #374151 !important;
+  font-weight: 500 !important;
+}
+
+.goog-te-gadget-simple .goog-te-menu-value span {
+  color: #374151 !important;
+}
+
+.goog-te-gadget-simple .goog-te-menu-value span:first-child {
+  display: none !important;
+}
+
+/* Google翻訳のアイコンを非表示 */
+.goog-te-gadget-icon {
+  display: none !important;
+}
+
+/* Google翻訳バーを非表示にする */
+.goog-te-banner-frame {
+  display: none !important;
+}
+
+.goog-te-banner-frame.skiptranslate {
+  display: none !important;
+}
+
+body {
+  top: 0 !important;
+}
+
+/* 翻訳メニューのスタイル */
+.goog-te-menu-frame {
+  z-index: 9999 !important;
+  max-height: 400px !important;
+  overflow-y: auto !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+  border-radius: 8px !important;
+  border: 1px solid #e5e7eb !important;
+}
+
+/* メニューアイテムのスタイル */
+.goog-te-menu2 {
+  max-height: 350px !important;
+  overflow-y: auto !important;
+  background-color: white !important;
+}
+
+.goog-te-menu2-item {
+  font-size: 13px !important;
+  padding: 8px 16px !important;
+  color: #374151 !important;
+  border-bottom: 1px solid #f3f4f6 !important;
+}
+
+.goog-te-menu2-item:hover {
+  background-color: #f3f4f6 !important;
+}
+
+.goog-te-menu2-item:last-child {
+  border-bottom: none !important;
+}
+
+/* Flexレイアウトの調整 */
+.goog-te-gadget-simple .VIpgJd-ZVi9od-xl07Ob-lTBxed {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  text-decoration: none !important;
+  color: inherit !important;
+}
+
+/* スキップボタンのスタイル調整 */
+.skiptranslate {
+  color: inherit !important;
+}
+
+/* モバイル対応 */
+@media (max-width: 640px) {
+  .google-translate-wrapper {
+    transform: scale(0.95);
+    transform-origin: left center;
+  }
+  
+  .goog-te-menu-frame {
+    position: fixed !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    max-width: 90vw !important;
+    margin-top: 8px !important;
+  }
+  
+  .goog-te-gadget-simple {
+    padding: 4px 8px !important;
+    font-size: 12px !important;
+  }
+}

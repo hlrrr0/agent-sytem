@@ -281,7 +281,9 @@ function StoresPageContent() {
 
   const filteredAndSortedStores = stores.filter(store => {
     const matchesSearch = store.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         getCompanyName(store.companyId).toLowerCase().includes(searchTerm.toLowerCase())
+                         getCompanyName(store.companyId).toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (store.address && store.address.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                         (store.nearestStation && store.nearestStation.toLowerCase().includes(searchTerm.toLowerCase()))
     
     const matchesStatus = statusFilter === 'all' || store.status === statusFilter
 

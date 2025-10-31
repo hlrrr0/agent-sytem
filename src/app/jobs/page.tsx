@@ -266,9 +266,13 @@ function JobsPageContent() {
   }
 
   const filteredJobs = jobs.filter(job => {
+    const store = stores.find(s => s.id === job.storeId)
     const matchesSearch = job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (job.jobDescription && job.jobDescription.toLowerCase().includes(searchTerm.toLowerCase())) ||
-                         getCompanyName(job.companyId).toLowerCase().includes(searchTerm.toLowerCase())
+                         getCompanyName(job.companyId).toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         getStoreName(job.storeId).toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (store?.address && store.address.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                         (store?.nearestStation && store.nearestStation.toLowerCase().includes(searchTerm.toLowerCase()))
     
     const matchesStatus = statusFilter === 'all' || job.status === statusFilter
     const matchesEmploymentType = employmentTypeFilter === 'all' || job.employmentType === employmentTypeFilter

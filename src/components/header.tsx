@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/contexts/AuthContext"
 import { UserCheck, LogOut, User } from "lucide-react"
+import SimpleTranslate from "@/components/SimpleTranslate"
 
 export default function Header() {
   const { user, logout, isAdmin } = useAuth()
@@ -66,6 +67,7 @@ export default function Header() {
           )}
 
           <div className="flex items-center gap-4">
+            <SimpleTranslate />
             {user ? (
               <>
                 <div className="flex items-center gap-2 text-sm text-gray-600">

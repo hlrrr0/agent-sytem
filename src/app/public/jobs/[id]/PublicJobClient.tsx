@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import SimpleTranslate from '@/components/SimpleTranslate'
 import { 
   Briefcase, 
   MapPin, 
@@ -244,6 +245,30 @@ export default function PublicJobClient({ params }: PublicJobClientProps) {
 
   return (
     <div className="min-h-screen bg-black">
+      {/* 翻訳機能付きヘッダー */}
+      <header className="bg-black border-b border-gray-800 sticky top-0 z-50">
+        <div className="container mx-auto px-4 py-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-bold text-white flex items-center gap-3">
+                <img 
+                  src="/logo_wh.png" 
+                  alt="Logo" 
+                  className="h-8 w-auto"
+                  onError={(e) => {
+                    // ロゴが見つからない場合はテキストのみ表示
+                    e.currentTarget.style.display = 'none'
+                  }}
+                />
+              </h1>
+            </div>
+            <div className="flex items-center gap-4">
+              <SimpleTranslate variant="dark" />
+            </div>
+          </div>
+        </div>
+      </header>
+      
       <div className="container mx-auto px-4 py-6">
         {/* 写真スライダー */}
         {store && getStoreImages(store).length > 0 && (
