@@ -342,14 +342,6 @@ function JobsPageContent() {
                 )}
               </div>
             )}
-            <Button
-              onClick={downloadCSVTemplate}
-              variant="outline"
-              className="bg-white text-purple-600 hover:bg-purple-50 border-white flex items-center gap-2"
-            >
-              <FileText className="h-4 w-4" />
-              CSVテンプレート
-            </Button>
             <label htmlFor="csv-upload" className="cursor-pointer">
               <Button
                 variant="outline"
@@ -385,24 +377,6 @@ function JobsPageContent() {
                 }
               }}
             />
-            <Link href="/companies">
-              <Button 
-                variant="outline"
-                className="bg-white text-purple-600 hover:bg-purple-50 border-white flex items-center gap-2"
-              >
-                <Building2 className="h-4 w-4" />
-                企業管理
-              </Button>
-            </Link>
-            <Link href="/stores">
-              <Button 
-                variant="outline"
-                className="bg-white text-purple-600 hover:bg-purple-50 border-white flex items-center gap-2"
-              >
-                <Store className="h-4 w-4" />
-                店舗管理
-              </Button>
-            </Link>
             <Link href="/jobs/new">
               <Button variant="outline" className="bg-white text-purple-600 hover:bg-purple-50 border-white">
                 <Plus className="h-4 w-4 mr-2" />

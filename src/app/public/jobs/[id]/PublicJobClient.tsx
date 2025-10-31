@@ -19,7 +19,8 @@ import {
   Users,
   Camera,
   Star,
-  Calendar
+  Calendar,
+  Play
 } from 'lucide-react'
 import { doc, getDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
@@ -41,6 +42,8 @@ export default function PublicJobClient({ params }: PublicJobClientProps) {
   const [company, setCompany] = useState<Company | null>(null)
   const [store, setStore] = useState<StoreType | null>(null)
   const [modalImage, setModalImage] = useState<{ src: string; alt: string } | null>(null)
+  const [currentSlide, setCurrentSlide] = useState(0)
+  const [isAutoPlay, setIsAutoPlay] = useState(true)
 
   useEffect(() => {
     const initializeComponent = async () => {
@@ -93,6 +96,20 @@ export default function PublicJobClient({ params }: PublicJobClientProps) {
 
     initializeComponent()
   }, [params, router])
+
+  // 自動再生機能
+  useEffect(() => {
+    if (!isAutoPlay || !store) return
+    
+    const images = getStoreImages(store)
+    if (images.length <= 1) return
+
+    const interval = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % images.length)
+    }, 4000) // 4秒ごとに自動スライド
+
+    return () => clearInterval(interval)
+  }, [isAutoPlay, store, currentSlide])
 
   // 日時をフォーマットする関数
   const formatDateTime = (dateValue: any) => {
@@ -174,6 +191,38 @@ export default function PublicJobClient({ params }: PublicJobClientProps) {
     setModalImage({ src: imageUrl, alt })
   }
 
+  // 店舗の写真を取得する関数
+  const getStoreImages = (store: StoreType | null): Array<{ src: string; alt: string }> => {
+    if (!store) return []
+    
+    const images: Array<{ src: string; alt: string }> = []
+    
+    // 各写真フィールドをチェックして配列に追加
+    if (store.ownerPhoto) images.push({ src: store.ownerPhoto, alt: '大将の写真' })
+    if (store.interiorPhoto) images.push({ src: store.interiorPhoto, alt: '店内の写真' })
+    if (store.photo1) images.push({ src: store.photo1, alt: '店舗写真1' })
+    if (store.photo2) images.push({ src: store.photo2, alt: '店舗写真2' })
+    if (store.photo3) images.push({ src: store.photo3, alt: '店舗写真3' })
+    if (store.photo4) images.push({ src: store.photo4, alt: '店舗写真4' })
+    if (store.photo5) images.push({ src: store.photo5, alt: '店舗写真5' })
+    if (store.photo6) images.push({ src: store.photo6, alt: '店舗写真6' })
+    if (store.photo7) images.push({ src: store.photo7, alt: '店舗写真7' })
+    
+    return images
+  }
+
+  // スライダーナビゲーション関数
+  const nextSlide = () => {
+    const images = getStoreImages(store)
+    setCurrentSlide((prev) => (prev + 1) % images.length)
+    // 自動再生は継続（自動再生での使用のため）
+  }
+
+  const goToSlide = (index: number) => {
+    setCurrentSlide(index)
+    setIsAutoPlay(false) // 手動操作時は自動再生を停止
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
@@ -196,6 +245,72 @@ export default function PublicJobClient({ params }: PublicJobClientProps) {
   return (
     <div className="min-h-screen bg-black">
       <div className="container mx-auto px-4 py-6">
+        {/* 写真スライダー */}
+        {store && getStoreImages(store).length > 0 && (
+          <Card className="mb-6 overflow-hidden">
+            <CardContent className="p-0">
+              {(() => {
+                const images = getStoreImages(store)
+                return (
+                  <div className="relative">
+                    {/* メイン画像 */}
+                    <div className="relative w-full h-64 md:h-80 lg:h-96 overflow-hidden">
+                      <img
+                        src={images[currentSlide].src}
+                        alt={images[currentSlide].alt}
+                        className="w-full h-full object-cover cursor-pointer"
+                        onClick={() => handleImageClick(images[currentSlide].src, images[currentSlide].alt)}
+                      />
+                      
+                      {/* オーバーレイとナビゲーション */}
+                      <div className="absolute inset-0 bg-black bg-opacity-20 opacity-0 hover:opacity-100 transition-opacity duration-300">
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <Camera className="h-8 w-8 text-white" />
+                        </div>
+                      </div>
+
+                      {/* 画像情報 */}
+                      <div className="absolute bottom-4 left-4 bg-black bg-opacity-60 text-white px-3 py-1 rounded-full text-sm">
+                        {images[currentSlide].alt}
+                      </div>
+
+                      {/* スライド番号 */}
+                      <div className="absolute bottom-4 right-4 bg-black bg-opacity-60 text-white px-3 py-1 rounded-full text-sm">
+                        {currentSlide + 1} / {images.length}
+                      </div>
+                    </div>
+
+                    {/* サムネイルナビゲーション */}
+                    {images.length > 1 && (
+                      <div className="p-2">
+                        <div className="flex gap-2 overflow-x-auto">
+                          {images.map((image, index) => (
+                            <button
+                              key={index}
+                              onClick={() => goToSlide(index)}
+                              className={`flex-shrink-0 w-16 h-16 md:w-20 md:h-20 rounded-lg overflow-hidden border-2 transition-all duration-200 ${
+                                index === currentSlide 
+                                  ? 'border-blue-500 shadow-lg' 
+                                  : 'border-gray-200 hover:border-gray-400'
+                              }`}
+                            >
+                              <img
+                                src={image.src}
+                                alt={image.alt}
+                                className="w-full h-full object-cover"
+                              />
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
+            </CardContent>
+          </Card>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* メイン情報 */}
           <div className="lg:col-span-2 space-y-6">
@@ -211,7 +326,7 @@ export default function PublicJobClient({ params }: PublicJobClientProps) {
                   {getEmploymentTypeBadge(job.employmentType)}
                 </div>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-4 px-4 md:px-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {job.salaryInexperienced && (
                     <div>
@@ -366,259 +481,12 @@ export default function PublicJobClient({ params }: PublicJobClientProps) {
                 )}
               </CardContent>
             </Card>
-
-
-          {/* 店舗情報 */}
-            {store && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Store className="h-5 w-5" />
-                    店舗情報
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-
-
-                  {/* SNS・口コミ情報 */}
-                  <div className="space-y-2">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        {store?.website && (
-                          <p className="text-sm text-gray-600 flex items-center gap-1">
-                            <Globe className="h-3 w-3" />
-                            <a href={store.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                              店舗ウェブサイト
-                            </a>
-                          </p>
-                        )}
-                        {store?.instagramUrl && (
-                          <p className="text-sm text-gray-600 flex items-center gap-1">
-                            📷 <a href={store.instagramUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                              Instagram
-                            </a>
-                          </p>
-                        )}
-                        {store?.tabelogUrl && (
-                          <p className="text-sm text-gray-600 flex items-center gap-1">
-                            🍽️ <a href={store.tabelogUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                              食べログ
-                            </a>
-                          </p>
-                        )}
-                      </div>
-                      <div>
-                        {store?.tabelogScore && (
-                          <p className="text-sm text-gray-600 flex items-center gap-1">
-                            <Star className="h-3 w-3 text-yellow-500" />
-                            食べログスコア: {store.tabelogScore}
-                          </p>
-                        )}
-                        {store?.googleReviewScore && (
-                          <p className="text-sm text-gray-600 flex items-center gap-1">
-                            <Star className="h-3 w-3 text-yellow-500" />
-                            Google口コミスコア: {store?.googleReviewScore}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  {/* 評判・その他情報 */}
-                  {store?.reputation && (
-                    <>
-                      <Separator />
-                      <div>
-                        <h4 className="font-medium text-gray-700 mb-2">その他 / ミシュランなどの獲得状況等の実績</h4>
-                        <p className="text-sm text-gray-600 whitespace-pre-wrap">{store?.reputation}</p>
-                      </div>
-                    </>
-                  )}
-
-                  {store?.staffReview && (
-                    <>
-                      <Separator />
-                      <div>
-                        <h4 className="font-medium text-gray-700 mb-2">スタッフからの評価</h4>
-                        <p className="text-sm text-gray-600 whitespace-pre-wrap">{store.staffReview}</p>
-                      </div>
-                    </>
-                  )}
-
-                  {/* 写真ギャラリー */}
-                  <div className="space-y-4">
-                    {/* すべての写真を収集 */}
-                    {(() => {
-                      const allPhotos = []
-                      
-                      // 企業ロゴ
-                      if (company?.logo) {
-                        allPhotos.push({ src: company.logo, alt: '企業ロゴ' })
-                      }
-                      
-                      // オーナー写真
-                      if (store?.ownerPhoto) {
-                        allPhotos.push({ src: store.ownerPhoto, alt: 'オーナー写真' })
-                      }
-                      
-                      // 店内写真
-                      if (store?.interiorPhoto) {
-                        allPhotos.push({ src: store.interiorPhoto, alt: '店内写真' })
-                      }
-                      
-                      // 素材写真 1-7
-                      if (store?.photo1) allPhotos.push({ src: store.photo1, alt: '素材写真1' })
-                      if (store?.photo2) allPhotos.push({ src: store.photo2, alt: '素材写真2' })
-                      if (store?.photo3) allPhotos.push({ src: store.photo3, alt: '素材写真3' })
-                      if (store?.photo4) allPhotos.push({ src: store.photo4, alt: '素材写真4' })
-                      if (store?.photo5) allPhotos.push({ src: store.photo5, alt: '素材写真5' })
-                      if (store?.photo6) allPhotos.push({ src: store.photo6, alt: '素材写真6' })
-                      if (store?.photo7) allPhotos.push({ src: store.photo7, alt: '素材写真7' })
-                      
-                      // デバッグ用ログ
-                      console.log('写真データ:', { allPhotos, store, company })
-                      
-                      // テスト用: 写真がない場合はプレースホルダーを追加
-                      if (allPhotos.length === 0) {
-                        allPhotos.push({ 
-                          src: 'https://via.placeholder.com/300x300/cccccc/666666?text=No+Image', 
-                          alt: 'プレースホルダー画像' 
-                        })
-                      }
-                      
-                      return allPhotos.length > 0 ? (
-                        <>
-                          <Separator />
-                          <div className="bg-white p-4 rounded-lg">
-                            <h4 className="font-medium text-gray-700 mb-4 flex items-center gap-1">
-                              <Camera className="h-4 w-4" />
-                              写真ギャラリー ({allPhotos.length}枚)
-                            </h4>
-                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                              {allPhotos.map((photo, index) => (
-                                <div
-                                  key={index}
-                                  className="relative aspect-square rounded-lg overflow-hidden cursor-pointer group bg-gray-100 border"
-                                  onClick={() => handleImageClick(photo.src, photo.alt)}
-                                >
-                                  <img
-                                    src={photo.src}
-                                    alt={photo.alt}
-                                    className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
-                                  />
-                                  <div className="absolute inset-0 bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200" />
-                                  <div className="absolute bottom-1 left-1 right-1">
-                                    <div className="bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded text-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                                      {photo.alt}
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        </>
-                      ) : null
-                    })()}
-
-                    {/* オーナー動画 */}
-                    {store?.ownerVideo && (
-                      <>
-                        <Separator />
-                        <div>
-                          <h4 className="font-medium text-gray-700 mb-2">動画</h4>
-                          <div className="bg-gray-100 p-3 rounded-lg">
-                            <a
-                              href={store.ownerVideo}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-blue-600 hover:underline text-sm"
-                            >
-                              動画を視聴する
-                            </a>
-                          </div>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-            {/* 企業情報 */}
-            {company && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Building2 className="h-5 w-5" />
-                    企業情報
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <h3 className="font-medium text-lg">{company.name}</h3>
-                    {company.address && (
-                      <p className="text-sm text-gray-600 mt-1 flex items-start gap-1">
-                        <MapPin className="h-3 w-3 mt-0.5" />
-                        {company.address}
-                      </p>
-                    )}
-                  </div>
-                  
-                  {/* 企業の基本情報 */}
-                  <div className="space-y-2">
-                    {company.phone && (
-                      <p className="text-sm text-gray-600 flex items-center gap-1">
-                        <Phone className="h-3 w-3" />
-                        {company.phone}
-                      </p>
-                    )}
-                    
-                    {company.website && (
-                      <p className="text-sm text-gray-600 flex items-center gap-1">
-                        <Globe className="h-3 w-3" />
-                        <a href={company.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                          企業ウェブサイト
-                        </a>
-                      </p>
-                    )}
-
-                    {company.email && (
-                      <p className="text-sm text-gray-600 flex items-center gap-1">
-                        <Mail className="h-3 w-3" />
-                        {company.email}
-                      </p>
-                    )}
-
-                    {company.establishedYear && (
-                      <p className="text-sm text-gray-600">
-                        設立年: {company.establishedYear}年
-                      </p>
-                    )}
-
-                    {company.employeeCount && (
-                      <p className="text-sm text-gray-600 flex items-center gap-1">
-                        <Users className="h-3 w-3" />
-                        従業員数: {company.employeeCount}名
-                      </p>
-                    )}
-
-                    {company.capital && (
-                      <p className="text-sm text-gray-600">
-                        資本金: {company.capital}円
-                      </p>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-
-          {/* サイドバー */}
-          <div className="space-y-6">
             {/* 勤務条件 */}
             <Card>
               <CardHeader>
                 <CardTitle>勤務条件</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-4 px-4 md:px-6">
                 {/* 試用期間 */}
                 {job.trialPeriod && (
                   <div>
@@ -700,6 +568,20 @@ export default function PublicJobClient({ params }: PublicJobClientProps) {
                 )}
               </CardContent>
             </Card>
+
+            {/* 営業担当のコメント */}
+            {job.consultantReview && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>営業担当からのコメント</CardTitle>
+                </CardHeader>
+                <CardContent className="px-4 md:px-6">
+                  <div className="bg-blue-50 p-4 rounded-lg">
+                    <p className="whitespace-pre-wrap text-blue-800">{job.consultantReview}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
   
             {/* 選考プロセス */}
             {job.selectionProcess && (
@@ -707,21 +589,269 @@ export default function PublicJobClient({ params }: PublicJobClientProps) {
                 <CardHeader>
                   <CardTitle>選考プロセス</CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="px-4 md:px-6">
                   <p className="whitespace-pre-wrap">{job.selectionProcess}</p>
                 </CardContent>
               </Card>
             )}
+          </div>
 
-            {/* コンサルタントのコメント */}
-            {job.consultantReview && (
+          {/* サイドバー */}
+          <div className="space-y-6">
+          {/* 店舗情報 */}
+            {store && (
               <Card>
                 <CardHeader>
-                  <CardTitle>営業担当からのコメント</CardTitle>
+                  <CardTitle className="flex items-center gap-2">
+                    <Store className="h-5 w-5" />
+                    店舗情報
+                  </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="bg-blue-50 p-4 rounded-lg">
-                    <p className="whitespace-pre-wrap text-blue-800">{job.consultantReview}</p>
+                <CardContent className="space-y-4 px-4 md:px-6">
+
+
+                  {/* SNS・口コミ情報 */}
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-1gap-4">
+                      <div className="py-2">
+                        {store?.website && (
+                          <p className="text-sm text-gray-600 flex items-center gap-2">
+                            <Globe className="h-3 w-3" />
+                            <a href={store.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                              店舗ウェブサイト
+                            </a>
+                          </p>
+                        )}
+                        {store?.instagramUrl && (
+                          <p className="text-sm text-gray-600 flex items-center gap-2">
+                            📷 <a href={store.instagramUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                              Instagram
+                            </a>
+                          </p>
+                        )}
+                        {store?.tabelogUrl && (
+                          <p className="text-sm text-gray-600 flex items-center gap-2">
+                            🍽️ <a href={store.tabelogUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                              食べログ
+                            </a>
+                          </p>
+                        )}
+                      </div>
+                      <div>
+                        {store?.tabelogScore && (
+                          <div className="mb-2">
+                            <h4 className="font-medium text-gray-700 text-sm mb-1 flex items-center gap-2">
+                              <Star className="h-3 w-3 text-yellow-500" />
+                              食べログスコア
+                            </h4>
+                            <p className="text-sm text-gray-600 whitespace-pre-wrap">{store.tabelogScore}</p>
+                          </div>
+                        )}
+                        {store?.googleReviewScore && (
+                          <div className="mb-2">
+                            <h4 className="font-medium text-gray-700 text-sm mb-1 flex items-center gap-2">
+                              <Star className="h-3 w-3 text-yellow-500" />
+                              Google口コミスコア
+                            </h4>
+                            <p className="text-sm text-gray-600 whitespace-pre-wrap">{store?.googleReviewScore}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  {/* 評判・その他情報 */}
+                  {store?.reputation && (
+                    <>
+                      <Separator />
+                      <div>
+                        <h4 className="font-medium text-gray-700 mb-2">その他 / ミシュランなどの獲得状況等の実績</h4>
+                        <p className="text-sm text-gray-600 whitespace-pre-wrap">{store?.reputation}</p>
+                      </div>
+                    </>
+                  )}
+
+                  {store?.staffReview && (
+                    <>
+                      <Separator />
+                      <div>
+                        <h4 className="font-medium text-gray-700 mb-2">スタッフからの評価</h4>
+                        <p className="text-sm text-gray-600 whitespace-pre-wrap">{store.staffReview}</p>
+                      </div>
+                    </>
+                  )}
+
+                  {/* 写真ギャラリー */}
+                  <div className="space-y-4">
+                    {/* すべての写真を収集 */}
+                    {(() => {
+                      const allPhotos = []
+                      
+                      // 企業ロゴ
+                      if (company?.logo) {
+                        allPhotos.push({ src: company.logo, alt: '企業ロゴ' })
+                      }
+                      
+                      // オーナー写真
+                      if (store?.ownerPhoto) {
+                        allPhotos.push({ src: store.ownerPhoto, alt: 'オーナー写真' })
+                      }
+                      
+                      // 店内写真
+                      if (store?.interiorPhoto) {
+                        allPhotos.push({ src: store.interiorPhoto, alt: '店内写真' })
+                      }
+                      
+                      // 素材写真 1-7
+                      if (store?.photo1) allPhotos.push({ src: store.photo1, alt: '素材写真1' })
+                      if (store?.photo2) allPhotos.push({ src: store.photo2, alt: '素材写真2' })
+                      if (store?.photo3) allPhotos.push({ src: store.photo3, alt: '素材写真3' })
+                      if (store?.photo4) allPhotos.push({ src: store.photo4, alt: '素材写真4' })
+                      if (store?.photo5) allPhotos.push({ src: store.photo5, alt: '素材写真5' })
+                      if (store?.photo6) allPhotos.push({ src: store.photo6, alt: '素材写真6' })
+                      if (store?.photo7) allPhotos.push({ src: store.photo7, alt: '素材写真7' })
+                      
+                      // デバッグ用ログ
+                      console.log('写真データ:', { allPhotos, store, company })
+                      
+                      // テスト用: 写真がない場合はプレースホルダーを追加
+                      if (allPhotos.length === 0) {
+                        allPhotos.push({ 
+                          src: 'https://via.placeholder.com/300x300/cccccc/666666?text=No+Image', 
+                          alt: 'プレースホルダー画像' 
+                        })
+                      }
+                      
+                      return allPhotos.length > 0 ? (
+                        <>
+                          <Separator />
+                          <div className="bg-white rounded-lg">
+                            <h4 className="font-medium text-gray-700 mb-4 flex items-center gap-1">
+                              <Camera className="h-4 w-4" />
+                              写真ギャラリー ({allPhotos.length}枚)
+                            </h4>
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                              {allPhotos.map((photo, index) => (
+                                <div
+                                  key={index}
+                                  className="relative aspect-square rounded-lg overflow-hidden cursor-pointer group bg-gray-100 border"
+                                  onClick={() => handleImageClick(photo.src, photo.alt)}
+                                >
+                                  <img
+                                    src={photo.src}
+                                    alt={photo.alt}
+                                    className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
+                                  />
+                                  <div className="absolute inset-0 bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200" />
+                                  <div className="absolute bottom-1 left-1 right-1">
+                                    <div className="bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded text-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                      {photo.alt}
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </>
+                      ) : null
+                    })()}
+
+                    {/* オーナー動画 */}
+                    {store?.ownerVideo && (
+                      <>
+                        <Separator />
+                        <div>
+                          <h4 className="font-medium text-gray-700 mb-3 flex items-center gap-2">
+                            <Play className="h-4 w-4" />
+                            オーナー紹介動画
+                          </h4>
+                          <div className="relative bg-gradient-to-r from-red-500 to-red-600 rounded-lg p-4 hover:from-red-600 hover:to-red-700 transition-all duration-200 shadow-lg hover:shadow-xl">
+                            <a
+                              href={store.ownerVideo}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="block"
+                            >
+                              <div className="flex items-center justify-center gap-3 text-white">
+                                <div className="bg-white bg-opacity-20 rounded-full p-3 group-hover:bg-opacity-30 transition-all duration-200">
+                                  <Play className="h-6 w-6 fill-current" />
+                                </div>
+                                <div className="text-center">
+                                  <div className="font-semibold text-lg">動画を視聴する</div>
+                                  <div className="text-sm text-red-100 mt-1">店舗の雰囲気や大将の想いをご覧ください</div>
+                                </div>
+                              </div>
+                            </a>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+            {/* 企業情報 */}
+            {company && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Building2 className="h-5 w-5" />
+                    企業情報
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4 px-4 md:px-6">
+                  <div>
+                    <h3 className="font-medium text-lg">{company.name}</h3>
+                    {company.address && (
+                      <p className="text-sm text-gray-600 mt-1 flex items-start gap-1">
+                        <MapPin className="h-3 w-3 mt-0.5" />
+                        {company.address}
+                      </p>
+                    )}
+                  </div>
+                  
+                  {/* 企業の基本情報 */}
+                  <div className="space-y-2">
+                    {company.phone && (
+                      <p className="text-sm text-gray-600 flex items-center gap-1">
+                        <Phone className="h-3 w-3" />
+                        {company.phone}
+                      </p>
+                    )}
+                    
+                    {company.website && (
+                      <p className="text-sm text-gray-600 flex items-center gap-1">
+                        <Globe className="h-3 w-3" />
+                        <a href={company.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                          企業ウェブサイト
+                        </a>
+                      </p>
+                    )}
+
+                    {company.email && (
+                      <p className="text-sm text-gray-600 flex items-center gap-1">
+                        <Mail className="h-3 w-3" />
+                        {company.email}
+                      </p>
+                    )}
+
+                    {company.establishedYear && (
+                      <p className="text-sm text-gray-600">
+                        設立年: {company.establishedYear}年
+                      </p>
+                    )}
+
+                    {company.employeeCount && (
+                      <p className="text-sm text-gray-600 flex items-center gap-1">
+                        <Users className="h-3 w-3" />
+                        従業員数: {company.employeeCount}名
+                      </p>
+                    )}
+
+                    {company.capital && (
+                      <p className="text-sm text-gray-600">
+                        資本金: {company.capital}円
+                      </p>
+                    )}
                   </div>
                 </CardContent>
               </Card>
