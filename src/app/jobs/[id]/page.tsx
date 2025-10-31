@@ -351,12 +351,34 @@ function JobDetailContent({ params }: JobDetailPageProps) {
                   <h3 className="font-medium text-gray-700">職種</h3>
                   <p className="text-lg">{job.title}</p>
                 </div>
-                <div>
-                  <h3 className="font-medium text-gray-700 flex items-center gap-2">
-                    <DollarSign className="h-4 w-4" />
-                    給与
-                  </h3>
-                  <p className="text-lg">{formatSalary(job)}</p>
+                <div className="space-y-3">
+                  {job.salaryInexperienced && (
+                    <div>
+                      <h3 className="font-medium text-gray-700 flex items-center gap-2">
+                        <DollarSign className="h-4 w-4" />
+                        給与（未経験者）
+                      </h3>
+                      <p className="text-lg">{job.salaryInexperienced}</p>
+                    </div>
+                  )}
+                  {job.salaryExperienced && (
+                    <div>
+                      <h3 className="font-medium text-gray-700 flex items-center gap-2">
+                        <DollarSign className="h-4 w-4" />
+                        給与（経験者）
+                      </h3>
+                      <p className="text-lg">{job.salaryExperienced}</p>
+                    </div>
+                  )}
+                  {!job.salaryInexperienced && !job.salaryExperienced && (
+                    <div>
+                      <h3 className="font-medium text-gray-700 flex items-center gap-2">
+                        <DollarSign className="h-4 w-4" />
+                        給与
+                      </h3>
+                      <p className="text-lg">要相談</p>
+                    </div>
+                  )}
                 </div>
               </div>
 
