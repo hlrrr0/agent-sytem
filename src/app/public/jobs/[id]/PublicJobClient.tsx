@@ -874,7 +874,7 @@ export default function PublicJobClient({ params }: PublicJobClientProps) {
 
                     {company.capital && (
                       <p className="text-sm text-gray-600">
-                        資本金: {company.capital}円
+                        資本金: {company.capital}万円
                       </p>
                     )}
                   </div>
